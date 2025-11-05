@@ -119,6 +119,16 @@ export default function Home() {
             </View>
         );
     }
+
+    const renderWorkoutsButton = () => {
+        return (
+            <View style={styles.workoutsButtonContainer}>
+            <TouchableOpacity onPress={() => router.push('/(workouts)')}>
+                <Ionicons name="list" size={32} color="#000" />
+            </TouchableOpacity>
+            </View>
+        );
+    }
     const renderHeader = () => (
         <View style={styles.headerContainer}>
             <Text style={styles.headerTitle}>Home</Text>
@@ -132,7 +142,7 @@ export default function Home() {
         <View style={[styles.container, { padding: 20, paddingTop: insets.top }]}>
             {renderHeader()}
             {renderActiveWorkout()}
-            
+            {renderWorkoutsButton()}
             {renderAddWorkoutButton()}
 
             {/* 3. Render Modal conditionally based on state */}
@@ -344,6 +354,24 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 32,
         fontWeight: 'bold',
-    }
+    },
+    workoutsButtonContainer: {
+        position: 'absolute',
+        left: 20,
+        bottom: 20,
+    },
+    workoutsButton: {
+        backgroundColor: '#1C1C1E',
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    workoutsButtonText: {
+        color: '#FFFFFF',
+        fontSize: 17,
+        fontWeight: '600',
+    },
 });
 

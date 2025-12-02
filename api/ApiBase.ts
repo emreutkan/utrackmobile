@@ -1,0 +1,7 @@
+// Use your computer's local IP for phone access (192.168.1.9)
+// Change back to 127.0.0.1 for emulator/simulator
+const LOCAL_IP = '192.168.1.9';
+export const API_URL = `http://${LOCAL_IP}:8000/api`;
+export const LOGIN_URL = `${API_URL}/user/login/`;
+export const REGISTER_URL = `${API_URL}/user/register/`;
+

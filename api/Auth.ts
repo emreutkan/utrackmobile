@@ -10,7 +10,8 @@ export const login = async (email: string, password: string): Promise<{ access: 
             await storeAccessToken(response.data.access);
             await storeRefreshToken(response.data.refresh);
             return { access: response.data.access, refresh: response.data.refresh };
-
+        } else {
+            return response.data.detail || 'An unknown error occurred while storing tokens in the secure store';
         }
     } catch (error: any) {
         if (error.response?.status === 401) {
@@ -29,6 +30,7 @@ export const register = async (email: string, password: string): Promise<{ acces
             await storeRefreshToken(response.data.refresh);
             return { access: response.data.access, refresh: response.data.refresh };
         }
+        return response.data.detail || 'An unknown error occurred while storing tokens in the secure store';
     } catch (error: any) {
         if (error.response?.status === 401) {
             return error.response?.data?.detail || 'Invalid credentials';

@@ -1,25 +1,44 @@
 import { getWorkout } from "@/api/Workout";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Button, Modal, StyleSheet, Text, View } from "react-native";
 
 export default function AddExerciseScreen() {
     const { workoutID } = useLocalSearchParams();
     const [workout, setWorkout] = useState<any>(null);
+    const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        console.log("workoutID from params:", workoutID);
+        // Trigger the modal to open immediately when the screen mounts
+        setIsVisible(true);
+
         if (workoutID) {
             getWorkout(Number(workoutID)).then((workout: any) => {
                 setWorkout(workout);
-                console.log("Workout:", workout);
             });
         }
     }, [workoutID]);
 
+    const handleClose = () => {
+        setIsVisible(false);
+        // Wait for animation to finish before going back
+        setTimeout(() => {
+            router.back();
+        }, 300); // Default close animation time
+    };
+
     return (
         <View style={styles.container}>
-            <Text style={styles.text}>Add Exercise</Text>
+            <Modal
+                visible={isVisible}
+                onRequestClose={handleClose}
+            >
+                <View style={styles.sheet}>
+                    <View style={styles.handle} />
+                    <Text style={styles.text}>Add Exercise</Text>
+                    <Button title="Close" onPress={handleClose} />
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -27,11 +46,31 @@ export default function AddExerciseScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: 'white',
+        backgroundColor: 'transparent', // Important
+    },
+    modal: {
+        justifyContent: 'flex-end',
+        margin: 0,
+    },
+    sheet: {
+        height: '90%',
+        backgroundColor: '#1C1C1E',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
         padding: 20,
+    },
+    handle: {
+        width: 40,
+        height: 5,
+        backgroundColor: 'gray',
+        borderRadius: 2.5,
+        alignSelf: 'center',
+        marginBottom: 20,
     },
     text: {
         fontSize: 20,
         fontWeight: 'bold',
+        color: 'white',
+        textAlign: 'center',
     },
 });

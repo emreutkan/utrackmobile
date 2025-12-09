@@ -1,15 +1,14 @@
 import { getActiveWorkout } from '@/api/Workout';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ActiveWorkoutScreen() {
     const insets = useSafeAreaInsets();
     const [activeWorkout, setActiveWorkout] = useState<any>(null);
     const [elapsedTime, setElapsedTime] = useState('00:00:00');
-
+    const [isModalVisible, setIsModalVisible] = useState(false);
     useEffect(() => {
         getActiveWorkout().then((workout) => {
             setActiveWorkout(workout);
@@ -48,6 +47,30 @@ export default function ActiveWorkoutScreen() {
         };
     }, [activeWorkout]);
 
+
+    const renderAddExerciseModal = () => {
+        return (
+            <Modal
+                visible={isModalVisible}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setIsModalVisible(false)}
+            >
+                <View style={styles.modalContainer}>
+                <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Select Exercise</Text>
+                        <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                            <Text style={styles.closeButton}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView style={styles.modalContent}>
+                        <Text style={styles.text}>Select an exercise to add to the workout.</Text>
+                    </ScrollView>
+                </View>
+            </Modal>
+        );
+    }
+
     if (!activeWorkout) {
         return (
             <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -57,22 +80,18 @@ export default function ActiveWorkoutScreen() {
     }
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top, marginBottom: insets.bottom - 20 }]}>
+        <View style={[styles.container, { paddingTop: insets.top, marginBottom: insets.bottom - 32 }]}>
             <View style={styles.WorkoutHeader}>
             <Text style={styles.WorkoutTitle}>{activeWorkout.title}</Text>
             <Text style={styles.WorkoutDuration}>{elapsedTime}</Text>
             </View>
             <Text style={styles.text}>{activeWorkout.notes}</Text>
             
-            <TouchableOpacity onPress={() => router.push({
-                pathname: '/(add-exercise)',
-                params: {
-                    workoutID: activeWorkout.id
-                }
-            })} 
+            <TouchableOpacity onPress={() => setIsModalVisible(true)}
             style={{...styles.addExerciseButtonContainer, bottom: insets.bottom + 20}} >
                 <Ionicons name="add" size={24} color="white" />
             </TouchableOpacity>
+            {renderAddExerciseModal()}
         </View>
     );
 }
@@ -80,6 +99,7 @@ export default function ActiveWorkoutScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        marginHorizontal: 16,
 
     },
     text: {
@@ -98,7 +118,6 @@ const styles = StyleSheet.create({
         borderLeftWidth: 1,
         borderRightWidth: 1,
         borderColor: 'gray',
-        margin: 1,
         borderRadius: 26,
     },
     WorkoutTitle: {
@@ -118,11 +137,38 @@ const styles = StyleSheet.create({
         right: 0,
         backgroundColor: 'orange',
         padding: 10,
-        marginHorizontal: 12,
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
     },
-
+    modalContainer: {
+        flex: 1,
+        backgroundColor: '#1C1C1E',
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#1C1C1E',
+        borderBottomWidth: 1,
+        borderBottomColor: '#2C2C2E',
+    },
+    modalTitle: {
+        fontSize: 17,
+        fontWeight: '600',
+        color: '#FFFFFF',
+    },
+    closeButton: {
+        fontSize: 17,
+        color: '#007AFF',
+        fontWeight: 'bold',
+    },
+    modalContent: {
+        padding: 16,
+        color: '#FFFFFF',
+    },
 });
 

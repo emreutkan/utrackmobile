@@ -111,6 +111,10 @@ export default function Home() {
         if (!activeWorkout) return null;
 
         return (
+            <>
+                        <View style={styles.contentContainer}>
+                <Text style={styles.contentTitle}>Active Workout</Text>
+            </View>
             <TouchableOpacity 
                 style={styles.activeCard} 
                 onPress={() => router.push('/(active-workout)')}
@@ -131,6 +135,8 @@ export default function Home() {
                 </Text>
                 
             </TouchableOpacity>
+            </>
+           
         );
     }
 
@@ -176,16 +182,19 @@ export default function Home() {
     }
     const renderHeader = () => (
         <View style={styles.headerContainer}>
-            <Text style={styles.headerTitle}>Home</Text>
-            <TouchableOpacity onPress={() => router.push('/(account)')}>
-                <Ionicons name="person-circle-outline" size={32} color="#000" />
+            <TouchableOpacity 
+                onPress={() => router.push('/(account)')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} // Increase touch area
+            >
+                <Ionicons name="person-circle-outline" size={42} color="#FFFFFF" />
             </TouchableOpacity>
         </View>
     );
 
     return (
-        <View style={[styles.container, { padding: 20, paddingTop: insets.top }]}>
+        <View style={[styles.container, {  paddingTop: insets.top }]}>
             {renderHeader()}
+
             {renderActiveWorkout()}
             {renderWorkoutsButton()}
             {renderSupplementsButton()}
@@ -247,6 +256,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         alignItems: 'center',
+        padding: 8,
     },
     modalOverlay: {
         flex: 1,
@@ -318,12 +328,24 @@ const styles = StyleSheet.create({
         fontSize: 17,
         fontWeight: '600',
     },
+    contentContainer: {
+        width: '100%',
+        paddingHorizontal: 4,
+        marginBottom: 8,
+        
+    },
+    contentTitle: {
+        color: '#FFFFFF',
+        fontSize: 22,
+        fontWeight: '700',
+    },
     activeCard: {
         width: '100%',
         backgroundColor: '#1C1C1E', // iOS System Gray 6 (Dark)
         borderRadius: 16,
-        padding: 16,
-        marginBottom: 24, // Push content down
+        paddingVertical: 16,
+        paddingHorizontal: 12,
+        marginVertical: 12, // Push content down
         borderWidth: 1,
         borderColor: '#2C2C2E', // Subtle border for definition
         shadowColor: "#000",
@@ -402,16 +424,14 @@ const styles = StyleSheet.create({
         borderColor: '#2C2C2E',
     },
     headerContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        paddingHorizontal: 4,
+        alignItems: 'flex-end',
         width: '100%',
-        marginBottom: 20,
+        marginBottom: -28, // <--- This negative margin!
+        zIndex: 10, // Ensure it's on top of overlapping content
+        position: 'relative', // Needed for zIndex to work reliably
     },
-    headerTitle: {
-        fontSize: 32,
-        fontWeight: 'bold',
-    },
+
         workoutsButtonContainer: {
             position: 'absolute',
             left: 20,
@@ -435,5 +455,6 @@ const styles = StyleSheet.create({
         fontSize: 17,
         fontWeight: '600',
     },
+
 });
 

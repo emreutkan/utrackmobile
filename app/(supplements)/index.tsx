@@ -1,4 +1,4 @@
-import { addUserSupplement, getSupplements, getUserSupplements, Supplement, UserSupplement } from '@/app/api/Supplements';
+import { addUserSupplement, getSupplements, getUserSupplements, Supplement, UserSupplement } from '@/api/Supplements';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { useEffect, useState } from 'react';

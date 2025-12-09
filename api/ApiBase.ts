@@ -4,5 +4,5 @@ const LOCAL_IP = '192.168.1.15';
 export const API_URL = `http://${LOCAL_IP}:8000/api`;
 export const LOGIN_URL = `${API_URL}/user/login/`;
 export const REGISTER_URL = `${API_URL}/user/register/`;
+export const GOOGLE_LOGIN_URL = `${API_URL}/auth/google/`;
 export const CREATE_WORKOUT_URL = `${API_URL}/workout/create/`;
-

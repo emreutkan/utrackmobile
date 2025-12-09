@@ -1,10 +1,14 @@
-import { register } from '@/api/Auth';
+import { googleLogin, register } from '@/api/Auth';
 import { useUserStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function RegisterScreen() {
     const [name, setName] = useState('');
@@ -17,6 +21,40 @@ export default function RegisterScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const fetchUser = useUserStore((state) => state.fetchUser);
+
+    // Google Auth Request
+    // TODO: Replace with your actual Client IDs from Google Cloud Console
+    const [request, response, promptAsync] = Google.useAuthRequest({
+        iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
+        androidClientId: 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com',
+        webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+    });
+
+    useEffect(() => {
+        if (response?.type === 'success') {
+            const { authentication } = response;
+            if (authentication?.accessToken) {
+                handleGoogleLogin(authentication.accessToken);
+            }
+        }
+    }, [response]);
+
+    const handleGoogleLogin = async (token: string) => {
+        setLoading(true);
+        try {
+            const result = await googleLogin(token);
+            if (typeof result === 'object' && result.access && result.refresh) {
+                await fetchUser();
+                router.replace('/(home)');
+            } else {
+                Alert.alert("Google Sign Up Failed", typeof result === 'string' ? result : 'An unknown error occurred');
+            }
+        } catch (e) {
+            Alert.alert("Error", "An unexpected error occurred during Google sign up.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleRegister = async () => {
         if (!name || !email || !password || !confirmPassword) {
@@ -47,7 +85,11 @@ export default function RegisterScreen() {
     };
 
     const handleSocialLogin = (provider: string) => {
-        Alert.alert(`${provider} Sign Up`, "This feature is coming soon!");
+        if (provider === 'Google') {
+            promptAsync();
+        } else {
+            Alert.alert(`${provider} Sign Up`, "This feature is coming soon!");
+        }
     };
 
     return (
@@ -154,9 +196,16 @@ export default function RegisterScreen() {
                         style={styles.socialButton} 
                         onPress={() => handleSocialLogin('Google')}
                         activeOpacity={0.8}
+                        disabled={!request}
                     >
-                        <Ionicons name="logo-google" size={24} color="#FFFFFF" />
-                        <Text style={styles.socialButtonText}>Google</Text>
+                        {loading && response?.type !== 'success' && request ? (
+                             <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                             <>
+                                <Ionicons name="logo-google" size={24} color="#FFFFFF" />
+                                <Text style={styles.socialButtonText}>Google</Text>
+                             </>
+                        )}
                     </TouchableOpacity>
                 </View>
                 

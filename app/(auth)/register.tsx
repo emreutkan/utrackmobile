@@ -23,11 +23,9 @@ export default function RegisterScreen() {
     const fetchUser = useUserStore((state) => state.fetchUser);
 
     // Google Auth Request
-    // TODO: Replace with your actual Client IDs from Google Cloud Console
     const [request, response, promptAsync] = Google.useAuthRequest({
-        iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
-        androidClientId: 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com',
-        webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+        webClientId: '344903572266-72t0uji4lhh6htisqb3kq36sslq6jf7j.apps.googleusercontent.com',
+        iosClientId: '344903572266-72t0uji4lhh6htisqb3kq36sslq6jf7j.apps.googleusercontent.com', // Using web client ID as placeholder to bypass error if running on simulator without native config
     });
 
     useEffect(() => {

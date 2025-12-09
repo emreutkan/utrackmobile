@@ -3,8 +3,8 @@ import { getAccessToken } from '@/api/Storage';
 import debug, { DebugLoginButton } from '@/state/debug';
 import { Ionicons } from '@expo/vector-icons';
 import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,11 +20,12 @@ export default function AuthScreen() {
     const insets = useSafeAreaInsets();
 
     // Google Auth Request
-    // TODO: Replace with your actual Client IDs from Google Cloud Console
     const [request, response, promptAsync] = Google.useAuthRequest({
-        iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
-        androidClientId: 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com',
-        webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+        webClientId: '344903572266-72t0uji4lhh6htisqb3kq36sslq6jf7j.apps.googleusercontent.com',
+        // You need to generate these in Google Cloud Console for the specific platform to avoid "Compliance" errors
+        iosClientId: '344903572266-314v6q9vh2qooo4hqkqp1ornn8098uh6.apps.googleusercontent.com', 
+        androidClientId: '344903572266-1kfttptioqaffsf58e5rq5uo2n9s2ho5.apps.googleusercontent.com',
+        scopes: ['profile', 'email'],
     });
 
     useEffect(() => {

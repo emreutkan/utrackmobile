@@ -1,12 +1,19 @@
+import { addExerciseToWorkout, getExercises } from '@/api/Exercises';
 import { getActiveWorkout } from '@/api/Workout';
 import WorkoutDetailView from '@/components/WorkoutDetailView';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function ActiveWorkoutScreen() {
     const [activeWorkout, setActiveWorkout] = useState<any>(null);
     const [elapsedTime, setElapsedTime] = useState('00:00:00');
     const [isModalVisible, setIsModalVisible] = useState(false);
+    
+    // Search state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [exercises, setExercises] = useState<any[]>([]);
+    const [isLoadingExercises, setIsLoadingExercises] = useState(false);
 
     useEffect(() => {
         getActiveWorkout().then((workout) => {
@@ -14,6 +21,47 @@ export default function ActiveWorkoutScreen() {
             console.log("Active Workout:", workout);
         });
     }, []);
+
+    // Load exercises when modal opens or search query changes
+    useEffect(() => {
+        if (!isModalVisible) return;
+
+        const delayDebounceFn = setTimeout(() => {
+            loadExercises();
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery, isModalVisible]);
+
+    const loadExercises = async () => {
+        setIsLoadingExercises(true);
+        try {
+            const data = await getExercises(searchQuery);
+            if (Array.isArray(data)) {
+                setExercises(data);
+            }
+        } catch (error) {
+            console.error("Failed to load exercises:", error);
+        } finally {
+            setIsLoadingExercises(false);
+        }
+    };
+
+    const handleAddExercise = async (exerciseId: number) => {
+        if (!activeWorkout?.id) return;
+        
+        try {
+            await addExerciseToWorkout(activeWorkout.id, exerciseId);
+            setIsModalVisible(false);
+            // Refresh active workout to show new exercise
+            const updatedWorkout = await getActiveWorkout();
+            setActiveWorkout(updatedWorkout);
+            setSearchQuery(''); // Reset search
+        } catch (error) {
+            console.error("Failed to add exercise:", error);
+            alert("Failed to add exercise");
+        }
+    };
 
     useEffect(() => {
         let interval: any;
@@ -55,15 +103,61 @@ export default function ActiveWorkoutScreen() {
                 onRequestClose={() => setIsModalVisible(false)}
             >
                 <View style={styles.modalContainer}>
-                <View style={styles.modalHeader}>
+                    <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Select Exercise</Text>
                         <TouchableOpacity onPress={() => setIsModalVisible(false)}>
                             <Text style={styles.closeButton}>Cancel</Text>
                         </TouchableOpacity>
                     </View>
-                    <ScrollView style={styles.modalContent}>
-                        <Text style={styles.text}>Select an exercise to add to the workout.</Text>
-                    </ScrollView>
+                    
+                    <View style={styles.searchContainer}>
+                        <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search exercises..."
+                            placeholderTextColor="#8E8E93"
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            autoCorrect={false}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <Ionicons name="close-circle" size={18} color="#8E8E93" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {isLoadingExercises ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color="#0A84FF" />
+                        </View>
+                    ) : (
+                        <FlatList
+                            data={exercises}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity 
+                                    style={styles.exerciseItem}
+                                    onPress={() => handleAddExercise(item.id)}
+                                >
+                                    <View style={styles.exerciseInfo}>
+                                        <Text style={styles.exerciseName}>{item.name}</Text>
+                                        <Text style={styles.exerciseDetail}>
+                                            {item.primary_muscle} • {item.equipment_type || 'No Equipment'}
+                                        </Text>
+                                    </View>
+                                    <Ionicons name="add-circle-outline" size={24} color="#0A84FF" />
+                                </TouchableOpacity>
+                            )}
+                            ItemSeparatorComponent={() => <View style={styles.separator} />}
+                            contentContainerStyle={styles.listContent}
+                            ListEmptyComponent={
+                                <View style={styles.emptyContainer}>
+                                    <Text style={styles.emptyText}>No exercises found</Text>
+                                </View>
+                            }
+                        />
+                    )}
                 </View>
             </Modal>
         );
@@ -114,6 +208,65 @@ const styles = StyleSheet.create({
     },
     text: {
         color: '#FFFFFF',
+        fontSize: 16,
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#1C1C1E',
+        margin: 16,
+        paddingHorizontal: 12,
+        height: 40,
+        borderRadius: 10,
+    },
+    searchIcon: {
+        marginRight: 8,
+    },
+    searchInput: {
+        flex: 1,
+        color: '#FFFFFF',
+        fontSize: 16,
+        height: '100%',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    listContent: {
+        paddingHorizontal: 16,
+        paddingBottom: 40,
+    },
+    exerciseItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+    },
+    exerciseInfo: {
+        flex: 1,
+        marginRight: 12,
+    },
+    exerciseName: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '500',
+        marginBottom: 4,
+    },
+    exerciseDetail: {
+        color: '#8E8E93',
+        fontSize: 14,
+    },
+    separator: {
+        height: 1,
+        backgroundColor: '#2C2C2E',
+    },
+    emptyContainer: {
+        padding: 32,
+        alignItems: 'center',
+    },
+    emptyText: {
+        color: '#8E8E93',
         fontSize: 16,
     }
 });

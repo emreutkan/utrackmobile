@@ -49,7 +49,8 @@ export default function AuthScreen() {
         setLoading(true);
         try {
             const result = await googleLogin(token);
-            if (typeof result === 'object' && result.access && result.refresh) {
+            // Allow login if we get an object with an access token, even if refresh is empty string
+            if (typeof result === 'object' && result.access) {
                 router.replace('/(home)');
             } else {
                 Alert.alert("Google Login Failed", typeof result === 'string' ? result : 'An unknown error occurred');

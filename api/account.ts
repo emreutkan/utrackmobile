@@ -4,7 +4,7 @@ import { getAccountResponse } from "./types";
 
 export const getAccount = async () : Promise<getAccountResponse > => {
     try {
-        const response = await apiClient.get('/user/me');
+        const response = await apiClient.get('/user/me/'); // Added trailing slash
     if (response.status === 200) {
         return response.data;
     } else {

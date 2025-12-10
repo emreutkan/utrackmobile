@@ -48,10 +48,39 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                     </View>
                 ) : null}
 
-                {/* Exercises list would go here */}
-                <View style={styles.placeholderContainer}>
-                     <Text style={styles.placeholderText}>No exercises recorded</Text>
-                </View>
+                {workout.exercises && workout.exercises.length > 0 ? (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>EXERCISES</Text>
+                        {workout.exercises.map((workoutExercise: any, index: number) => {
+                            // Handle both wrapped (from WorkoutExercise) and direct exercise objects if necessary
+                            // Assuming backend returns a list of WorkoutExercise objects which contain an 'exercise' field
+                            // OR if the serializer flattens it, checking for name directly.
+                            
+                            // Safe access: try workoutExercise.exercise first, fallback to workoutExercise itself if name exists there
+                            const exercise = workoutExercise.exercise || (workoutExercise.name ? workoutExercise : null);
+                            
+                            if (!exercise) return null;
+
+                            return (
+                                <View key={workoutExercise.id || index} style={styles.exerciseCard}>
+                                    <View style={styles.exerciseRow}>
+                                        <View style={styles.exerciseInfo}>
+                                            <Text style={styles.exerciseName}>{exercise.name}</Text>
+                                            <Text style={styles.exerciseDetails}>
+                                                {exercise.primary_muscle} {exercise.equipment_type ? `• ${exercise.equipment_type}` : ''}
+                                            </Text>
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={20} color="#2C2C2E" />
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                ) : (
+                    <View style={styles.placeholderContainer}>
+                        <Text style={styles.placeholderText}>No exercises recorded</Text>
+                    </View>
+                )}
 
             </ScrollView>
             
@@ -150,6 +179,30 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    exerciseCard: {
+        backgroundColor: '#1C1C1E',
+        borderRadius: 12,
+        marginBottom: 12,
+        padding: 16,
+    },
+    exerciseRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    exerciseInfo: {
+        flex: 1,
+    },
+    exerciseName: {
+        color: '#FFFFFF',
+        fontSize: 17,
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    exerciseDetails: {
+        color: '#8E8E93',
+        fontSize: 14,
     },
 });
 

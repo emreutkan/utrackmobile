@@ -1,9 +1,9 @@
-import { addExerciseToWorkout, getExercises } from '@/api/Exercises';
+import { addExerciseToWorkout, getExercises, removeExerciseFromWorkout } from '@/api/Exercises';
 import { getActiveWorkout } from '@/api/Workout';
 import WorkoutDetailView from '@/components/WorkoutDetailView';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function ActiveWorkoutScreen() {
     const [activeWorkout, setActiveWorkout] = useState<any>(null);
@@ -61,6 +61,33 @@ export default function ActiveWorkoutScreen() {
             console.error("Failed to add exercise:", error);
             alert("Failed to add exercise");
         }
+    };
+
+    const handleRemoveExercise = async (exerciseId: number) => {
+        if (!activeWorkout?.id) return;
+
+        Alert.alert(
+            "Remove Exercise",
+            "Are you sure you want to remove this exercise?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { 
+                    text: "Remove", 
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await removeExerciseFromWorkout(activeWorkout.id, exerciseId);
+                            // Refresh active workout
+                            const updatedWorkout = await getActiveWorkout();
+                            setActiveWorkout(updatedWorkout);
+                        } catch (error) {
+                            console.error("Failed to remove exercise:", error);
+                            alert("Failed to remove exercise");
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     useEffect(() => {
@@ -170,6 +197,7 @@ export default function ActiveWorkoutScreen() {
                 elapsedTime={elapsedTime} 
                 isActive={true} 
                 onAddExercise={() => setIsModalVisible(true)} 
+                onRemoveExercise={handleRemoveExercise}
             />
             {renderAddExerciseModal()}
         </>

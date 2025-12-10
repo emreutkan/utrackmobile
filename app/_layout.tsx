@@ -1,6 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -13,25 +14,27 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ 
-          headerShown: false,
-          contentStyle: { backgroundColor: '#1C1C1E' }
-      }}>
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(home)" />
-        <Stack.Screen name="(account)" />
-        <Stack.Screen 
-            name="(add-exercise)" 
- 
-        />
-        
-        <Stack.Screen name="(active-workout)" />
-        
-        <Stack.Screen name="(workouts)" />
-        <Stack.Screen name="(supplements)" />
-      </Stack>
-      <StatusBar style="light" />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack screenOptions={{ 
+            headerShown: false,
+            contentStyle: { backgroundColor: '#1C1C1E' }
+        }}>
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(home)" />
+          <Stack.Screen name="(account)" />
+          <Stack.Screen 
+              name="(add-exercise)" 
+  
+          />
+          
+          <Stack.Screen name="(active-workout)" />
+          
+          <Stack.Screen name="(workouts)" />
+          <Stack.Screen name="(supplements)" />
+        </Stack>
+        <StatusBar style="light" />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

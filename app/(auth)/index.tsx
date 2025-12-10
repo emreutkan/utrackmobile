@@ -1,7 +1,8 @@
-import { googleLogin, login } from '@/api/Auth';
+import { appleLogin, googleLogin, login } from '@/api/Auth';
 import { getAccessToken } from '@/api/Storage';
 import debug, { DebugLoginButton } from '@/state/debug';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Google from 'expo-auth-session/providers/google';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -83,9 +84,46 @@ export default function AuthScreen() {
         }
     };
 
+    const handleAppleLogin = async () => {
+        setLoading(true);
+        try {
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+            
+            if (credential.identityToken && credential.authorizationCode) {
+                const result = await appleLogin(
+                    credential.identityToken, 
+                    credential.authorizationCode, 
+                    credential.fullName // Pass user info (only available on first login)
+                );
+                
+                if (typeof result === 'object' && result.access) {
+                    router.replace('/(home)');
+                } else {
+                    Alert.alert("Apple Login Failed", typeof result === 'string' ? result : 'Unknown error');
+                }
+            }
+        } catch (e: any) {
+            if (e.code === 'ERR_CANCELED') {
+                // User canceled
+            } else {
+                console.error(e);
+                Alert.alert("Error", "Apple Sign In failed.");
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSocialLogin = (provider: string) => {
         if (provider === 'Google') {
             promptAsync();
+        } else if (provider === 'Apple') {
+            handleAppleLogin();
         } else {
             Alert.alert(`${provider} Login`, "This feature is coming soon!");
         }

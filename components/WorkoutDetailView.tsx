@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface WorkoutDetailViewProps {
@@ -8,10 +9,24 @@ interface WorkoutDetailViewProps {
     elapsedTime: string;
     isActive: boolean;
     onAddExercise?: () => void;
+    onRemoveExercise?: (exerciseId: number) => void;
 }
 
-export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAddExercise }: WorkoutDetailViewProps) {
+export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAddExercise, onRemoveExercise }: WorkoutDetailViewProps) {
     const insets = useSafeAreaInsets();
+
+    const renderRightActions = (progress: any, dragX: any, exerciseId: number) => {
+        if (!isActive || !onRemoveExercise) return null;
+        
+        return (
+            <TouchableOpacity 
+                style={styles.deleteAction}
+                onPress={() => onRemoveExercise(exerciseId)}
+            >
+                <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+        );
+    };
 
     if (!workout) {
         return (
@@ -62,17 +77,26 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                             if (!exercise) return null;
 
                             return (
-                                <View key={workoutExercise.id || index} style={styles.exerciseCard}>
-                                    <View style={styles.exerciseRow}>
-                                        <View style={styles.exerciseInfo}>
-                                            <Text style={styles.exerciseName}>{exercise.name}</Text>
-                                            <Text style={styles.exerciseDetails}>
-                                                {exercise.primary_muscle} {exercise.equipment_type ? `• ${exercise.equipment_type}` : ''}
-                                            </Text>
+                                <Swipeable
+                                    key={workoutExercise.id || index}
+                                    renderRightActions={(progress, dragX) => renderRightActions(progress, dragX, exercise.id)}
+                                    containerStyle={{ marginBottom: 12 }}
+                                >
+                                    <View style={[styles.exerciseCard, { marginBottom: 0 }]}>
+                                        <View style={styles.exerciseRow}>
+                                            <View style={styles.exerciseInfo}>
+                                                <Text style={styles.exerciseName}>{exercise.name}</Text>
+                                                <Text style={styles.exerciseDetails}>
+                                                    {exercise.primary_muscle} {exercise.equipment_type ? `• ${exercise.equipment_type}` : ''}
+                                                </Text>
+                                            </View>
+                                            <Ionicons name="chevron-forward" size={20} color="#2C2C2E" />
                                         </View>
-                                        <Ionicons name="chevron-forward" size={20} color="#2C2C2E" />
+                                        <View style={styles.addSetButtonContainer}>
+                                            <Ionicons name="add" size={20} color="#2C2C2E" />
+                                        </View>
                                     </View>
-                                </View>
+                                </Swipeable>
                             );
                         })}
                     </View>
@@ -203,6 +227,24 @@ const styles = StyleSheet.create({
     exerciseDetails: {
         color: '#8E8E93',
         fontSize: 14,
+    },
+    addSetButtonContainer   : {
+        backgroundColor: 'gray',
+        borderRadius: 12,
+        padding: 8,
+        margin: 0,
+        marginTop: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    deleteAction: {
+        backgroundColor: '#FF3B30',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: 80,
+        height: '100%',
+        borderRadius: 12,
+        marginLeft: 8,
     },
 });
 

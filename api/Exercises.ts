@@ -24,12 +24,14 @@ export const addExerciseToWorkout = async (workoutId: number, exerciseId: number
 
 export const removeExerciseFromWorkout = async (workoutId: number, exerciseId: number) => {
     try {
-        const response = await apiClient.post(`/exercise/remove/${workoutId}/`, {
-            exercise_id: exerciseId
-        });
-        return response.data;
+        // Warning: This endpoint expects workout_exercise_id, but here we are passing exerciseId. 
+        // If the frontend is passing the raw exercise ID (e.g. "Bench Press" ID), this will fail.
+        // It needs the ID of the row in the workout_exercises table.
+        // Assuming the UI passes the correct ID (idToLock in the UI seems to be workoutExercise.id).
+        const response = await apiClient.delete(`/workout/exercise/${exerciseId}/delete/`);
+        return response.status === 204;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return false;
     }
 }
 

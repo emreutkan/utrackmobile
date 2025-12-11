@@ -1,8 +1,41 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import ReanimatedSwipeable, { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+interface SwipeActionProps {
+    progress: any;
+    dragX: any;
+    onPress: () => void;
+    iconSize?: number;
+    style?: any;
+    iconName: keyof typeof Ionicons.glyphMap;
+    color?: string;
+}
+
+const SwipeAction = ({ progress, dragX, onPress, iconSize = 24, style, iconName, color = "#FFFFFF" }: SwipeActionProps) => {
+    const animatedStyle = useAnimatedStyle(() => {
+        const scale = interpolate(
+            progress.value,
+            [0, 1],
+            [0.5, 1],
+            Extrapolation.CLAMP
+        );
+        return {
+            transform: [{ scale }],
+        };
+    });
+
+    return (
+        <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={style}>
+            <Animated.View style={animatedStyle}>
+                <Ionicons name={iconName} size={iconSize} color={color} />
+            </Animated.View>
+        </TouchableOpacity>
+    );
+};
 
 interface WorkoutDetailViewProps {
     workout: any;
@@ -10,7 +43,7 @@ interface WorkoutDetailViewProps {
     isActive: boolean;
     onAddExercise?: () => void;
     onRemoveExercise?: (exerciseId: number) => void;
-    onAddSet?: (exerciseId: number, data: { weight: number, reps: number, reps_in_reserve?: number }) => void;
+    onAddSet?: (exerciseId: number, data: { weight: number, reps: number, reps_in_reserve?: number, is_warmup?: boolean, rest_time_before_set?: number }) => void;
     onDeleteSet?: (setId: number) => void;
 }
 
@@ -19,26 +52,99 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
     
     // 1. Add state for locked exercises
     const [lockedExerciseIds, setLockedExerciseIds] = useState<Set<number>>(new Set());
-    const [newSetInputs, setNewSetInputs] = useState<Record<number, { weight: string, reps: string, rir: string }>>({});
+    const [newSetInputs, setNewSetInputs] = useState<Record<number, { weight: string, reps: string, rir: string, isWarmup: boolean, restTime: string }>>({});
+    
+    // Swipeable refs management
+    const swipeableRefs = useRef<Map<string, SwipeableMethods>>(new Map());
+    const currentlyOpenSwipeable = useRef<string | null>(null);
 
-    const handleInputChange = (exerciseId: number, field: 'weight' | 'reps' | 'rir', value: string) => {
+    const closeCurrentSwipeable = useCallback(() => {
+        if (currentlyOpenSwipeable.current) {
+            const ref = swipeableRefs.current.get(currentlyOpenSwipeable.current);
+            ref?.close();
+            currentlyOpenSwipeable.current = null;
+        }
+    }, []);
+
+    const onSwipeableOpen = useCallback((key: string) => {
+        if (currentlyOpenSwipeable.current && currentlyOpenSwipeable.current !== key) {
+            const ref = swipeableRefs.current.get(currentlyOpenSwipeable.current);
+            ref?.close();
+        }
+        currentlyOpenSwipeable.current = key;
+    }, []);
+
+    const onSwipeableClose = useCallback((key: string) => {
+        if (currentlyOpenSwipeable.current === key) {
+            currentlyOpenSwipeable.current = null;
+        }
+    }, []);
+
+    const handleInputChange = (exerciseId: number, field: 'weight' | 'reps' | 'rir' | 'restTime', value: string) => {
         setNewSetInputs(prev => ({
             ...prev,
             [exerciseId]: {
-                ...(prev[exerciseId] || { weight: '', reps: '', rir: '' }),
+                ...(prev[exerciseId] || { weight: '', reps: '', rir: '', isWarmup: false, restTime: '' }),
                 [field]: value
             }
         }));
     };
 
+    const toggleWarmup = (exerciseId: number) => {
+        setNewSetInputs(prev => ({
+            ...prev,
+            [exerciseId]: {
+                ...(prev[exerciseId] || { weight: '', reps: '', rir: '', isWarmup: false, restTime: '' }),
+                isWarmup: !(prev[exerciseId]?.isWarmup)
+            }
+        }));
+    };
+
     const handleAddSetPress = (exerciseId: number) => {
-        const inputs = newSetInputs[exerciseId];
-        if (!inputs || !inputs.weight || !inputs.reps) return; // Basic validation
+        // Find last set for defaults
+        // Need to find the correct workoutExercise object from the workout prop
+        // The id passed here is 'idToLock' which seems to correspond to the workout_exercise.id
+        // Let's find the exercise in the workout array
+        const workoutExercise = workout.exercises.find((ex: any) => (ex.id === exerciseId));
+        const lastSet = workoutExercise?.sets?.slice(-1)[0];
         
+        const inputs = newSetInputs[exerciseId] || {};
+        
+        // Auto-fill logic: Use input if present, otherwise copy last set, otherwise empty
+        const weightStr = inputs.weight !== undefined && inputs.weight !== '' ? inputs.weight : (lastSet?.weight?.toString() ?? '');
+        const repsStr = inputs.reps !== undefined && inputs.reps !== '' ? inputs.reps : (lastSet?.reps?.toString() ?? '');
+        // Rest time logic: user said "start counting... if first set of first exercise rest 0"
+        // But also "copy fields from last set".
+        // Let's assume we copy previous rest time if user doesn't input one.
+        // Wait, rest time is usually "rest AFTER set". But the field is "rest_time_before_set"? 
+        // Based on "rest_time_before_set" in backend, it means rest taken *before* doing this set.
+        // So for set 2, it's the rest after set 1.
+        // We will just send what is in the input.
+        
+        if (!weightStr || !repsStr) return; // Basic validation
+
+        let restTimeSeconds = 0;
+        if (inputs.restTime) {
+            if (inputs.restTime.includes(':')) {
+                const parts = inputs.restTime.split(':');
+                const min = parseInt(parts[0]) || 0;
+                const sec = parseInt(parts[1]) || 0;
+                restTimeSeconds = (min * 60) + sec;
+            } else {
+                restTimeSeconds = parseInt(inputs.restTime) || 0;
+            }
+        } else if (lastSet?.rest_time_before_set) {
+             // If user didn't input, should we copy last set's rest time? 
+             // "copy the fields from the last set". Yes.
+             restTimeSeconds = lastSet.rest_time_before_set;
+        }
+
         onAddSet && onAddSet(exerciseId, {
-            weight: parseFloat(inputs.weight),
-            reps: parseFloat(inputs.reps),
-            reps_in_reserve: inputs.rir ? parseFloat(inputs.rir) : 0
+            weight: parseFloat(weightStr),
+            reps: parseFloat(repsStr),
+            reps_in_reserve: inputs.rir ? parseFloat(inputs.rir) : 0,
+            is_warmup: inputs.isWarmup ?? false,
+            rest_time_before_set: restTimeSeconds
         });
         
         // Clear inputs after add
@@ -50,6 +156,7 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
     };
     // 2. Add toggle function
     const toggleLock = (id: number) => {
+        closeCurrentSwipeable();
         const newLocked = new Set(lockedExerciseIds);
         if (newLocked.has(id)) {
             newLocked.delete(id);
@@ -58,31 +165,76 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
         }
         setLockedExerciseIds(newLocked);
     };
-    const renderExerciseRightActions = (progress: any, dragX: any, exerciseId: number) => {
-        if (!isActive || !onRemoveExercise) return null;
-        
+
+    const renderExerciseLeftActions = (progress: any, dragX: any, exerciseId: number, isLocked: boolean) => {
         return (
-            <TouchableOpacity 
-                style={styles.deleteAction}
-                onPress={() => onRemoveExercise(exerciseId)}
-            >
-                <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
+            <SwipeAction 
+                progress={progress}
+                dragX={dragX}
+                onPress={() => toggleLock(exerciseId)}
+                iconSize={24}
+                style={[styles.lockAction, { backgroundColor: isLocked ? '#FF9F0A' : '#0A84FF' }]}
+                iconName={isLocked ? "lock-open-outline" : "lock-closed"}
+            />
         );
     };
 
-    const renderSetRightActions = (progress: any, dragX: any, setId: number) => {
-        if (!isActive || !onDeleteSet) return null;
+    const renderExerciseRightActions = (progress: any, dragX: any, exerciseId: number, isLocked: boolean) => {
+        if (!isActive || !onRemoveExercise || isLocked) return null;
         
         return (
-            <TouchableOpacity 
-                style={styles.deleteSetAction}
-                onPress={() => onDeleteSet(setId)}
-            >
-                <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
+            <SwipeAction 
+                progress={progress}
+                dragX={dragX}
+                onPress={() => onRemoveExercise(exerciseId)}
+                iconSize={24}
+                style={styles.deleteAction}
+                iconName="trash-outline"
+            />
         );
     };
+
+    const renderSetRightActions = (progress: any, dragX: any, setId: number, isLocked: boolean) => {
+        if (!isActive || !onDeleteSet || isLocked) return null;
+        
+        return (
+            <SwipeAction 
+                progress={progress}
+                dragX={dragX}
+                onPress={() => onDeleteSet(setId)}
+                iconSize={20}
+                style={styles.deleteSetAction}
+                iconName="trash-outline"
+            />
+        );
+    };
+
+    useEffect(() => {
+        // Trigger hint animation for first exercise
+        // Check if refs are populated
+        if (workout?.exercises?.length > 0) {
+             const firstEx = workout.exercises[0];
+             const idToLock = firstEx.id || 0; 
+             const key = `exercise-${idToLock}`;
+             
+             const timeout = setTimeout(() => {
+                 const ref = swipeableRefs.current.get(key);
+                 if (ref) {
+                     ref.openLeft();
+                     setTimeout(() => {
+                         ref.close();
+                         setTimeout(() => {
+                             ref.openRight();
+                             setTimeout(() => {
+                                 ref.close();
+                             }, 600);
+                         }, 600);
+                     }, 600);
+                 }
+             }, 800);
+             return () => clearTimeout(timeout);
+        }
+    }, [workout]); // Add workout as dependency to re-run when loaded
 
     if (!workout) {
         return (
@@ -93,122 +245,151 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
     }
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-            <View style={styles.workoutHeader}>
-                <View>
-                    <Text style={styles.workoutTitle}>{workout.title}</Text>
-                    <Text style={styles.workoutDate}>
-                        {new Date(workout.created_at).toLocaleDateString(undefined, {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                        })}
+        <TouchableWithoutFeedback onPress={closeCurrentSwipeable}>
+            <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+                <View style={styles.workoutHeader}>
+                    <View>
+                        <Text style={styles.workoutTitle}>{workout.title}</Text>
+                        <Text style={styles.workoutDate}>
+                            {new Date(workout.created_at).toLocaleDateString(undefined, {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                            })}
+                        </Text>
+                    </View>
+                    <Text style={[styles.workoutDuration, { color: isActive ? 'orange' : '#8E8E93' }]}>
+                        {elapsedTime}
                     </Text>
                 </View>
-                <Text style={[styles.workoutDuration, { color: isActive ? 'orange' : '#8E8E93' }]}>
-                    {elapsedTime}
-                </Text>
-            </View>
 
-            <ScrollView style={styles.content}>
-                {workout.notes ? (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>NOTES</Text>
-                        <Text style={styles.notesText}>{workout.notes}</Text>
-                    </View>
-                ) : null}
+                <ScrollView style={styles.content} onScrollBeginDrag={closeCurrentSwipeable}>
+                    {workout.notes ? (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>NOTES</Text>
+                            <Text style={styles.notesText}>{workout.notes}</Text>
+                        </View>
+                    ) : null}
 
-                {workout.exercises && workout.exercises.length > 0 ? (
-                    <View style={styles.section}>
-                        {workout.exercises.map((workoutExercise: any, index: number) => {
-                            // Handle both wrapped (from WorkoutExercise) and direct exercise objects if necessary
-                            // Assuming backend returns a list of WorkoutExercise objects which contain an 'exercise' field
-                            // OR if the serializer flattens it, checking for name directly.
-                            
-                            // Safe access: try workoutExercise.exercise first, fallback to workoutExercise itself if name exists there
-                            const exercise = workoutExercise.exercise || (workoutExercise.name ? workoutExercise : null);
-                            
-                            if (!exercise) return null;
+                    {workout.exercises && workout.exercises.length > 0 ? (
+                        <View style={styles.section}>
+                            {workout.exercises.map((workoutExercise: any, index: number) => {
+                                // Handle both wrapped (from WorkoutExercise) and direct exercise objects if necessary
+                                // Assuming backend returns a list of WorkoutExercise objects which contain an 'exercise' field
+                                // OR if the serializer flattens it, checking for name directly.
+                                
+                                // Safe access: try workoutExercise.exercise first, fallback to workoutExercise itself if name exists there
+                                const exercise = workoutExercise.exercise || (workoutExercise.name ? workoutExercise : null);
+                                
+                                if (!exercise) return null;
 
-                            // 3. Check if this specific exercise is locked
-                            // Use workoutExercise.id (the join table ID) if available to be unique per instance
-                            const idToLock = workoutExercise.id || index;
-                            const isLocked = lockedExerciseIds.has(idToLock);
+                                // 3. Check if this specific exercise is locked
+                                // Use workoutExercise.id (the join table ID) if available to be unique per instance
+                                const idToLock = workoutExercise.id || index;
+                                const isLocked = lockedExerciseIds.has(idToLock);
+                                const exerciseKey = `exercise-${idToLock}`;
 
-                            return (
-                                <ReanimatedSwipeable
-                                    key={idToLock}
-                                    renderRightActions={(progress, dragX) => renderExerciseRightActions(progress, dragX, idToLock)}
-                                    containerStyle={{ marginBottom: 12 }}
-                                    enabled={!isLocked} // Optional: Disable swipe delete if locked?
-                                >
-                                    <View style={[styles.exerciseCard, { marginBottom: 0 }]}>
-                                        <View style={styles.exerciseRow}>
-                                            <View style={styles.exerciseInfo}>
-                                                <Text style={styles.exerciseName}>{exercise.name}</Text>
-                                                <Text style={styles.exerciseDetails}>
-                                                    {exercise.primary_muscle} {exercise.equipment_type ? `• ${exercise.equipment_type}` : ''}
-                                                </Text>
-                                            </View>
-                                            
-                                            {/* 4. Lock Toggle Button */}
-                                            <TouchableOpacity 
-                                                onPress={() => toggleLock(idToLock)}
-                                                style={{ padding: 8 }}
-                                            >
-                                                <Ionicons 
-                                                    name={isLocked ? "lock-closed" : "lock-open-outline"} 
-                                                    size={22} 
-                                                    color={isLocked ? "#FF3B30" : "#8E8E93"} 
-                                                />
-                                            </TouchableOpacity>
-                                        </View>
-
-                                        {/* Sets List */}
-                                        {workoutExercise.sets && workoutExercise.sets.length > 0 && (
-                                            <View style={styles.setsContainer}>
-                                                <View style={styles.setsHeader}>
-                                                    <Text style={[styles.setHeaderText, { width: 30 }]}>Set</Text>
-                                                    <Text style={[styles.setHeaderText, { flex: 1, textAlign: 'center' }]}>kg</Text>
-                                                    <Text style={[styles.setHeaderText, { flex: 1, textAlign: 'center' }]}>Reps</Text>
-                                                    <Text style={[styles.setHeaderText, { width: 40, textAlign: 'right' }]}>RPE</Text>
+                                return (
+                                    <ReanimatedSwipeable
+                                        key={idToLock}
+                                        ref={(ref) => {
+                                            if (ref) {
+                                                swipeableRefs.current.set(exerciseKey, ref);
+                                            } else {
+                                                swipeableRefs.current.delete(exerciseKey);
+                                            }
+                                        }}
+                                        onSwipeableWillOpen={() => onSwipeableOpen(exerciseKey)}
+                                        onSwipeableWillClose={() => onSwipeableClose(exerciseKey)}
+                                        renderLeftActions={(progress, dragX) => renderExerciseLeftActions(progress, dragX, idToLock, isLocked)}
+                                        renderRightActions={(progress, dragX) => renderExerciseRightActions(progress, dragX, idToLock, isLocked)}
+                                        containerStyle={{ marginBottom: 12 }}
+                                    >
+                                        <View style={[styles.exerciseCard, { marginBottom: 0 }]}>
+                                            <View style={styles.exerciseRow}>
+                                                <View style={styles.exerciseInfo}>
+                                                    <Text style={styles.exerciseName}>
+                                                        {exercise.name} {isLocked && <Ionicons name="lock-closed" size={14} color="#8E8E93" />}
+                                                    </Text>
+                                                    <Text style={styles.exerciseDetails}>
+                                                        {exercise.primary_muscle} {exercise.equipment_type ? `• ${exercise.equipment_type}` : ''}
+                                                    </Text>
                                                 </View>
-                                                {workoutExercise.sets.map((set: any, setIndex: number) => (
-                                                    <ReanimatedSwipeable
-                                                        key={set.id || setIndex}
-                                                        renderRightActions={(progress, dragX) => renderSetRightActions(progress, dragX, set.id)}
-                                                        containerStyle={{ marginBottom: 0 }}
-                                                        enabled={!isLocked}
-                                                    >
-                                                        <View style={styles.setRow}>
-                                                            <Text style={[styles.setText, { width: 30, color: '#8E8E93' }]}>{setIndex + 1}</Text>
-                                                            <Text style={[styles.setText, { flex: 1, textAlign: 'center' }]}>{set.weight}</Text>
-                                                            <Text style={[styles.setText, { flex: 1, textAlign: 'center' }]}>{set.reps}</Text>
-                                                            <Text style={[styles.setText, { width: 40, textAlign: 'right' }]}>{set.reps_in_reserve ?? '-'}</Text>
-                                                        </View>
-                                                    </ReanimatedSwipeable>
-                                                ))}
-                                                
+                                            </View>
+
+                                            {/* Sets List */}
+                                            {workoutExercise.sets && workoutExercise.sets.length > 0 && (
+                                                <View style={styles.setsContainer}>
+                                                    <View style={styles.setsHeader}>
+                                                        <Text style={[styles.setHeaderText, { width: 30 }]}>Set</Text>
+                                                        <Text style={[styles.setHeaderText, { flex: 1, textAlign: 'center' }]}>kg</Text>
+                                                        <Text style={[styles.setHeaderText, { flex: 1, textAlign: 'center' }]}>Reps</Text>
+                                                        <Text style={[styles.setHeaderText, { width: 40, textAlign: 'right' }]}>RPE</Text>
+                                                    </View>
+                                                    {workoutExercise.sets.map((set: any, setIndex: number) => {
+                                                        const setKey = `set-${set.id || setIndex}`;
+                                                        return (
+                                                            <ReanimatedSwipeable
+                                                                key={set.id || setIndex}
+                                                                ref={(ref) => {
+                                                                    if (ref) {
+                                                                        swipeableRefs.current.set(setKey, ref);
+                                                                    } else {
+                                                                        swipeableRefs.current.delete(setKey);
+                                                                    }
+                                                                }}
+                                                                onSwipeableWillOpen={() => onSwipeableOpen(setKey)}
+                                                                onSwipeableWillClose={() => onSwipeableClose(setKey)}
+                                                                renderRightActions={(progress, dragX) => renderSetRightActions(progress, dragX, set.id, isLocked)}
+                                                                containerStyle={{ marginBottom: 0 }}
+                                                                enabled={!isLocked}
+                                                            >
+                                                                <View style={styles.setRow}>
+                                                                    <Text style={[styles.setText, { width: 30, color: '#8E8E93' }]}>{setIndex + 1}</Text>
+                                                                    <Text style={[styles.setText, { flex: 1, textAlign: 'center' }]}>{set.weight}</Text>
+                                                                    <Text style={[styles.setText, { flex: 1, textAlign: 'center' }]}>{set.reps}</Text>
+                                                                    <Text style={[styles.setText, { width: 40, textAlign: 'right' }]}>{set.reps_in_reserve ?? '-'}</Text>
+                                                                </View>
+                                                            </ReanimatedSwipeable>
+                                                        );
+                                                    })}
+                                                    
                                                 {/* New Set Input Row */}
                                                 {!isLocked && (
                                                     <View style={styles.setRow}>
-                                                        <Text style={[styles.setText, { width: 30, color: '#8E8E93' }]}>+</Text>
+                                                        <TouchableOpacity 
+                                                            onPress={() => toggleWarmup(idToLock)}
+                                                            style={{ width: 30, alignItems: 'center' }}
+                                                        >
+                                                            <Text style={[
+                                                                styles.setText, 
+                                                                { 
+                                                                    color: newSetInputs[idToLock]?.isWarmup ? '#FF9F0A' : '#8E8E93',
+                                                                    fontWeight: newSetInputs[idToLock]?.isWarmup ? 'bold' : 'normal'
+                                                                }
+                                                            ]}>
+                                                                {newSetInputs[idToLock]?.isWarmup ? 'W' : (workoutExercise.sets.length + 1)}
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                        
                                                         <TextInput
                                                             style={[styles.setInput, { flex: 1, textAlign: 'center' }]}
-                                                            value={newSetInputs[idToLock]?.weight || ''}
+                                                            value={newSetInputs[idToLock]?.weight !== undefined ? newSetInputs[idToLock]?.weight : (workoutExercise.sets.slice(-1)[0]?.weight?.toString() ?? '')}
                                                             onChangeText={(val) => handleInputChange(idToLock, 'weight', val)}
                                                             keyboardType="numeric"
-                                                            placeholder="kg"
-                                                            placeholderTextColor="#2C2C2E"
+                                                            placeholder={workoutExercise.sets.slice(-1)[0]?.weight?.toString() || "kg"}
+                                                            placeholderTextColor="#555"
+                                                            onFocus={closeCurrentSwipeable}
                                                         />
                                                         <TextInput
                                                             style={[styles.setInput, { flex: 1, textAlign: 'center' }]}
-                                                            value={newSetInputs[idToLock]?.reps || ''}
+                                                            value={newSetInputs[idToLock]?.reps !== undefined ? newSetInputs[idToLock]?.reps : (workoutExercise.sets.slice(-1)[0]?.reps?.toString() ?? '')}
                                                             onChangeText={(val) => handleInputChange(idToLock, 'reps', val)}
                                                             keyboardType="numeric"
-                                                            placeholder="reps"
-                                                            placeholderTextColor="#2C2C2E"
+                                                            placeholder={workoutExercise.sets.slice(-1)[0]?.reps?.toString() || "reps"}
+                                                            placeholderTextColor="#555"
+                                                            onFocus={closeCurrentSwipeable}
                                                         />
                                                         <TextInput
                                                             style={[styles.setInput, { width: 40, textAlign: 'right' }]}
@@ -216,52 +397,66 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                                                             onChangeText={(val) => handleInputChange(idToLock, 'rir', val)}
                                                             keyboardType="numeric"
                                                             placeholder="RIR"
-                                                            placeholderTextColor="#2C2C2E"
+                                                            placeholderTextColor="#555"
+                                                            onFocus={closeCurrentSwipeable}
+                                                        />
+                                                        <TextInput
+                                                            style={[styles.setInput, { width: 50, textAlign: 'right', fontSize: 14 }]}
+                                                            value={newSetInputs[idToLock]?.restTime || ''}
+                                                            onChangeText={(val) => handleInputChange(idToLock, 'restTime', val)}
+                                                            keyboardType="numbers-and-punctuation"
+                                                            placeholder="Rest"
+                                                            placeholderTextColor="#555"
+                                                            onFocus={closeCurrentSwipeable}
                                                         />
                                                     </View>
                                                 )}
-                                            </View>
-                                        )}
+                                                </View>
+                                            )}
 
-                                        {/* 5. Conditionally show Add Set button */}
-                                        {!isLocked && (
-                                            <TouchableOpacity 
-                                                style={[
-                                                    styles.addSetButtonContainer,
-                                                    (!newSetInputs[idToLock]?.weight || !newSetInputs[idToLock]?.reps) && { opacity: 0.5 }
-                                                ]}
-                                                onPress={() => handleAddSetPress(idToLock)}
-                                                disabled={!newSetInputs[idToLock]?.weight || !newSetInputs[idToLock]?.reps}
-                                            >
-                                                <Ionicons name="add" size={20} color="#2C2C2E" />
-                                            </TouchableOpacity>
-                                        )}
-                                        
-                        
-                                    </View>
-                                </ReanimatedSwipeable>
-                            );
-                        })}
-                    </View>
-                ) : (
-                    <View style={styles.placeholderContainer}>
-                        <Text style={styles.placeholderText}>No exercises recorded</Text>
+                                            {/* 5. Conditionally show Add Set button */}
+                                            {!isLocked && (
+                                                <TouchableOpacity 
+                                                    style={[
+                                                        styles.addSetButtonContainer,
+                                                        (!newSetInputs[idToLock]?.weight || !newSetInputs[idToLock]?.reps) && { opacity: 0.5 }
+                                                    ]}
+                                                    onPress={() => handleAddSetPress(idToLock)}
+                                                    disabled={!newSetInputs[idToLock]?.weight || !newSetInputs[idToLock]?.reps}
+                                                >
+                                                    <Ionicons name="add" size={20} color="#2C2C2E" />
+                                                </TouchableOpacity>
+                                            )}
+                                            
+                            
+                                        </View>
+                                    </ReanimatedSwipeable>
+                                );
+                            })}
+                        </View>
+                    ) : (
+                        <View style={styles.placeholderContainer}>
+                            <Text style={styles.placeholderText}>No exercises recorded</Text>
+                        </View>
+                    )}
+
+                </ScrollView>
+                
+                {isActive && onAddExercise && (
+                    <View style={styles.fabContainer}>
+                        <TouchableOpacity 
+                            onPress={() => {
+                                closeCurrentSwipeable();
+                                onAddExercise();
+                            }}
+                            style={styles.fabButton} 
+                        >
+                            <Ionicons name="add" size={32} color="white" />
+                        </TouchableOpacity>
                     </View>
                 )}
-
-            </ScrollView>
-            
-            {isActive && onAddExercise && (
-                <View style={styles.fabContainer}>
-                    <TouchableOpacity 
-                        onPress={onAddExercise}
-                        style={styles.fabButton} 
-                    >
-                        <Ionicons name="add" size={32} color="white" />
-                    </TouchableOpacity>
-                </View>
-            )}
-        </View>
+            </View>
+        </TouchableWithoutFeedback>
     );
 }
 
@@ -435,6 +630,15 @@ const styles = StyleSheet.create({
         width: 60,
         height: '100%',
         borderRadius: 0, // Should be flush
+    },
+    lockAction: {
+        backgroundColor: '#0A84FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: 80,
+        height: '100%',
+        borderRadius: 12,
+        marginRight: 8,
     },
 });
 

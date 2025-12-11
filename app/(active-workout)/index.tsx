@@ -1,4 +1,4 @@
-import { addExerciseToWorkout, getExercises, removeExerciseFromWorkout } from '@/api/Exercises';
+import { addExerciseToWorkout, addSetToExercise, getExercises, removeExerciseFromWorkout } from '@/api/Exercises';
 import { getActiveWorkout } from '@/api/Workout';
 import WorkoutDetailView from '@/components/WorkoutDetailView';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,6 +60,18 @@ export default function ActiveWorkoutScreen() {
         } catch (error) {
             console.error("Failed to add exercise:", error);
             alert("Failed to add exercise");
+        }
+    };
+
+    const handleAddSet = async (workoutExerciseId: number, setData: any) => {
+        try {
+            await addSetToExercise(workoutExerciseId, setData);
+            // Refresh workout
+            const updatedWorkout = await getActiveWorkout();
+            setActiveWorkout(updatedWorkout);
+        } catch (error) {
+            console.error("Failed to add set:", error);
+            Alert.alert("Error", "Failed to add set");
         }
     };
 
@@ -198,6 +210,7 @@ export default function ActiveWorkoutScreen() {
                 isActive={true} 
                 onAddExercise={() => setIsModalVisible(true)} 
                 onRemoveExercise={handleRemoveExercise}
+                onAddSet={handleAddSet}
             />
             {renderAddExerciseModal()}
         </>

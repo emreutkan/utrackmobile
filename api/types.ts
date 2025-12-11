@@ -36,10 +36,19 @@ export interface Exercise {
     difficulty_level?: string;
 }
 
+export interface WorkoutSet {
+    id: number;
+    reps: number;
+    weight: number;
+    rest_time_before_set?: number;
+    is_warmup: boolean;
+    reps_in_reserve?: number;
+}
+
 export interface WorkoutExercise {
     id: number;
     exercise: Exercise;
-    // Add other fields like sets, reps, weight if your backend provides them
+    sets: WorkoutSet[];
 }
 
 export interface Workout {

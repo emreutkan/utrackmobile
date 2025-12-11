@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ExerciseCard from './ExerciseCard';
 
 interface WorkoutDetailViewProps {
     workout: any;
@@ -10,23 +10,11 @@ interface WorkoutDetailViewProps {
     isActive: boolean;
     onAddExercise?: () => void;
     onRemoveExercise?: (exerciseId: number) => void;
+    onAddSet?: (workoutExerciseId: number, data: any) => Promise<void>;
 }
 
-export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAddExercise, onRemoveExercise }: WorkoutDetailViewProps) {
+export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAddExercise, onRemoveExercise, onAddSet }: WorkoutDetailViewProps) {
     const insets = useSafeAreaInsets();
-
-    const renderRightActions = (progress: any, dragX: any, exerciseId: number) => {
-        if (!isActive || !onRemoveExercise) return null;
-        
-        return (
-            <TouchableOpacity 
-                style={styles.deleteAction}
-                onPress={() => onRemoveExercise(exerciseId)}
-            >
-                <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-        );
-    };
 
     if (!workout) {
         return (
@@ -66,39 +54,17 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                 {workout.exercises && workout.exercises.length > 0 ? (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>EXERCISES</Text>
-                        {workout.exercises.map((workoutExercise: any, index: number) => {
-                            // Handle both wrapped (from WorkoutExercise) and direct exercise objects if necessary
-                            // Assuming backend returns a list of WorkoutExercise objects which contain an 'exercise' field
-                            // OR if the serializer flattens it, checking for name directly.
-                            
-                            // Safe access: try workoutExercise.exercise first, fallback to workoutExercise itself if name exists there
-                            const exercise = workoutExercise.exercise || (workoutExercise.name ? workoutExercise : null);
-                            
-                            if (!exercise) return null;
-
-                            return (
-                                <Swipeable
-                                    key={workoutExercise.id || index}
-                                    renderRightActions={(progress, dragX) => renderRightActions(progress, dragX, exercise.id)}
-                                    containerStyle={{ marginBottom: 12 }}
-                                >
-                                    <View style={[styles.exerciseCard, { marginBottom: 0 }]}>
-                                        <View style={styles.exerciseRow}>
-                                            <View style={styles.exerciseInfo}>
-                                                <Text style={styles.exerciseName}>{exercise.name}</Text>
-                                                <Text style={styles.exerciseDetails}>
-                                                    {exercise.primary_muscle} {exercise.equipment_type ? `• ${exercise.equipment_type}` : ''}
-                                                </Text>
-                                            </View>
-                                            <Ionicons name="chevron-forward" size={20} color="#2C2C2E" />
-                                        </View>
-                                        <View style={styles.addSetButtonContainer}>
-                                            <Ionicons name="add" size={20} color="#2C2C2E" />
-                                        </View>
-                                    </View>
-                                </Swipeable>
-                            );
-                        })}
+                        {workout.exercises.map((workoutExercise: any, index: number) => (
+                            <ExerciseCard
+                                key={workoutExercise.id || index}
+                                workoutExercise={workoutExercise}
+                                index={index}
+                                onRemove={(id) => onRemoveExercise && onRemoveExercise(id)}
+                                onAddSet={async (id, data) => {
+                                    if (onAddSet) await onAddSet(id, data);
+                                }}
+                            />
+                        ))}
                     </View>
                 ) : (
                     <View style={styles.placeholderContainer}>

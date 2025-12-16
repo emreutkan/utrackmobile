@@ -165,7 +165,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, onFocus }: any) =>
              onPress={handleAdd}
              disabled={!inputs.weight || !inputs.reps}
          >
-             <Ionicons name="add" size={24} color="#FFFFFF" />
+             <Text style={styles.addSetButtonText}>Add Set</Text>
          </TouchableOpacity></>
     );
 };
@@ -518,11 +518,18 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     addSetButton: {
+        marginTop: 12,
         backgroundColor: '#0A84FF',
-        borderRadius: 12,
-        padding: 8,
+        borderRadius: 8,
+        paddingVertical: 10,
         alignItems: 'center',
         justifyContent: 'center',
+        flexDirection: 'row',
+    },
+    addSetButtonText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '600',
     },
     deleteAction: {
         backgroundColor: '#FF3B30',

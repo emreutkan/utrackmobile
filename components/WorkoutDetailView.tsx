@@ -278,7 +278,12 @@ interface WorkoutDetailViewProps {
 export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAddExercise, onRemoveExercise, onAddSet, onDeleteSet }: WorkoutDetailViewProps) {
     const insets = useSafeAreaInsets();
     const [lockedExerciseIds, setLockedExerciseIds] = useState<Set<number>>(new Set());
-    
+    const [exercises, setExercises] = useState(workout?.exercises || []);
+    useEffect(() => {
+        if (workout?.exercises) {
+            setExercises(workout.exercises);
+        }
+    }, [workout]);
     // Swipe Logic
     const swipeableRefs = useRef<Map<string, SwipeableMethods>>(new Map());
     const currentlyOpenSwipeable = useRef<string | null>(null);
@@ -355,7 +360,7 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                         <View style={styles.section}>
                             {workout.exercises.map((workoutExercise: any, index: number) => (
                                 <ExerciseCard
-                                    key={workoutExercise.id || index}
+                                    key={workoutExercise.order || index}
                                     workoutExercise={workoutExercise}
                                     isLocked={lockedExerciseIds.has(workoutExercise.id || index)}
                                     onToggleLock={toggleLock}

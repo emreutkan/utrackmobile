@@ -1,4 +1,5 @@
 import { updateExerciseOrder } from '@/api/Exercises';
+import { useActiveWorkoutStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
@@ -35,10 +36,46 @@ const SwipeAction = ({ progress, dragX, onPress, iconSize = 24, style, iconName,
 
 // --- Sub-Components ---
 
-const RestTimerBar = ({ lastSetTimestamp }: { lastSetTimestamp: number | null }) => {
+// Helper to determine traffic light status based on exercise type and elapsed time
+const getRestStatus = (elapsed: number, category: string) => {
+    // Default to isolation if not specified
+    const isCompound = category?.toLowerCase() === 'compound';
+    
+    // Thresholds in seconds
+    const phase1Limit = isCompound ? 90 : 60;  // Red light limit
+    const phase2Limit = isCompound ? 180 : 90; // Yellow light limit
+
+    if (elapsed < phase1Limit) {
+        return {
+            text: "Rest",
+            color: '#FF3B30', // Red
+            subText: "Catch your breath.",
+            goal: phase1Limit,
+            maxGoal: phase2Limit
+        };
+    } else if (elapsed < phase2Limit) {
+        return {
+            text: "Recharging...",
+            color: '#FF9F0A', // Yellow/Orange
+            subText: "Wait a little longer for full benefits.",
+            goal: phase2Limit,
+            maxGoal: phase2Limit
+        };
+    } else {
+        return {
+            text: "Ready to Go!",
+            color: '#34C759', // Green
+            subText: "You are at 100% power.",
+            goal: phase2Limit,
+            maxGoal: phase2Limit
+        };
+    }
+};
+
+const RestTimerBar = ({ lastSetTimestamp, category }: { lastSetTimestamp: number | null, category?: string }) => {
     const [progress, setProgress] = useState(0);
     const [timerText, setTimerText] = useState('');
-    const [barColor, setBarColor] = useState('#FF3B30');
+    const [status, setStatus] = useState({ text: 'Rest', color: '#FF3B30', goal: 90, maxGoal: 180 });
 
     useEffect(() => {
         if (!lastSetTimestamp) {
@@ -51,44 +88,41 @@ const RestTimerBar = ({ lastSetTimestamp }: { lastSetTimestamp: number | null })
             const now = Date.now();
             const elapsed = Math.floor((now - lastSetTimestamp) / 1000);
             
-            // Progress bar calc (0 to 3 mins = 0% to 100%)
-            // 3 mins = 180 seconds
-            const p = Math.min(elapsed / 180, 1);
+            // Get current status to determine goals
+            const currentStatus = getRestStatus(elapsed, category || 'isolation');
+            setStatus(currentStatus);
+
+            // Progress bar calc - relative to current goal
+            const p = Math.min(elapsed / currentStatus.maxGoal, 1);
             setProgress(p);
 
             // Timer text
             const m = Math.floor(elapsed / 60);
             const s = elapsed % 60;
             setTimerText(`${m}:${s.toString().padStart(2, '0')}`);
-
-            // Color interpolation
-            if (p >= 1) {
-                setBarColor('#34C759'); // Green
-            } else {
-                const start = [255, 59, 48]; // Red
-                const end = [52, 199, 89];   // Green
-                const r = Math.round(start[0] + (end[0] - start[0]) * p);
-                const g = Math.round(start[1] + (end[1] - start[1]) * p);
-                const b = Math.round(start[2] + (end[2] - start[2]) * p);
-                setBarColor(`rgb(${r}, ${g}, ${b})`);
-            }
         };
 
         update();
         const interval = setInterval(update, 1000);
         return () => clearInterval(interval);
-    }, [lastSetTimestamp]);
+    }, [lastSetTimestamp, category]);
 
     if (!lastSetTimestamp) return null;
+
+    const formatGoal = (seconds: number) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    };
 
     return (
         <View style={styles.restTimerContainer}>
             <View style={styles.restTimerBarBg}>
-                <View style={[styles.restTimerBarFill, { width: `${progress * 100}%`, backgroundColor: barColor }]} />
+                <View style={[styles.restTimerBarFill, { width: `${progress * 100}%`, backgroundColor: status.color }]} />
             </View>
             <View style={styles.restTimerInfo}>
-                <Text style={styles.restTimerLabel}>Rest</Text>
-                <Text style={styles.restTimerValue}>{timerText} / 3:00</Text>
+                <Text style={[styles.restTimerLabel, { color: status.color }]}>{status.text}</Text>
+                <Text style={styles.restTimerValue}>{timerText} / {formatGoal(status.goal)}</Text>
             </View>
         </View>
     );
@@ -355,7 +389,14 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
     const insets = useSafeAreaInsets();
     const [lockedExerciseIds, setLockedExerciseIds] = useState<Set<number>>(new Set());
     const [exercises, setExercises] = useState(workout?.exercises || []);
-    const [lastSetTimestamp, setLastSetTimestamp] = useState<number | null>(null);
+    
+    // Use global store for rest timer state
+    const { 
+        lastSetTimestamp, 
+        lastExerciseCategory, 
+        setLastSetTimestamp, 
+        setLastExerciseCategory 
+    } = useActiveWorkoutStore();
 
     useEffect(() => {
         if (workout?.exercises) {
@@ -376,6 +417,11 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
         onAddSet?.(exerciseId, finalData);
         // Reset global timer
         setLastSetTimestamp(now);
+        
+        // Update category for the new timer
+        const currentExercise = exercises.find((e: any) => e.id === exerciseId);
+        const category = currentExercise?.exercise?.category || currentExercise?.category || 'isolation';
+        setLastExerciseCategory(category);
     };
     // Swipe Logic
     const swipeableRefs = useRef<Map<string, SwipeableMethods>>(new Map());
@@ -464,7 +510,7 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                     </Text>
                 </View>
                 
-                <RestTimerBar lastSetTimestamp={lastSetTimestamp} />
+                <RestTimerBar lastSetTimestamp={lastSetTimestamp} category={lastExerciseCategory} />
 
 
                             <View                 style={styles.content}

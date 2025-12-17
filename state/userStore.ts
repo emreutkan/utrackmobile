@@ -52,3 +52,17 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
     },
     clearWorkouts: () => set({ workouts: [] }),
 }));
+
+interface ActiveWorkoutState {
+    lastSetTimestamp: number | null;
+    lastExerciseCategory: string;
+    setLastSetTimestamp: (timestamp: number | null) => void;
+    setLastExerciseCategory: (category: string) => void;
+}
+
+export const useActiveWorkoutStore = create<ActiveWorkoutState>((set) => ({
+    lastSetTimestamp: null,
+    lastExerciseCategory: 'isolation',
+    setLastSetTimestamp: (timestamp) => set({ lastSetTimestamp: timestamp }),
+    setLastExerciseCategory: (category) => set({ lastExerciseCategory: category }),
+}));

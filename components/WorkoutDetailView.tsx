@@ -247,7 +247,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, onFocus }: any) =>
                 onChangeText={t => setInputs(p => ({ ...p, weight: t }))}
                 keyboardType="numeric"
                 placeholder={lastSet?.weight?.toString() || "kg"}
-                placeholderTextColor="#555"
+                placeholderTextColor="#8E8E93"
                 onFocus={onFocus}
             />
             <TextInput
@@ -256,7 +256,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, onFocus }: any) =>
                 onChangeText={t => setInputs(p => ({ ...p, reps: t }))}
                 keyboardType="numeric"
                 placeholder={lastSet?.reps?.toString() || "reps"}
-                placeholderTextColor="#555"
+                placeholderTextColor="#8E8E93"
                 onFocus={onFocus}
             />
             <TextInput
@@ -265,7 +265,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, onFocus }: any) =>
                 onChangeText={t => setInputs(p => ({ ...p, rir: t }))}
                 keyboardType="numeric"
                 placeholder="RIR"
-                placeholderTextColor="#555"
+                placeholderTextColor="#8E8E93"
                 onFocus={onFocus}
             />
             <TextInput
@@ -274,7 +274,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, onFocus }: any) =>
                 onChangeText={t => setInputs(p => ({ ...p, restTime: t }))}
                 keyboardType="numbers-and-punctuation"
                 placeholder="Rest"
-                placeholderTextColor="#555"
+                placeholderTextColor="#8E8E93"
                 onFocus={onFocus}
             />
             
@@ -289,7 +289,6 @@ const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, onFocus }: any) =>
                >
                    <Text style={styles.addSetButtonText}>Add Set</Text>
                </TouchableOpacity>
-               
         )}
 
     
@@ -347,9 +346,31 @@ const ExerciseCard = ({ workoutExercise, isLocked, onToggleLock, onRemove, onAdd
                         <Text style={styles.exerciseName}>
                             {exercise.name} {isLocked && <Ionicons name="lock-closed" size={14} color="#8E8E93" />}
                         </Text>
-                        <Text style={styles.exerciseDetails}>
-                            {exercise.primary_muscle} {exercise.equipment_type ? `• ${exercise.equipment_type}` : ''}
-                        </Text>
+                        <View style={styles.exerciseInfoRow}>
+                            <View style={styles.exerciseMusclesContainer}>
+                                {exercise.primary_muscle && (
+                                    <View style={[styles.exerciseTag, styles.primaryMuscleTag]}>
+                                        <Text style={styles.exerciseTagText}>{exercise.primary_muscle}</Text>
+                                    </View>
+                                )}
+                                {exercise.secondary_muscles && (
+                                    Array.isArray(exercise.secondary_muscles) 
+                                        ? exercise.secondary_muscles.map((muscle: string, idx: number) => (
+                                            <View key={idx} style={styles.exerciseTag}>
+                                                <Text style={styles.secondaryMuscleTagText}>{muscle}</Text>
+                                            </View>
+                                          ))
+                                        : <View style={styles.exerciseTag}>
+                                            <Text style={styles.secondaryMuscleTagText}>{exercise.secondary_muscles}</Text>
+                                          </View>
+                                )}
+                            </View>
+                            {exercise.equipment_type && (
+                                <View style={styles.exerciseTag}>
+                                    <Text style={styles.exerciseTagText}>{exercise.equipment_type}</Text>
+                                </View>
+                            )}
+                        </View>
                     </View>
                 </View>
 
@@ -544,10 +565,14 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                 >
                     <View style={styles.workoutHeader}>
                         <View>
-                            <Text style={styles.workoutTitle}>{workout.title}</Text>
+                            <Text style={styles.workoutTitle}>
+                                {workout.title.split(' ').map(word => 
+                                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                                ).join(' ')}
+                            </Text>
                             <Text style={styles.workoutDate}>
                                 {new Date(workout.created_at).toLocaleDateString(undefined, {
-                                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                                    weekday: 'long', year: 'numeric', month: 'short', day: 'numeric'
                                 })}
                             </Text>
                         </View>
@@ -562,7 +587,7 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                         <DraggableFlatList
                             ref={flatListRef}
                             data={exercises}
-                            contentContainerStyle={{ paddingBottom: hasSets && isActive ? 180 : 120 }} // Extra padding when finish button is shown
+                            contentContainerStyle={{ paddingBottom: hasSets && isActive ? 200 : 120 }} // Extra padding when finish button is shown
                             onDragEnd={async ({ data }: { data: any }) => {
                                 setExercises(data); // Update UI immediately
                                 const exerciseOrders = data.map((item: any, index: number) => ({ id: item.id, order: index + 1 }));
@@ -625,8 +650,8 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     workoutHeader: {
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+        paddingHorizontal: 10,
+        paddingBottom: 8,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
@@ -641,10 +666,10 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     workoutDate: {
-        color: '#8E8E93',
-        fontSize: 14,
-        fontWeight: '500',
-        textTransform: 'uppercase',
+        color: '#63666F', // Darker grey for less prominence
+        fontSize: 15,
+        fontWeight: '400',
+        textTransform: 'none', // Sentence case instead of all caps
     },
     workoutDuration: {
         fontSize: 18,
@@ -654,6 +679,8 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         padding: 2,
+        
+        paddingHorizontal: 8,
     },
     section: {
         marginBottom: 24,
@@ -712,15 +739,51 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 17,
         fontWeight: '600',
-        marginBottom: 4,
+        marginBottom: 8,
     },
-    exerciseDetails: {
-        color: '#8E8E93',
-        fontSize: 14,
+    exerciseInfoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    exerciseMusclesContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 8,
+        flex: 1,
+    },
+    exerciseTag: {
+        backgroundColor: '#2C2C2E', // Dark grey background for chip
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    primaryMuscleTag: {
+        // Slightly brighter for primary muscle distinction
+    },
+    exerciseTagText: {
+        color: '#A1A1A6', // Slightly brighter for primary muscle/equipment
+        fontSize: 12,
+        fontWeight: '500',
+    },
+    secondaryMuscleTagText: {
+        color: '#8E8E93', // Same as primary but can be distinguished by context
+        fontSize: 12,
+        fontWeight: '400',
+    },
+    lockedTag: {
+        opacity: 0.7, // Slight dimming but still visible
+    },
+    lockedTagText: {
+        color: '#8E8E93', // Ensure readable color even when locked
+        opacity: 1, // Override parent opacity for text
     },
     addSetButton: {
         marginTop: 12,
-        backgroundColor: '#6366F1', // Muted indigo
+        backgroundColor: 'transparent', // Ghost button style
+        borderWidth: 1,
+        borderColor: '#6366F1', // Muted indigo border
         borderRadius: 8,
         paddingVertical: 10,
         alignItems: 'center',
@@ -728,7 +791,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
     },
     addSetButtonText: {
-        color: '#FFFFFF',
+        color: '#6366F1', // Muted indigo text
         fontSize: 15,
         fontWeight: '600',
     },
@@ -783,6 +846,10 @@ const styles = StyleSheet.create({
         fontSize: 16,
         textAlign: 'center',
         fontVariant: ['tabular-nums'],
+        lineHeight: 20, // Ensure consistent line height for vertical alignment
+        ...Platform.select({
+            android: { includeFontPadding: false }, // Remove extra padding on Android
+        }),
     },
     setInput: {
         flex: 1,
@@ -790,11 +857,12 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontVariant: ['tabular-nums'],
-        backgroundColor: '#2C2C2E',
-        borderRadius: 6,
-        paddingVertical: 12, // Increased touch target height
+        backgroundColor: 'transparent', // Remove solid background
+        borderBottomWidth: 1,
+        borderBottomColor: '#3A3A3C', // Light grey underline
+        paddingVertical: 12,
         marginHorizontal: 4,
-        minHeight: 44, // Minimum touch target size
+        minHeight: 44,
     },
     deleteSetAction: {
         backgroundColor: '#FF3B30',
@@ -805,7 +873,7 @@ const styles = StyleSheet.create({
         borderRadius: 0,
     },
     restTimerContainer: {
-        paddingHorizontal: 20,
+        paddingHorizontal: 10,
         paddingBottom: 16,
         paddingTop: 12,
     },

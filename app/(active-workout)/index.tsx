@@ -1,9 +1,10 @@
 import { addExerciseToWorkout, addSetToExercise, deleteSet, getExercises, removeExerciseFromWorkout } from '@/api/Exercises';
-import { completeWorkout, getActiveWorkout } from '@/api/Workout';
+import { completeWorkout, getActiveWorkout, getRestTimerState } from '@/api/Workout';
 import WorkoutDetailView from '@/components/WorkoutDetailView';
+import { useActiveWorkoutStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function ActiveWorkoutScreen() {
@@ -15,13 +16,49 @@ export default function ActiveWorkoutScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [exercises, setExercises] = useState<any[]>([]);
     const [isLoadingExercises, setIsLoadingExercises] = useState(false);
+    
+    // Rest timer state from Zustand
+    const { setLastSetTimestamp, setLastExerciseCategory } = useActiveWorkoutStore();
 
-    useEffect(() => {
-        getActiveWorkout().then((workout) => {
-            setActiveWorkout(workout);
-            console.log("Active Workout:", workout);
-        });
+    const fetchActiveWorkout = useCallback(async () => {
+        const workout = await getActiveWorkout();
+        setActiveWorkout(workout);
+        console.log("Active Workout:", workout);
     }, []);
+
+    const fetchRestTimerState = useCallback(async () => {
+        try {
+            const state = await getRestTimerState();
+            if (state && state.last_set_timestamp) {
+                // Convert ISO string to timestamp
+                const timestamp = new Date(state.last_set_timestamp).getTime();
+                
+                // Validate timestamp is not in the future (handle timezone/clock skew)
+                const now = Date.now();
+                if (timestamp > now) {
+                    // If timestamp is in the future, use current time instead
+                    console.warn('Rest timer timestamp is in the future, using current time');
+                    setLastSetTimestamp(now);
+                } else {
+                    setLastSetTimestamp(timestamp);
+                }
+                setLastExerciseCategory(state.last_exercise_category || 'isolation');
+            } else {
+                // No rest timer state, clear it
+                setLastSetTimestamp(null);
+                setLastExerciseCategory('isolation');
+            }
+        } catch (error) {
+            console.error('Failed to fetch rest timer state:', error);
+        }
+    }, [setLastSetTimestamp, setLastExerciseCategory]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchActiveWorkout();
+            fetchRestTimerState();
+        }, [fetchActiveWorkout, fetchRestTimerState])
+    );
 
     // Load exercises when modal opens or search query changes
     useEffect(() => {
@@ -83,6 +120,8 @@ export default function ActiveWorkoutScreen() {
             // Refresh workout
             const updatedWorkout = await getActiveWorkout();
             setActiveWorkout(updatedWorkout);
+            // Refresh rest timer state from backend
+            fetchRestTimerState();
         } catch (error) {
             console.error("Failed to add set:", error);
             alert("Failed to add set");
@@ -124,6 +163,9 @@ export default function ActiveWorkoutScreen() {
                             const durationSeconds = Math.floor(Math.max(0, now - startTime) / 1000);
                             
                             await completeWorkout(activeWorkout.id, { duration: durationSeconds.toString() });
+                            // Clear rest timer state when workout is completed
+                            setLastSetTimestamp(null);
+                            setLastExerciseCategory('isolation');
                             router.replace('/');
                         } catch (error) {
                             console.error("Failed to complete workout:", error);

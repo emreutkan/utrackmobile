@@ -1,7 +1,7 @@
 import apiClient from './APIClient';
 // Don't use the full URL here if apiClient has a baseURL
 // import { CREATE_WORKOUT_URL } from './ApiBase'; 
-import { CreateTemplateWorkoutRequest, CreateWorkoutRequest, CreateWorkoutResponse, GetWorkoutsResponse, StartTemplateWorkoutRequest, TemplateWorkout, Workout } from './types';
+import { AddExerciseToWorkoutRequest, CreateTemplateWorkoutRequest, CreateWorkoutRequest, CreateWorkoutResponse, GetWorkoutsResponse, StartTemplateWorkoutRequest, TemplateWorkout, UpdateWorkoutRequest, Workout } from './types';
 
 export const createWorkout = async (request: CreateWorkoutRequest): Promise<CreateWorkoutResponse | any> => {
     try {
@@ -103,6 +103,45 @@ export const startTemplateWorkout = async (request: StartTemplateWorkoutRequest)
         if (error.response) {
             return error.response.data;
         }
+        return error.message || 'An unknown error occurred';
+    }
+}
+
+// Edit Workout API Functions
+export const updateWorkout = async (workoutId: number, request: UpdateWorkoutRequest): Promise<Workout | any> => {
+    try {
+        const response = await apiClient.patch(`/workout/${workoutId}/update/`, request);
+        return response.data;
+    } catch (error: any) {
+        if (error.response) {
+            return error.response.data;
+        }
+        return error.message || 'An unknown error occurred';
+    }
+}
+
+export const addExerciseToPastWorkout = async (workoutId: number, request: AddExerciseToWorkoutRequest): Promise<any> => {
+    try {
+        const response = await apiClient.post(`/workout/${workoutId}/add_exercise/`, request);
+        return response.data;
+    } catch (error: any) {
+        if (error.response) {
+            return error.response.data;
+        }
+        return error.message || 'An unknown error occurred';
+    }
+}
+
+export const getRestTimerState = async (): Promise<{ 
+    last_set_timestamp: string | null; 
+    last_exercise_category: string | null; 
+    elapsed_seconds?: number;
+    rest_status?: any;
+} | any> => {
+    try {
+        const response = await apiClient.get('/workout/active/rest-timer/');
+        return response.data;
+    } catch (error: any) {
         return error.message || 'An unknown error occurred';
     }
 }

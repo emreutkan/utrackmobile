@@ -99,3 +99,17 @@ export interface TemplateWorkout {
 export interface StartTemplateWorkoutRequest {
     template_workout_id: number;
 }
+
+// Edit Workout Types
+export interface UpdateWorkoutRequest {
+    title?: string;
+    date?: string;  // ISO datetime string
+    duration?: number;  // seconds
+    intensity?: "low" | "medium" | "high";
+    notes?: string;
+    is_done?: boolean;
+}
+
+export interface AddExerciseToWorkoutRequest {
+    exercise_id: number;
+}

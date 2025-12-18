@@ -85,7 +85,7 @@ const RestTimerBar = ({ lastSetTimestamp, category }: { lastSetTimestamp: number
 
         const update = () => {
             const now = Date.now();
-            const elapsed = Math.floor((now - lastSetTimestamp) / 1000);
+            const elapsed = Math.max(0, Math.floor((now - lastSetTimestamp) / 1000));
             
             // Get current status to determine goals
             const currentStatus = getRestStatus(elapsed, category || 'isolation');
@@ -186,7 +186,7 @@ const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose }: a
     );
 };
 
-const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, onFocus }: any) => {
+const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, isEditMode, onFocus }: any) => {
     const [inputs, setInputs] = useState({ weight: '', reps: '', rir: '', restTime: '', isWarmup: false });
 
     // Format weight to remove unnecessary decimals (same logic as formatWeight)
@@ -230,13 +230,13 @@ const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, onFocus }: any) =>
             reps_in_reserve: inputs.rir ? parseFloat(inputs.rir) : 0,
             is_warmup: inputs.isWarmup,
             rest_time_before_set: restTimeSeconds
-        }, !inputs.restTime); // Pass true to use global timer if restTime input is empty
+        });
 
         // Reset fields but keep weight/reps for next set convenience
         setInputs({ weight: inputs.weight, reps: inputs.reps, rir: '', restTime: '', isWarmup: false }); 
     };
 
-    if (isLocked) return null;
+    if (isLocked && !isEditMode) return null;
 
     return (
      <>
@@ -308,7 +308,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, onFocus }: any) =>
     );
 };
 
-const ExerciseCard = ({ workoutExercise, isLocked, onToggleLock, onRemove, onAddSet, onDeleteSet, swipeControl, onInputFocus, onShowInfo }: any) => {
+const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, onToggleLock, onRemove, onAddSet, onDeleteSet, swipeControl, onInputFocus, onShowInfo }: any) => {
     const exercise = workoutExercise.exercise || (workoutExercise.name ? workoutExercise : null);
     if (!exercise) return null;
 
@@ -345,8 +345,8 @@ const ExerciseCard = ({ workoutExercise, isLocked, onToggleLock, onRemove, onAdd
             ref={((ref: any) => swipeControl.register(exerciseKey, ref)) as any}
             onSwipeableWillOpen={() => swipeControl.onOpen(exerciseKey)}
             onSwipeableWillClose={() => swipeControl.onClose(exerciseKey)}
-            renderLeftActions={renderLeftActions}
-            renderRightActions={!isLocked ? renderRightActions : undefined}
+            renderLeftActions={!isEditMode ? renderLeftActions : undefined}
+            renderRightActions={(!isLocked || isEditMode) && onRemove ? renderRightActions : undefined}
             containerStyle={{ marginBottom: 12 }}
         >
             <View style={[styles.exerciseCard, { marginBottom: 0 }]}>
@@ -421,8 +421,9 @@ const ExerciseCard = ({ workoutExercise, isLocked, onToggleLock, onRemove, onAdd
                         <AddSetRow 
                             lastSet={lastSet}
                             nextSetNumber={nextSetNumber}
-                            onAdd={(data: any, useGlobalTimer: boolean) => onAddSet(idToLock, data, useGlobalTimer)}
+                            onAdd={(data: any) => onAddSet(idToLock, data)}
                             isLocked={isLocked}
+                            isEditMode={isEditMode}
                             onFocus={() => {
                                 swipeControl.closeAll();
                                 onInputFocus?.();
@@ -441,6 +442,7 @@ interface WorkoutDetailViewProps {
     workout: any;
     elapsedTime: string;
     isActive: boolean;
+    isEditMode?: boolean;
     onAddExercise?: () => void;
     onRemoveExercise?: (exerciseId: number) => void;
     onAddSet?: (exerciseId: number, data: any) => void;
@@ -448,18 +450,16 @@ interface WorkoutDetailViewProps {
     onCompleteWorkout?: () => void;
 }
 
-export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAddExercise, onRemoveExercise, onAddSet, onDeleteSet, onCompleteWorkout }: WorkoutDetailViewProps) {
+export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEditMode = false, onAddExercise, onRemoveExercise, onAddSet, onDeleteSet, onCompleteWorkout }: WorkoutDetailViewProps) {
     const insets = useSafeAreaInsets();
     const [lockedExerciseIds, setLockedExerciseIds] = useState<Set<number>>(new Set());
     const [exercises, setExercises] = useState(workout?.exercises || []);
     const [selectedExerciseInfo, setSelectedExerciseInfo] = useState<any>(null);
     
-    // Use global store for rest timer state
+    // Use global store for rest timer state (read-only, updated from backend)
     const { 
         lastSetTimestamp, 
-        lastExerciseCategory, 
-        setLastSetTimestamp, 
-        setLastExerciseCategory 
+        lastExerciseCategory
     } = useActiveWorkoutStore();
 
     // Move useRef to the top level, before any conditional returns
@@ -471,24 +471,9 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
         }
     }, [workout]);
 
-    const handleAddSet = (exerciseId: number, data: any, useGlobalTimer: boolean) => {
-        const now = Date.now();
-        let finalData = { ...data };
-        
-        // Only use global timer if user didn't enter a custom rest time
-        if (useGlobalTimer && lastSetTimestamp) {
-             const elapsedSeconds = Math.floor((now - lastSetTimestamp) / 1000);
-             finalData.rest_time_before_set = elapsedSeconds;
-        }
-
-        onAddSet?.(exerciseId, finalData);
-        // Reset global timer
-        setLastSetTimestamp(now);
-        
-        // Update category for the new timer
-        const currentExercise = exercises.find((e: any) => e.id === exerciseId);
-        const category = currentExercise?.exercise?.category || currentExercise?.category || 'isolation';
-        setLastExerciseCategory(category);
+    const handleAddSet = (exerciseId: number, data: any) => {
+        // Backend handles rest timer state, just pass the data through
+        onAddSet?.(exerciseId, data);
     };
     // Swipe Logic
     const swipeableRefs = useRef<Map<string, SwipeableMethods>>(new Map());
@@ -560,6 +545,7 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                                     key={item.order}
                                     workoutExercise={item}
                                     isLocked={lockedExerciseIds.has(item.id)}
+                                    isEditMode={isEditMode}
                                     onToggleLock={toggleLock}
                                     onRemove={onRemoveExercise}
                                     onAddSet={handleAddSet}
@@ -604,7 +590,9 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                         </Text>
                     </View>
                     
-                    <RestTimerBar lastSetTimestamp={lastSetTimestamp} category={lastExerciseCategory} />
+                    {isActive && !isEditMode && (
+                        <RestTimerBar lastSetTimestamp={lastSetTimestamp} category={lastExerciseCategory} />
+                    )}
 
                     <View style={styles.content}>
                         <DraggableFlatList
@@ -640,7 +628,7 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                                     </TouchableOpacity>
                                 ) : null
                    }
-                   {isActive && onAddExercise && (
+                   {(isActive || isEditMode) && onAddExercise && (
                         <View style={styles.fabContainer}>
                             <TouchableOpacity 
                                 onPress={() => {

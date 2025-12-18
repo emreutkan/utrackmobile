@@ -1,7 +1,8 @@
 export interface CreateWorkoutRequest {
-    title: string; 
+    title?: string; 
     date?: string; // Optional - ISO datetime string like "2025-12-09T01:05:00.000Z"
     is_done?: boolean; // Optional - defaults to false, set to true for past workouts
+    is_rest_day?: boolean; // Optional - defaults to false, set to true for rest days
 }
 
 export interface CreateWorkoutResponse {
@@ -28,6 +29,7 @@ export interface Workout {
     intensity: "low" | "medium" | "high"; // Backend uses lowercase only
     notes?: string | null;
     is_done: boolean;
+    is_rest_day?: boolean; // Optional - true if this is a rest day
     exercises: WorkoutExercise[];
 }
 

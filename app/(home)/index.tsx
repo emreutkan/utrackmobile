@@ -1,8 +1,9 @@
-import { createWorkout, deleteWorkout, getActiveWorkout } from '@/api/Workout';
+import { checkRestDay, createWorkout, deleteWorkout, getActiveWorkout } from '@/api/Workout';
+import { useWorkoutStore } from '@/state/userStore';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Keyboard, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
@@ -34,6 +35,8 @@ export default function Home() {
     const [modalCreateButtonText, setModalCreateButtonText] = useState('Create Workout');
     const [modalCreateButtonAction, setModalCreateButtonAction] = useState('createWorkout');
     const [keyboardHeight, setKeyboardHeight] = useState(300);
+    const { workouts, fetchWorkouts } = useWorkoutStore();
+    const [restDayInfo, setRestDayInfo] = useState<{ is_rest_day: boolean; date: string; rest_day_id: number | null } | null>(null);
 
     const fetchActiveWorkout = async () => {
         try {
@@ -55,11 +58,47 @@ export default function Home() {
         return () => showSubscription.remove();
     }, []);
 
+    const fetchRestDayInfo = async () => {
+        try {
+            const result = await checkRestDay();
+            if (result && typeof result === 'object' && 'is_rest_day' in result) {
+                setRestDayInfo(result);
+            } else {
+                setRestDayInfo(null);
+            }
+        } catch (error) {
+            setRestDayInfo(null);
+        }
+    };
+
     useFocusEffect(
         useCallback(() => {
             fetchActiveWorkout();
-        }, [])
+            fetchWorkouts();
+            fetchRestDayInfo();
+        }, [fetchWorkouts])
     );
+
+    // Get today's completed workout
+    const todaysWorkout = useMemo(() => {
+        if (activeWorkout?.id) return null; // Don't show if there's an active workout
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        return workouts.find((workout: any) => {
+            const workoutDate = workout.datetime || workout.created_at;
+            if (!workoutDate) return false;
+            
+            const date = new Date(workoutDate);
+            date.setHours(0, 0, 0, 0);
+            
+            const isToday = date.getTime() === today.getTime();
+            const isCompleted = workout.is_done === true;
+            
+            return isToday && isCompleted;
+        });
+    }, [workouts, activeWorkout]);
 
     useEffect(() => {
         let interval: any;
@@ -87,7 +126,7 @@ export default function Home() {
             if (modalCreateButtonAction === 'createWorkout') {
                 const now = new Date();
                 const month = now.toLocaleString('default', { month: 'long' });
-                setWorkoutTitle(`${month} ${now.getDate()} ${now.getFullYear()} Workout`);
+                setWorkoutTitle(`${month} ${now.getDate()}`);
             } else {
                 setWorkoutTitle(''); // Force empty title for previous workout
             }
@@ -141,9 +180,50 @@ export default function Home() {
                     await deleteWorkout(activeWorkout.id);
                     setActiveWorkout(null);
                     setElapsedTime('00:00:00');
+                    fetchWorkouts(); // Refresh workouts list
                 }
             }}
         ]);
+    };
+
+    const handleDeleteTodaysWorkout = () => {
+        Alert.alert("Delete Workout", "This action cannot be undone.", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Delete", style: "destructive", onPress: async () => {
+                if (todaysWorkout?.id) {
+                    await deleteWorkout(todaysWorkout.id);
+                    fetchWorkouts();
+                }
+            }}
+        ]);
+    };
+
+    const handleDeleteRestDay = () => {
+        Alert.alert("Delete Rest Day", "This action cannot be undone.", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Delete", style: "destructive", onPress: async () => {
+                if (restDayInfo?.rest_day_id) {
+                    await deleteWorkout(restDayInfo.rest_day_id);
+                    fetchRestDayInfo();
+                }
+            }}
+        ]);
+    };
+
+    const addRestDay = async () => {
+        try {
+            const result = await createWorkout({ title: 'Rest Day', is_rest_day: true });
+            if (result?.error === "WORKOUT_EXISTS_FOR_DATE") {
+                Alert.alert("Cannot Add Rest Day", result.message || "A workout already exists for this date. Cannot create a rest day.");
+                return;
+            }
+            if (result?.id) {
+                Alert.alert("Success", "Rest day added successfully.");
+                fetchRestDayInfo(); // Refresh to show the new rest day
+            }
+        } catch (error) {
+            Alert.alert("Error", "Failed to add rest day. Please try again.");
+        }
     };
 
     return (
@@ -180,6 +260,56 @@ export default function Home() {
                 </View>
             )}
 
+            {!activeWorkout?.id && restDayInfo?.is_rest_day && (
+                <View style={{ width: '100%' }}>
+                    <View style={styles.contentContainer}>
+                        <Text style={styles.contentTitle}></Text>
+                    </View>
+                    <ReanimatedSwipeable
+                        renderRightActions={(progress, dragX) => <SwipeAction progress={progress} dragX={dragX} onPress={handleDeleteRestDay} />}
+                        containerStyle={{ width: '100%', marginVertical: 12 }}
+                    >
+                        <View 
+                            style={[styles.completedCard, { paddingTop: 12, paddingLeft: 12, paddingRight: 12, paddingBottom: 0 }]} 
+                        >
+                            <View style={styles.cardHeader}>
+                                <View style={styles.completedBadge}>
+                                    <View style={styles.completedDot} />
+                                    <Text style={styles.completedText}>REST DAY</Text>
+                                </View>
+                            </View>
+                        </View>
+                    </ReanimatedSwipeable>
+                </View>
+            )}
+
+            {!activeWorkout?.id && !restDayInfo?.is_rest_day && todaysWorkout && (
+                <View style={{ width: '100%' }}>
+                    <View style={styles.contentContainer}>
+                        <Text style={styles.contentTitle}>Workout Done</Text>
+                    </View>
+                    <ReanimatedSwipeable
+                        renderRightActions={(progress, dragX) => <SwipeAction progress={progress} dragX={dragX} onPress={handleDeleteTodaysWorkout} />}
+                        containerStyle={{ width: '100%', marginVertical: 12 }}
+                    >
+                        <TouchableOpacity 
+                            style={styles.completedCard} 
+                            onPress={() => router.push(`/(workouts)/${todaysWorkout.id}`)} 
+                            activeOpacity={0.8}
+                        >
+                            <View style={styles.cardHeader}>
+                                <View style={styles.completedBadge}>
+                                    <View style={styles.completedDot} />
+                                    <Text style={styles.completedText}>COMPLETED</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
+                            </View>
+                            <Text style={styles.cardTitle} numberOfLines={1}>{todaysWorkout.title}</Text>
+                        </TouchableOpacity>
+                    </ReanimatedSwipeable>
+                </View>
+            )}
+
             {/* Layout Navigation Buttons */}
             <View style={[styles.workoutsButtonContainer, { bottom: insets.bottom + 20 }]}>
                 <TouchableOpacity onPress={() => router.push('/(workouts)')} style={styles.fabButton}>
@@ -197,9 +327,17 @@ export default function Home() {
                 <TouchableOpacity 
                     style={styles.fabButton} 
                     onPress={() => {
-                        Alert.alert("Start Workout", "Choose an option", [
+                        Alert.alert("", "", [
                             { text: "Start New Workout", onPress: () => { setModalCreateButtonText('Start Workout'); setModalCreateButtonAction('createWorkout'); setModalVisible(true); }},
                             { text: "Add Previous Workout", onPress: () => { setModalCreateButtonText('Add Workout'); setModalCreateButtonAction('addPreviousWorkout'); setModalVisible(true); }},
+                            { text: "Add Rest Day", onPress: () => {
+                                Alert.alert("Add Rest Day", "This will create a rest day workout for today's date. You won't be able to add Workouts for today.", [
+                                    { text: "Cancel", style: "cancel" },
+                                    { text: "Add Rest Day", onPress: () => { 
+                                        addRestDay();
+                                     }}
+                                ]);
+                            }},
                             { text: "Cancel", style: "cancel" }
                         ]);
                     }}
@@ -290,10 +428,14 @@ const styles = StyleSheet.create({
     contentContainer: { width: '100%', paddingHorizontal: 4, marginBottom: 8 },
     contentTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },
     activeCard: { width: '100%', backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#2C2C2E' },
+    completedCard: { width: '100%', backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#2C2C2E' },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
     liveBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(50, 215, 75, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
     liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#32D74B', marginRight: 6 },
     liveText: { color: '#32D74B', fontSize: 12, fontWeight: '700' },
+    completedBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(138, 92, 246, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+    completedDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#8B5CF6', marginRight: 6 },
+    completedText: { color: '#8B5CF6', fontSize: 12, fontWeight: '700' },
     timerContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     timerText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
     cardTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },

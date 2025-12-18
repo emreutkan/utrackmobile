@@ -63,3 +63,12 @@ export const deleteWorkout = async (workoutID: number): Promise<any> => {
         return error.message || 'An unknown error occurred';
     }
 }
+
+export const checkRestDay = async (): Promise<{ is_rest_day: boolean; date: string; rest_day_id: number | null } | any> => {
+    try {
+        const response = await apiClient.get('/workout/check-rest-day/');
+        return response.data;
+    } catch (error: any) {
+        return error.message || 'An unknown error occurred';
+    }
+}

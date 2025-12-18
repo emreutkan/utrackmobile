@@ -1,4 +1,5 @@
-import { checkRestDay, createWorkout, deleteWorkout, getActiveWorkout } from '@/api/Workout';
+import { checkRestDay, createWorkout, deleteWorkout, getActiveWorkout, getTemplateWorkouts, startTemplateWorkout } from '@/api/Workout';
+import { TemplateWorkout } from '@/api/types';
 import { useWorkoutStore } from '@/state/userStore';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -37,6 +38,7 @@ export default function Home() {
     const [keyboardHeight, setKeyboardHeight] = useState(300);
     const { workouts, fetchWorkouts } = useWorkoutStore();
     const [restDayInfo, setRestDayInfo] = useState<{ is_rest_day: boolean; date: string; rest_day_id: number | null } | null>(null);
+    const [templates, setTemplates] = useState<TemplateWorkout[]>([]);
 
     const fetchActiveWorkout = async () => {
         try {
@@ -71,11 +73,25 @@ export default function Home() {
         }
     };
 
+    const fetchTemplates = async () => {
+        try {
+            const result = await getTemplateWorkouts();
+            if (Array.isArray(result)) {
+                setTemplates(result);
+            } else {
+                setTemplates([]);
+            }
+        } catch (error) {
+            setTemplates([]);
+        }
+    };
+
     useFocusEffect(
         useCallback(() => {
             fetchActiveWorkout();
             fetchWorkouts();
             fetchRestDayInfo();
+            fetchTemplates();
         }, [fetchWorkouts])
     );
 
@@ -310,6 +326,80 @@ export default function Home() {
                 </View>
             )}
 
+            {/* Templates Section */}
+            <View style={{ width: '100%' }}>
+                <View style={styles.contentContainer}>
+                    <Text style={styles.contentTitle}>Templates</Text>
+                </View>
+                {templates.length === 0 ? (
+                    <TouchableOpacity 
+                        style={styles.addTemplateCard}
+                        onPress={() => {
+                            router.push('/(templates)/create');
+                        }}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="add" size={48} color="#8E8E93" />
+                    </TouchableOpacity>
+                ) : (
+                    <View>
+                        {templates.map((template) => (
+                            <TouchableOpacity
+                                key={template.id}
+                                style={styles.templateCard}
+                                onPress={async () => {
+                                    try {
+                                        const result = await startTemplateWorkout({ template_workout_id: template.id });
+                                        if (result?.error === "ACTIVE_WORKOUT_EXISTS") {
+                                            Alert.alert("Cannot Start Template", "You already have an active workout. Complete or delete it first.", [
+                                                { text: "Cancel", style: "cancel" },
+                                                { text: "View Active", onPress: () => router.push('/(active-workout)') }
+                                            ]);
+                                            return;
+                                        }
+                                        if (result?.id) {
+                                            router.push('/(active-workout)');
+                                        }
+                                    } catch (error) {
+                                        Alert.alert("Error", "Failed to start template workout.");
+                                    }
+                                }}
+                                activeOpacity={0.8}
+                            >
+                                <View style={styles.templateCardContent}>
+                                    <View style={styles.templateInfo}>
+                                        <Text style={styles.templateTitle}>{template.title}</Text>
+                                        <Text style={styles.templateExercises}>
+                                            {template.exercises.length} {template.exercises.length === 1 ? 'exercise' : 'exercises'}
+                                        </Text>
+                                        {template.primary_muscle_groups.length > 0 && (
+                                            <View style={styles.muscleGroupsContainer}>
+                                                {template.primary_muscle_groups.slice(0, 3).map((muscle, idx) => (
+                                                    <View key={idx} style={styles.muscleTag}>
+                                                        <Text style={styles.muscleTagText}>{muscle}</Text>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        )}
+                                    </View>
+                                    <Ionicons name="play-circle-outline" size={28} color="#0A84FF" />
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity 
+                            style={styles.addTemplateCardSmall}
+                            onPress={() => {
+                                router.push('/(templates)/create');
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons name="add" size={24} color="#8E8E93" />
+                            <Text style={styles.addTemplateText}>Add Template</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
+
             {/* Layout Navigation Buttons */}
             <View style={[styles.workoutsButtonContainer, { bottom: insets.bottom + 20 }]}>
                 <TouchableOpacity onPress={() => router.push('/(workouts)')} style={styles.fabButton}>
@@ -462,4 +552,79 @@ const styles = StyleSheet.create({
     sheetHeader: { height: 50, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
     doneText: { color: '#0A84FF', fontSize: 17, fontWeight: '600' },
     deleteAction: { backgroundColor: '#FF3B30', justifyContent: 'center', alignItems: 'center', width: 80, height: '100%', borderRadius: 16 },
+    addTemplateCard: { 
+        width: '100%', 
+        backgroundColor: '#1C1C1E', 
+        borderRadius: 16, 
+        padding: 60, 
+        borderWidth: 1, 
+        borderColor: '#2C2C2E',
+        borderStyle: 'dashed',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16
+    },
+    templateCard: {
+        width: '100%',
+        backgroundColor: '#1C1C1E',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#2C2C2E',
+        marginBottom: 12
+    },
+    templateCardContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+    },
+    templateInfo: {
+        flex: 1
+    },
+    templateTitle: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: '700',
+        marginBottom: 4
+    },
+    templateExercises: {
+        color: '#8E8E93',
+        fontSize: 14,
+        marginBottom: 8
+    },
+    muscleGroupsContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6
+    },
+    muscleTag: {
+        backgroundColor: '#2C2C2E',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6
+    },
+    muscleTagText: {
+        color: '#A1A1A6',
+        fontSize: 12,
+        fontWeight: '400'
+    },
+    addTemplateCardSmall: {
+        width: '100%',
+        backgroundColor: '#1C1C1E',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#2C2C2E',
+        borderStyle: 'dashed',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 16
+    },
+    addTemplateText: {
+        color: '#8E8E93',
+        fontSize: 16,
+        fontWeight: '500'
+    },
 });

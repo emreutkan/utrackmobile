@@ -1,7 +1,7 @@
 import apiClient from './APIClient';
 // Don't use the full URL here if apiClient has a baseURL
 // import { CREATE_WORKOUT_URL } from './ApiBase'; 
-import { CreateWorkoutRequest, CreateWorkoutResponse, GetWorkoutsResponse, Workout } from './types';
+import { CreateTemplateWorkoutRequest, CreateWorkoutRequest, CreateWorkoutResponse, GetWorkoutsResponse, StartTemplateWorkoutRequest, TemplateWorkout, Workout } from './types';
 
 export const createWorkout = async (request: CreateWorkoutRequest): Promise<CreateWorkoutResponse | any> => {
     try {
@@ -69,6 +69,40 @@ export const checkRestDay = async (): Promise<{ is_rest_day: boolean; date: stri
         const response = await apiClient.get('/workout/check-rest-day/');
         return response.data;
     } catch (error: any) {
+        return error.message || 'An unknown error occurred';
+    }
+}
+
+// Template Workout API Functions
+export const createTemplateWorkout = async (request: CreateTemplateWorkoutRequest): Promise<TemplateWorkout | any> => {
+    try {
+        const response = await apiClient.post('/workout/template/create/', request);
+        return response.data;
+    } catch (error: any) {
+        if (error.response) {
+            return error.response.data;
+        }
+        return error.message || 'An unknown error occurred';
+    }
+}
+
+export const getTemplateWorkouts = async (): Promise<TemplateWorkout[] | any> => {
+    try {
+        const response = await apiClient.get('/workout/template/list/');
+        return response.data;
+    } catch (error: any) {
+        return error.message || 'An unknown error occurred';
+    }
+}
+
+export const startTemplateWorkout = async (request: StartTemplateWorkoutRequest): Promise<Workout | any> => {
+    try {
+        const response = await apiClient.post('/workout/template/start/', request);
+        return response.data;
+    } catch (error: any) {
+        if (error.response) {
+            return error.response.data;
+        }
         return error.message || 'An unknown error occurred';
     }
 }

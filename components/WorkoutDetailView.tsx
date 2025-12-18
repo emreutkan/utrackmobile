@@ -3,7 +3,7 @@ import { useActiveWorkoutStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import ReanimatedSwipeable, { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
@@ -308,7 +308,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, isEditMode, onFocu
     );
 };
 
-const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, onToggleLock, onRemove, onAddSet, onDeleteSet, swipeControl, onInputFocus, onShowInfo }: any) => {
+const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, onToggleLock, onRemove, onAddSet, onDeleteSet, swipeControl, onInputFocus, onShowInfo, onShowStatistics, isActive }: any) => {
     const exercise = workoutExercise.exercise || (workoutExercise.name ? workoutExercise : null);
     if (!exercise) return null;
 
@@ -317,6 +317,7 @@ const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, onToggleLock, onR
     const sets = workoutExercise.sets || [];
     const lastSet = sets.length > 0 ? sets[sets.length - 1] : null;
     const nextSetNumber = sets.length + 1;
+    const [showMenu, setShowMenu] = useState(false);
 
     const renderLeftActions = (progress: any, dragX: any) => (
         <SwipeAction
@@ -357,7 +358,7 @@ const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, onToggleLock, onR
                                 {exercise.name} {isLocked && <Ionicons name="lock-closed" size={14} color="#8E8E93" />}
                             </Text>
                             <TouchableOpacity 
-                                onPress={() => onShowInfo?.(exercise)}
+                                onPress={() => setShowMenu(true)}
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                 style={styles.exerciseMenuButton}
                             >
@@ -432,6 +433,66 @@ const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, onToggleLock, onR
                     </View>
                 )}
             </View>
+            
+            {/* Exercise Menu Modal */}
+            <Modal
+                visible={showMenu}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowMenu(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setShowMenu(false)}>
+                    <View style={styles.menuModalOverlay}>
+                        <View style={styles.menuModalContent}>
+                            <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={() => {
+                                    setShowMenu(false);
+                                    onShowInfo?.(exercise);
+                                }}
+                            >
+                                <Ionicons name="information-circle-outline" size={22} color="#FFFFFF" />
+                                <Text style={styles.menuItemText}>Info</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity
+                                style={styles.menuItem}
+                                onPress={() => {
+                                    setShowMenu(false);
+                                    onShowStatistics?.(exercise.id);
+                                }}
+                            >
+                                <Ionicons name="stats-chart-outline" size={22} color="#FFFFFF" />
+                                <Text style={styles.menuItemText}>Statistics</Text>
+                            </TouchableOpacity>
+                            
+                            {(isActive || isEditMode) && onRemove && (
+                                <TouchableOpacity
+                                    style={[styles.menuItem, styles.menuItemDelete]}
+                                    onPress={() => {
+                                        setShowMenu(false);
+                                        Alert.alert(
+                                            "Delete Exercise",
+                                            "Are you sure you want to remove this exercise?",
+                                            [
+                                                { text: "Cancel", style: "cancel" },
+                                                {
+                                                    text: "Delete",
+                                                    style: "destructive",
+                                                    onPress: () => onRemove(idToLock)
+                                                }
+                                            ]
+                                        );
+                                    }}
+                                >
+                                    <Ionicons name="trash-outline" size={22} color="#FF3B30" />
+                                    <Text style={[styles.menuItemText, styles.menuItemTextDelete]}>Delete</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
         </ReanimatedSwipeable>
     );
 };
@@ -448,9 +509,10 @@ interface WorkoutDetailViewProps {
     onAddSet?: (exerciseId: number, data: any) => void;
     onDeleteSet?: (setId: number) => void;
     onCompleteWorkout?: () => void;
+    onShowStatistics?: (exerciseId: number) => void;
 }
 
-export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEditMode = false, onAddExercise, onRemoveExercise, onAddSet, onDeleteSet, onCompleteWorkout }: WorkoutDetailViewProps) {
+export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEditMode = false, onAddExercise, onRemoveExercise, onAddSet, onDeleteSet, onCompleteWorkout, onShowStatistics }: WorkoutDetailViewProps) {
     const insets = useSafeAreaInsets();
     const [lockedExerciseIds, setLockedExerciseIds] = useState<Set<number>>(new Set());
     const [exercises, setExercises] = useState(workout?.exercises || []);
@@ -556,6 +618,8 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
                                         if (idx !== undefined) handleInputFocus(idx);
                                     }}
                                     onShowInfo={(exercise: any) => setSelectedExerciseInfo(exercise)}
+                                    onShowStatistics={onShowStatistics}
+                                    isActive={isActive}
                                 />
                 </TouchableOpacity>
             </ScaleDecorator>
@@ -571,23 +635,81 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
                     keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
                 >
                     <View style={styles.workoutHeader}>
-                        <View>
-                            <Text style={styles.workoutTitle}>
-                                {workout.title 
-                                    ? workout.title.split(' ').map((word: string) => 
-                                        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-                                      ).join(' ')
-                                    : 'Workout'}
-                            </Text>
-                            <Text style={styles.workoutDate}>
-                                {new Date(workout.datetime || workout.created_at).toLocaleDateString(undefined, {
-                                    weekday: 'long', year: 'numeric', month: 'short', day: 'numeric'
-                                })}
-                            </Text>
+                        <View style={styles.workoutHeaderTop}>
+                            <View style={styles.workoutTitleContainer}>
+                                <Text style={styles.workoutTitle}>
+                                    {workout.title 
+                                        ? workout.title.split(' ').map((word: string) => 
+                                            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                                          ).join(' ')
+                                        : 'Workout'}
+                                </Text>
+                                <Text style={styles.workoutDate}>
+                                    {new Date(workout.datetime || workout.created_at).toLocaleDateString(undefined, {
+                                        weekday: 'long', year: 'numeric', month: 'short', day: 'numeric'
+                                    })}
+                                </Text>
+                            </View>
+                            {!isActive && (
+                                <Text style={[styles.workoutDuration, { color: '#8E8E93' }]}>
+                                    {elapsedTime}
+                                </Text>
+                            )}
                         </View>
-                        <Text style={[styles.workoutDuration, { color: isActive ? 'orange' : '#8E8E93' }]}>
-                            {elapsedTime}
-                        </Text>
+                        
+                        {/* Workout Stats */}
+                        {!isActive && (workout.total_volume || workout.primary_muscles_worked?.length || workout.intensity || workout.notes) && (
+                            <View style={styles.workoutStatsContainer}>
+                                {workout.total_volume !== undefined && workout.total_volume > 0 && (
+                                    <View style={styles.statItem}>
+                                        <Text style={styles.statLabel}>Total Volume</Text>
+                                        <Text style={styles.statValue}>{workout.total_volume.toFixed(1)} kg</Text>
+                                    </View>
+                                )}
+                                
+                                {workout.primary_muscles_worked && workout.primary_muscles_worked.length > 0 && (
+                                    <View style={styles.statItem}>
+                                        <Text style={styles.statLabel}>Primary Muscles</Text>
+                                        <View style={styles.muscleTagsContainer}>
+                                            {workout.primary_muscles_worked.map((muscle, idx) => (
+                                                <View key={idx} style={styles.muscleTag}>
+                                                    <Text style={styles.muscleTagText}>{muscle}</Text>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    </View>
+                                )}
+                                
+                                {workout.secondary_muscles_worked && workout.secondary_muscles_worked.length > 0 && (
+                                    <View style={styles.statItem}>
+                                        <Text style={styles.statLabel}>Secondary Muscles</Text>
+                                        <View style={styles.muscleTagsContainer}>
+                                            {workout.secondary_muscles_worked.map((muscle, idx) => (
+                                                <View key={idx} style={[styles.muscleTag, styles.secondaryMuscleTag]}>
+                                                    <Text style={styles.secondaryMuscleTagText}>{muscle}</Text>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    </View>
+                                )}
+                                
+                                {workout.intensity && workout.intensity !== '' && (
+                                    <View style={styles.statItem}>
+                                        <Text style={styles.statLabel}>Intensity</Text>
+                                        <View style={[styles.intensityBadge, styles[`intensity${workout.intensity.charAt(0).toUpperCase() + workout.intensity.slice(1)}`]]}>
+                                            <Text style={styles.intensityText}>{workout.intensity.toUpperCase()}</Text>
+                                        </View>
+                                    </View>
+                                )}
+                                
+                                {workout.notes && (
+                                    <View style={styles.statItem}>
+                                        <Text style={styles.statLabel}>Notes</Text>
+                                        <Text style={styles.notesText}>{workout.notes}</Text>
+                                    </View>
+                                )}
+                            </View>
+                        )}
                     </View>
                     
                     {isActive && !isEditMode && (
@@ -724,15 +846,20 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     workoutHeader: {
-        paddingHorizontal: 10,
-        paddingBottom: 8,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        paddingHorizontal: 16,
+        paddingBottom: 16,
         borderBottomWidth: 1,
         borderBottomColor: '#1C1C1E',
     },
-
+    workoutHeaderTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 16,
+    },
+    workoutTitleContainer: {
+        flex: 1,
+    },
     workoutTitle: {
         color: '#FFFFFF',
         fontSize: 28,
@@ -740,15 +867,85 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     workoutDate: {
-        color: '#63666F', // Darker grey for less prominence
+        color: '#63666F',
         fontSize: 15,
         fontWeight: '400',
-        textTransform: 'none', // Sentence case instead of all caps
+        textTransform: 'none',
     },
     workoutDuration: {
         fontSize: 18,
         fontWeight: '600',
         fontVariant: ['tabular-nums'],
+    },
+    workoutStatsContainer: {
+        gap: 16,
+    },
+    statItem: {
+        marginBottom: 12,
+    },
+    statLabel: {
+        color: '#8E8E93',
+        fontSize: 13,
+        fontWeight: '600',
+        marginBottom: 8,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    statValue: {
+        color: '#FFFFFF',
+        fontSize: 20,
+        fontWeight: '700',
+    },
+    muscleTagsContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+    },
+    muscleTag: {
+        backgroundColor: '#2C2C2E',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 6,
+    },
+    muscleTagText: {
+        color: '#A1A1A6',
+        fontSize: 13,
+        fontWeight: '500',
+    },
+    secondaryMuscleTag: {
+        backgroundColor: '#1C1C1E',
+        opacity: 0.8,
+    },
+    secondaryMuscleTagText: {
+        color: '#8E8E93',
+        fontSize: 12,
+        fontWeight: '400',
+    },
+    intensityBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
+        alignSelf: 'flex-start',
+    },
+    intensityLow: {
+        backgroundColor: 'rgba(52, 199, 89, 0.15)',
+    },
+    intensityMedium: {
+        backgroundColor: 'rgba(255, 159, 10, 0.15)',
+    },
+    intensityHigh: {
+        backgroundColor: 'rgba(255, 59, 48, 0.15)',
+    },
+    intensityText: {
+        color: '#FFFFFF',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    notesText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        lineHeight: 22,
+        marginTop: 4,
     },
     content: {
         flex: 1,
@@ -764,11 +961,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '600',
         marginBottom: 8,
-    },
-    notesText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        lineHeight: 24,
     },
     placeholderContainer: {
         alignItems: 'center',
@@ -824,6 +1016,40 @@ const styles = StyleSheet.create({
     exerciseMenuButton: {
         padding: 4,
         marginLeft: 8,
+    },
+    menuModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    menuModalContent: {
+        backgroundColor: '#1C1C1E',
+        borderRadius: 16,
+        padding: 8,
+        minWidth: 200,
+        borderWidth: 1,
+        borderColor: '#2C2C2E',
+    },
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        gap: 12,
+    },
+    menuItemDelete: {
+        borderTopWidth: 1,
+        borderTopColor: '#2C2C2E',
+        marginTop: 4,
+    },
+    menuItemText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    menuItemTextDelete: {
+        color: '#FF3B30',
     },
     exerciseInfoRow: {
         flexDirection: 'row',

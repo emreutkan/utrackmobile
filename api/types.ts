@@ -26,11 +26,14 @@ export interface Workout {
     created_at: string; // When the record was created
     updated_at: string;
     duration: number; // time in SECONDS (backend uses PositiveIntegerField)
-    intensity: "low" | "medium" | "high"; // Backend uses lowercase only
+    intensity: "low" | "medium" | "high" | ""; // Backend uses lowercase only, can be empty string
     notes?: string | null;
     is_done: boolean;
     is_rest_day?: boolean; // Optional - true if this is a rest day
     exercises: WorkoutExercise[];
+    total_volume?: number; // Total volume in kg (weight × reps for all sets)
+    primary_muscles_worked?: string[]; // Array of primary muscles targeted
+    secondary_muscles_worked?: string[]; // Array of secondary muscles targeted
 }
 
 export interface WorkoutExercise {
@@ -39,6 +42,7 @@ export interface WorkoutExercise {
     exercise: Exercise;
     order: number; // MISSING in your interface!
     sets: WorkoutExerciseSet[];
+    one_rep_max?: number | null; // Calculated 1RM (only for completed workouts)
 }
 
 export interface WorkoutExerciseSet {
@@ -112,4 +116,70 @@ export interface UpdateWorkoutRequest {
 
 export interface AddExerciseToWorkoutRequest {
     exercise_id: number;
+}
+
+// Exercise 1RM History Types
+export interface Exercise1RMHistoryEntry {
+    workout_id: number;
+    workout_title: string;
+    workout_date: string; // ISO datetime string
+    one_rep_max: number;
+}
+
+export interface Exercise1RMHistory {
+    exercise_id: number;
+    exercise_name: string;
+    total_workouts: number;
+    history: Exercise1RMHistoryEntry[];
+}
+
+// Calendar Types
+export interface CalendarDay {
+    date: string; // ISO date string "2025-12-18"
+    day: number; // Day of month (1-31)
+    weekday: number; // Day of week (0=Sunday, 6=Saturday)
+    has_workout: boolean;
+    is_rest_day: boolean;
+    workout_count: number;
+    rest_day_count: number;
+}
+
+export interface CalendarPeriod {
+    year: number;
+    month: number | null;
+    week: number | null;
+    start_date: string; // ISO date string
+    end_date: string; // ISO date string
+}
+
+export interface CalendarResponse {
+    calendar: CalendarDay[];
+    period: CalendarPeriod;
+}
+
+export interface CalendarStats {
+    total_workouts: number;
+    total_rest_days: number;
+    days_not_worked: number;
+    total_days: number;
+    period: CalendarPeriod;
+}
+
+export interface AvailableYearsResponse {
+    years: number[];
+}
+
+// Exercise 1RM History Types
+export interface Exercise1RMHistoryEntry {
+    workout_id: number;
+    workout_title: string;
+    workout_date: string; // ISO datetime string
+    one_rep_max: number;
+}
+
+export interface Exercise1RMHistory {
+    exercise_id: number;
+    exercise_name: string;
+    total_workouts: number;
+    history: Exercise1RMHistoryEntry[];
 }

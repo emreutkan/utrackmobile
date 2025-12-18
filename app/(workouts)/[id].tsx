@@ -211,6 +211,7 @@ export default function WorkoutDetailScreen() {
                     onRemoveExercise={isEditMode ? handleRemoveExercise : undefined}
                     onAddSet={isEditMode ? handleAddSet : undefined}
                     onDeleteSet={isEditMode ? handleDeleteSet : undefined}
+                    onShowStatistics={(exerciseId: number) => router.push(`/(exercise-statistics)/${exerciseId}`)}
                 />
             </View>
             {renderAddExerciseModal()}

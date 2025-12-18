@@ -85,3 +85,15 @@ export const updateExerciseOrder = async (workoutId: number, exercise_orders: { 
         return false;
     }
 }
+
+export const getExercise1RMHistory = async (exerciseId: number): Promise<any> => {
+    try {
+        const response = await apiClient.get(`/workout/exercise/${exerciseId}/1rm-history/`);
+        return response.data;
+    } catch (error: any) {
+        if (error.response) {
+            return error.response.data;
+        }
+        return error.message || 'An unknown error occurred';
+    }
+}

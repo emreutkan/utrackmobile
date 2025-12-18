@@ -1,7 +1,7 @@
 import apiClient from './APIClient';
 // Don't use the full URL here if apiClient has a baseURL
 // import { CREATE_WORKOUT_URL } from './ApiBase'; 
-import { AddExerciseToWorkoutRequest, CreateTemplateWorkoutRequest, CreateWorkoutRequest, CreateWorkoutResponse, GetWorkoutsResponse, StartTemplateWorkoutRequest, TemplateWorkout, UpdateWorkoutRequest, Workout } from './types';
+import { AddExerciseToWorkoutRequest, AvailableYearsResponse, CalendarResponse, CalendarStats, CreateTemplateWorkoutRequest, CreateWorkoutRequest, CreateWorkoutResponse, GetWorkoutsResponse, StartTemplateWorkoutRequest, TemplateWorkout, UpdateWorkoutRequest, Workout } from './types';
 
 export const createWorkout = async (request: CreateWorkoutRequest): Promise<CreateWorkoutResponse | any> => {
     try {
@@ -140,6 +140,40 @@ export const getRestTimerState = async (): Promise<{
 } | any> => {
     try {
         const response = await apiClient.get('/workout/active/rest-timer/');
+        return response.data;
+    } catch (error: any) {
+        return error.message || 'An unknown error occurred';
+    }
+}
+
+// Calendar API Functions
+export const getCalendar = async (year: number, month?: number, week?: number): Promise<CalendarResponse | any> => {
+    try {
+        const params: any = { year };
+        if (month !== undefined) params.month = month;
+        if (week !== undefined) params.week = week;
+        const response = await apiClient.get('/workout/calendar/', { params });
+        return response.data;
+    } catch (error: any) {
+        return error.message || 'An unknown error occurred';
+    }
+}
+
+export const getAvailableYears = async (): Promise<AvailableYearsResponse | any> => {
+    try {
+        const response = await apiClient.get('/workout/years/');
+        return response.data;
+    } catch (error: any) {
+        return error.message || 'An unknown error occurred';
+    }
+}
+
+export const getCalendarStats = async (year: number, month?: number, week?: number): Promise<CalendarStats | any> => {
+    try {
+        const params: any = { year };
+        if (month !== undefined) params.month = month;
+        if (week !== undefined) params.week = week;
+        const response = await apiClient.get('/workout/calendar/stats/', { params });
         return response.data;
     } catch (error: any) {
         return error.message || 'An unknown error occurred';

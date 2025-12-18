@@ -301,6 +301,7 @@ export default function ActiveWorkoutScreen() {
                 onAddSet={handleAddSet}
                 onDeleteSet={handleDeleteSet}
                 onCompleteWorkout={handleFinishWorkout}
+                onShowStatistics={(exerciseId: number) => router.push(`/(exercise-statistics)/${exerciseId}`)}
             />
             {renderAddExerciseModal()}
         </>

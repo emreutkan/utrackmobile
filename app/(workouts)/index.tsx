@@ -14,8 +14,9 @@ export default function Workouts() {
     }, []);
 
     const renderItem = ({ item }: { item: any }) => {
-        // Format date if available
-        const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : `Workout #${item.id}`;
+        // Use datetime (when workout happened) for display, fallback to created_at if datetime not available
+        const workoutDate = item.datetime || item.created_at;
+        const date = workoutDate ? new Date(workoutDate).toLocaleDateString() : `Workout #${item.id}`;
 
         return (
             <TouchableOpacity 

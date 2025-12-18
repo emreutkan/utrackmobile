@@ -1,6 +1,6 @@
 export interface CreateWorkoutRequest {
     title: string; 
-    date?: Date | null; // Optional - backend auto-generates if not provided
+    date?: string; // Optional - ISO datetime string like "2025-12-09T01:05:00.000Z"
 }
 
 export interface CreateWorkoutResponse {
@@ -20,7 +20,8 @@ export interface GetAccountResponse {
 export interface Workout {
     id: number;
     title: string;
-    created_at: string;
+    datetime: string; // When the workout actually happened
+    created_at: string; // When the record was created
     updated_at: string;
     duration: number; // time in SECONDS (backend uses PositiveIntegerField)
     intensity: "low" | "medium" | "high"; // Backend uses lowercase only

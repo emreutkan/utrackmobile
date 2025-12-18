@@ -594,7 +594,7 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                                     : 'Workout'}
                             </Text>
                             <Text style={styles.workoutDate}>
-                                {new Date(workout.created_at).toLocaleDateString(undefined, {
+                                {new Date(workout.datetime || workout.created_at).toLocaleDateString(undefined, {
                                     weekday: 'long', year: 'numeric', month: 'short', day: 'numeric'
                                 })}
                             </Text>

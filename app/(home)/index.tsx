@@ -1,13 +1,13 @@
 import { createWorkout, deleteWorkout, getActiveWorkout } from '@/api/Workout';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const SwipeAction = ({ progress, dragX, onPress }: any) => {
+const SwipeAction = ({ progress,  onPress }: any) => {
     const animatedStyle = useAnimatedStyle(() => {
         const scale = interpolate(progress.value, [0, 1], [0.5, 1], Extrapolation.CLAMP);
         return { transform: [{ scale }] };
@@ -22,14 +22,18 @@ const SwipeAction = ({ progress, dragX, onPress }: any) => {
     );
 };
 
+
 export default function Home() {
     // 1. State lives here, at the top level
     const [modalVisible, setModalVisible] = useState(false);
     const [workoutTitle, setWorkoutTitle] = useState('');
     const [activeWorkout, setActiveWorkout] = useState<any>(null);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [date, setDate] = useState(new Date());
     const [elapsedTime, setElapsedTime] = useState('00:00:00');
     const insets = useSafeAreaInsets();
-
+    const [modalCreateButtonText, setModalCreateButtonText] = useState('Create Workout');
+    const [modalCreateButtonAction, setModalCreateButtonAction] = useState('createWorkout');
     const fetchActiveWorkout = async () => {
         try {
             const workout = await getActiveWorkout();
@@ -47,7 +51,14 @@ export default function Home() {
             setActiveWorkout(null);
         }
     };
+    const [keyboardHeight, setKeyboardHeight] = useState(300); // Default fallback
 
+    useEffect(() => {
+      const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+      });
+      return () => showSubscription.remove();
+    }, []);
     useFocusEffect(
         useCallback(() => {
             fetchActiveWorkout();
@@ -89,39 +100,71 @@ export default function Home() {
             const month = date.toLocaleString('default', { month: 'long' });
             const day = date.getDate();
             const year = date.getFullYear();
-            setWorkoutTitle(`${month} ${day} ${year} Workout`);
+            if (modalCreateButtonAction !== 'addPreviousWorkout') {
+                setWorkoutTitle(`${month} ${day} ${year} Workout`);
+            }
+            else {
+                setWorkoutTitle(`${month} ${day} ${year} Workout`);
+            }
         }
     }, [modalVisible]);
 
-    const handleCreateWorkout = async () => {
-        try {
-            const result = await createWorkout({ title: workoutTitle });
+    
 
-            if (typeof result === 'object' && 'error' in result && result.error === "ACTIVE_WORKOUT_EXISTS") {
-                Alert.alert(
-                    "Active Workout Exists",
-                    `You already have an active workout (ID: ${result.active_workout}).`,
-                    [
-                        {
-                            text: "Cancel",
-                            style: "cancel",
-                            onPress: () => setModalVisible(false)
-                        },
-                        {
-                            text: "View/Resume",
-                            onPress: () => {
-                                setModalVisible(false);
-                                router.push('/(active-workout)');
+    const handleCreateWorkout = async () => {
+        if (modalCreateButtonAction === 'createWorkout') {
+            try {
+                const result = await createWorkout({ title: workoutTitle });
+    
+                if (typeof result === 'object' && 'error' in result && result.error === "ACTIVE_WORKOUT_EXISTS") {
+                    Alert.alert(
+                        "Active Workout Exists",
+                        `You already have an active workout (ID: ${result.active_workout}).`,
+                        [
+                            {
+                                text: "Cancel",
+                                style: "cancel",
+                                onPress: () => setModalVisible(false)
+                            },
+                            {
+                                text: "View/Resume",
+                                onPress: () => {
+                                    setModalVisible(false);
+                                    router.push('/(active-workout)');
+                                }
                             }
-                        }
-                    ]
-                );
-                return;            }
-            else if (typeof result === 'object' && 'id' in result && !('error' in result)) {
+                        ]
+                    );
+                    return;            }
+                else if (typeof result === 'object' && 'id' in result && !('error' in result)) {
+                    console.log('Workout created:', result.id);
+                    setModalVisible(false);
+                    setWorkoutTitle('');
+                    router.push('/(active-workout)');
+                    return;
+                }
+                else {
+                    Alert.alert(
+                        "Error",
+                        `An unknown error occurred while creating the workout: ${result}`,
+                        [
+                            { text: "OK", style: "cancel", onPress: () => setModalVisible(false) }
+                        ]
+                    );
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setModalVisible(false); // Close modal
+                setWorkoutTitle('');    // Reset input
+            }
+        } else if (modalCreateButtonAction === 'addPreviousWorkout') {
+            const result = await createWorkout({ title: workoutTitle, date: date });
+            if (typeof result === 'object' && 'id' in result && !('error' in result)) {
                 console.log('Workout created:', result.id);
                 setModalVisible(false);
                 setWorkoutTitle('');
-                router.push('/(active-workout)');
+                router.push(`/(workouts)/${result.id}/edit`);
                 return;
             }
             else {
@@ -133,11 +176,6 @@ export default function Home() {
                     ]
                 );
             }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setModalVisible(false); // Close modal
-            setWorkoutTitle('');    // Reset input
         }
     }
 
@@ -225,12 +263,14 @@ export default function Home() {
     }
 
     const handleStartNewWorkout = () => {
+        setModalCreateButtonText('Create Workout');
         setModalVisible(true);
     };
-
-    const handleAddPreviousWorkout = () => {
-        // TODO: Implement logic to select from previous workouts
-        Alert.alert("Coming Soon", "This feature is not yet implemented.");
+    const handleAddPreviousWorkoutModal = () => {
+        setModalCreateButtonText('Add Previous Workout');
+        setModalCreateButtonAction('addPreviousWorkout'); // Ensure this is set
+        setModalVisible(true);
+        // Open the picker immediately when choosing "Add Previous"
     };
 
     const renderAddWorkoutButton = () => {
@@ -249,7 +289,7 @@ export default function Home() {
                                 },
                                 {
                                     text: "Add Previous Workout",
-                                    onPress: handleAddPreviousWorkout
+                                    onPress: handleAddPreviousWorkoutModal
                                 },
                                 {
                                     text: "Cancel",
@@ -279,7 +319,6 @@ export default function Home() {
         );
     }
 
-    
     const renderSupplementsButton = () => {
         return (
             <View style={[styles.SupplementsButtonContainer, { bottom: insets.bottom + 20 }]}>
@@ -303,8 +342,20 @@ export default function Home() {
         </View>
     );
 
+    const onDateChange = (event: any, selectedDate?: Date) => {
+        // Android: You MUST set this to false immediately or it won't pop up again
+        if (Platform.OS === 'android') {
+            setShowDatePicker(false);
+        }
+        
+        if (selectedDate) {
+            setDate(selectedDate);
+        }
+    };
+    
+
     return (
-        <View style={[styles.container, {  paddingTop: insets.top }]}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.container, {  paddingTop: insets.top }]}>
             {renderHeader()}
 
             {renderActiveWorkout()}
@@ -312,7 +363,6 @@ export default function Home() {
             {renderSupplementsButton()}
             {renderAddWorkoutButton()}
 
-            {/* 3. Render Modal conditionally based on state */}
             <Modal
                 visible={modalVisible}
                 animationType="fade"
@@ -321,7 +371,6 @@ export default function Home() {
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
-                        <Text style={styles.modalTitle}>New Workout</Text>
                         
                         <View style={styles.inputContainer}>
                             <TextInput 
@@ -341,13 +390,28 @@ export default function Home() {
                                 </TouchableOpacity>
                             )}
                         </View>
-                        
+                        <TouchableOpacity 
+            style={styles.sheetBackdrop} 
+            onPress={() => setShowDatePicker(false)} 
+        />
+        
+        <TouchableOpacity 
+    style={styles.datePickerTrigger} 
+    onPress={() => {
+        Keyboard.dismiss(); // Hide keyboard so the sheet takes its place
+        setShowDatePicker(true);
+    }}
+>
+    <Text style={styles.dateText}>{date.toLocaleString()}</Text>
+</TouchableOpacity>
+
+
                         <View style={styles.modalActions}>
                             <TouchableOpacity 
                                 style={styles.createButton} 
                                 onPress={handleCreateWorkout}
                             >
-                                <Text style={styles.createButtonText}>Create Workout</Text>
+                                <Text style={styles.createButtonText}>{modalCreateButtonText}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity 
@@ -359,8 +423,31 @@ export default function Home() {
                         </View>
                     </View>
                 </View>
-            </Modal>
+                {showDatePicker && (
+    <View style={styles.sheetOverlay}>
+
+        <View style={[styles.bottomSheet, { height: keyboardHeight }]}>
+            <View style={styles.sheetHeader}>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                    <Text style={styles.doneText}>Done</Text>
+                </TouchableOpacity>
+            </View>
+
+            <DateTimePicker
+                value={date}
+                mode="datetime"
+                display="spinner" // Spinner looks best in bottom sheets
+                onChange={onDateChange}
+                textColor="#FFFFFF"
+                themeVariant="dark"
+                style={{ flex: 1 }}
+            />
         </View>
+    </View>
+)}
+            </Modal>
+  
+        </KeyboardAvoidingView>
     )
 }
 
@@ -597,6 +684,55 @@ const styles = StyleSheet.create({
         fontSize: 17,
         fontWeight: '600',
     },
-
+    datePickerTrigger: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#2C2C2E',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#3A3A3C',
+    },
+    dateText: {
+        color: '#0A84FF',
+        fontSize: 17,
+        fontWeight: '600',
+    },
+    sheetOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'flex-end',
+        zIndex: 1001, // Ensure it's above your main modal
+    },
+    sheetBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.3)',
+    },
+    bottomSheet: {
+        backgroundColor: '#1C1C1E', // Match keyboard/iOS dark gray
+        borderTopLeftRadius: 15,
+        borderTopRightRadius: 15,
+        width: '100%',
+        paddingBottom: 20,
+    },
+    sheetHeader: {
+        height: 45,
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: '#3A3A3C',
+    },
+    doneText: {
+        color: '#0A84FF',
+        fontSize: 17,
+        fontWeight: '600',
+    },
 });
 

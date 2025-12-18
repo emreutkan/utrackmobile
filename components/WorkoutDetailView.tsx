@@ -587,9 +587,11 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, onAd
                     <View style={styles.workoutHeader}>
                         <View>
                             <Text style={styles.workoutTitle}>
-                                {workout.title.split(' ').map(word => 
-                                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-                                ).join(' ')}
+                                {workout.title 
+                                    ? workout.title.split(' ').map((word: string) => 
+                                        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                                      ).join(' ')
+                                    : 'Workout'}
                             </Text>
                             <Text style={styles.workoutDate}>
                                 {new Date(workout.created_at).toLocaleDateString(undefined, {

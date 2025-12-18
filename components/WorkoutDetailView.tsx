@@ -127,7 +127,7 @@ const RestTimerBar = ({ lastSetTimestamp, category }: { lastSetTimestamp: number
     );
 };
 
-const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose }: any) => {
+const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, swipeRef, onOpen, onClose }: any) => {
     const renderRightActions = (progress: any, dragX: any) => (
         <SwipeAction
             progress={progress}
@@ -171,9 +171,9 @@ const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose }: a
             ref={swipeRef}
             onSwipeableWillOpen={onOpen}
             onSwipeableWillClose={onClose}
-            renderRightActions={isLocked ? undefined : renderRightActions}
+            renderRightActions={isViewOnly || isLocked ? undefined : renderRightActions}
             containerStyle={{ marginBottom: 0 }}
-            enabled={!isLocked}
+            enabled={!isViewOnly && !isLocked}
         >
             <View style={styles.setRow}>
                 <Text style={[styles.setText, {maxWidth: 30}]}>{index + 1}</Text>
@@ -186,7 +186,7 @@ const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose }: a
     );
 };
 
-const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, isEditMode, onFocus }: any) => {
+const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, isEditMode, isViewOnly, onFocus }: any) => {
     const [inputs, setInputs] = useState({ weight: '', reps: '', rir: '', restTime: '', isWarmup: false });
 
     // Format weight to remove unnecessary decimals (same logic as formatWeight)
@@ -236,7 +236,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, isEditMode, onFocu
         setInputs({ weight: inputs.weight, reps: inputs.reps, rir: '', restTime: '', isWarmup: false }); 
     };
 
-    if (isLocked && !isEditMode) return null;
+    if ((isLocked && !isEditMode ) || isViewOnly) return null;
 
     return (
      <>
@@ -308,7 +308,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, onAdd, isLocked, isEditMode, onFocu
     );
 };
 
-const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, onToggleLock, onRemove, onAddSet, onDeleteSet, swipeControl, onInputFocus, onShowInfo, onShowStatistics, isActive }: any) => {
+const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly, onToggleLock, onRemove, onAddSet, onDeleteSet, swipeControl, onInputFocus, onShowInfo, onShowStatistics, isActive }: any) => {
     const exercise = workoutExercise.exercise || (workoutExercise.name ? workoutExercise : null);
     if (!exercise) return null;
 
@@ -346,8 +346,9 @@ const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, onToggleLock, onR
             ref={((ref: any) => swipeControl.register(exerciseKey, ref)) as any}
             onSwipeableWillOpen={() => swipeControl.onOpen(exerciseKey)}
             onSwipeableWillClose={() => swipeControl.onClose(exerciseKey)}
-            renderLeftActions={!isEditMode ? renderLeftActions : undefined}
-            renderRightActions={(!isLocked || isEditMode) && onRemove ? renderRightActions : undefined}
+            renderLeftActions={!isViewOnly && !isEditMode ? renderLeftActions : undefined}
+            renderRightActions={!isViewOnly && (!isLocked || isEditMode) && onRemove ? renderRightActions : undefined}
+            enabled={!isViewOnly}
             containerStyle={{ marginBottom: 12 }}
         >
             <View style={[styles.exerciseCard, { marginBottom: 0 }]}>
@@ -412,6 +413,7 @@ const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, onToggleLock, onR
                                     index={index}
                                     onDelete={onDeleteSet}
                                     isLocked={isLocked}
+                                    isViewOnly={isViewOnly}
                                     swipeRef={(ref: any) => swipeControl.register(setKey, ref)}
                                     onOpen={() => swipeControl.onOpen(setKey)}
                                     onClose={() => swipeControl.onClose(setKey)}
@@ -425,6 +427,7 @@ const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, onToggleLock, onR
                             onAdd={(data: any) => onAddSet(idToLock, data)}
                             isLocked={isLocked}
                             isEditMode={isEditMode}
+                            isViewOnly={isViewOnly}
                             onFocus={() => {
                                 swipeControl.closeAll();
                                 onInputFocus?.();
@@ -504,6 +507,7 @@ interface WorkoutDetailViewProps {
     elapsedTime: string;
     isActive: boolean;
     isEditMode?: boolean;
+    isViewOnly?: boolean;
     onAddExercise?: () => void;
     onRemoveExercise?: (exerciseId: number) => void;
     onAddSet?: (exerciseId: number, data: any) => void;
@@ -512,7 +516,7 @@ interface WorkoutDetailViewProps {
     onShowStatistics?: (exerciseId: number) => void;
 }
 
-export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEditMode = false, onAddExercise, onRemoveExercise, onAddSet, onDeleteSet, onCompleteWorkout, onShowStatistics }: WorkoutDetailViewProps) {
+export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEditMode = false, isViewOnly = false, onAddExercise, onRemoveExercise, onAddSet, onDeleteSet, onCompleteWorkout, onShowStatistics }: WorkoutDetailViewProps) {
     const insets = useSafeAreaInsets();
     const [lockedExerciseIds, setLockedExerciseIds] = useState<Set<number>>(new Set());
     const [exercises, setExercises] = useState(workout?.exercises || []);
@@ -608,6 +612,7 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
                                     workoutExercise={item}
                                     isLocked={lockedExerciseIds.has(item.id)}
                                     isEditMode={isEditMode}
+                                    isViewOnly={isViewOnly}
                                     onToggleLock={toggleLock}
                                     onRemove={onRemoveExercise}
                                     onAddSet={handleAddSet}
@@ -750,14 +755,14 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
                                     </TouchableOpacity>
                                 ) : null
                    }
-                   {(isActive || isEditMode) && onAddExercise && (
+                   {(isActive || isEditMode) && !isViewOnly && onAddExercise && (
                         <View style={styles.fabContainer}>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 onPress={() => {
                                     closeCurrentSwipeable();
                                     onAddExercise();
                                 }}
-                                style={styles.fabButton} 
+                                style={styles.fabButton}
                             >
                                 <Ionicons name="add" size={32} color="white" />
                             </TouchableOpacity>

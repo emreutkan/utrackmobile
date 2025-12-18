@@ -5,7 +5,7 @@ import WorkoutDetailView from '@/components/WorkoutDetailView';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function WorkoutDetailScreen() {
@@ -16,6 +16,7 @@ export default function WorkoutDetailScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [exercises, setExercises] = useState<any[]>([]);
     const [isLoadingExercises, setIsLoadingExercises] = useState(false);
+    const [isViewOnly, setIsViewOnly] = useState(false);
     const insets = useSafeAreaInsets();
 
     const fetchWorkout = useCallback(async () => {
@@ -127,12 +128,12 @@ export default function WorkoutDetailScreen() {
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Add Exercise</Text>
                             <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                                <Ionicons name="close" size={24} color="#FFFFFF" />
+                                <Ionicons name="close-circle" size={28} color="#48484A" />
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.searchContainer}>
-                            <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
+                            <Ionicons name="search" size={18} color="#8E8E93" style={styles.searchIcon} />
                             <TextInput
                                 placeholder="Search exercises..."
                                 placeholderTextColor="#8E8E93"
@@ -144,7 +145,7 @@ export default function WorkoutDetailScreen() {
 
                         {isLoadingExercises ? (
                             <View style={styles.loadingContainer}>
-                                <ActivityIndicator size="large" color="#0A84FF" />
+                                <ActivityIndicator size="small" color="#FFFFFF" />
                             </View>
                         ) : (
                             <FlatList
@@ -161,17 +162,11 @@ export default function WorkoutDetailScreen() {
                                                 {item.primary_muscle} {item.equipment_type ? `• ${item.equipment_type}` : ''}
                                             </Text>
                                         </View>
-                                        <Ionicons name="add" size={24} color="#0A84FF" />
+                                        <Ionicons name="add-circle" size={24} color="#FFFFFF" />
                                     </TouchableOpacity>
                                 )}
-                                ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+                                ItemSeparatorComponent={() => <View style={styles.separator} />}
                                 contentContainerStyle={styles.listContent}
-                                ListEmptyComponent={
-                                    <View style={styles.emptyContainer}>
-                                        <Ionicons name="barbell-outline" size={48} color="#8E8E93" />
-                                        <Text style={styles.emptyText}>No exercises found</Text>
-                                    </View>
-                                }
                             />
                         )}
                     </View>
@@ -182,38 +177,44 @@ export default function WorkoutDetailScreen() {
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
+            {/* COMPACT HEADER */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="chevron-back" size={24} color="#0A84FF" />
+                <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
+                    <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
-                <View style={{ flex: 1 }} />
-                {workout && (
-                    <TouchableOpacity
-                        onPress={() => setIsEditMode(!isEditMode)}
-                        style={styles.editButton}
-                    >
-                        <Ionicons 
-                            name={isEditMode ? "checkmark" : "create-outline"} 
-                            size={24} 
-                            color={isEditMode ? "#34C759" : "#0A84FF"} 
-                        />
-                    </TouchableOpacity>
-                )}
+                
+            
+
+                <TouchableOpacity
+                    onPress={() => setIsEditMode(!isEditMode)}
+                    style={styles.headerButton}
+                >
+                    <Text style={[styles.editBtnText, isEditMode && styles.doneBtnText]}>
+                        {isEditMode ? "Done" : "Edit"}
+                    </Text>
+                </TouchableOpacity>
             </View>
             
-            <View style={styles.content}>
+            <ScrollView 
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
                 <WorkoutDetailView 
                     workout={workout} 
                     elapsedTime={formatDuration(workout?.duration || 0)} 
                     isActive={false}
                     isEditMode={isEditMode}
+                    isViewOnly={isViewOnly}
                     onAddExercise={isEditMode ? () => setIsModalVisible(true) : undefined}
                     onRemoveExercise={isEditMode ? handleRemoveExercise : undefined}
                     onAddSet={isEditMode ? handleAddSet : undefined}
                     onDeleteSet={isEditMode ? handleDeleteSet : undefined}
                     onShowStatistics={(exerciseId: number) => router.push(`/(exercise-statistics)/${exerciseId}`)}
                 />
-            </View>
+                <View style={{ height: insets.bottom + 40 }} />
+            </ScrollView>
+
             {renderAddExerciseModal()}
         </View>
     );
@@ -227,54 +228,61 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingBottom: 8,
+        justifyContent: 'space-between',
+        paddingHorizontal: 8,
         backgroundColor: '#000000',
-        zIndex: 10,
     },
-    backButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    headerButton: {
+        paddingHorizontal: 8,
+        justifyContent: 'center',
     },
-    backText: {
-        color: '#0A84FF',
-        fontSize: 17,
-        marginLeft: -4,
+
+    editBtnText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '500',
+        textAlign: 'right',
     },
-    content: {
+    doneBtnText: {
+        color: '#34C759',
+        fontWeight: '700',
+    },
+    scrollView: {
         flex: 1,
     },
-    editButton: {
-        padding: 4,
+    scrollContent: {
+        paddingTop: 8,
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#1C1C1E',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        maxHeight: '90%',
-        padding: 20,
+        backgroundColor: '#1C1C1E', // Dark gray card
+        borderTopLeftRadius: 15,
+        borderTopRightRadius: 15,
+        height: '85%',
+        paddingTop: 16,
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        paddingHorizontal: 20,
+        marginBottom: 16,
     },
     modalTitle: {
         color: '#FFFFFF',
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: '700',
     },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#2C2C2E',
-        borderRadius: 12,
+        borderRadius: 10,
+        marginHorizontal: 20,
         paddingHorizontal: 12,
         marginBottom: 16,
     },
@@ -283,24 +291,29 @@ const styles = StyleSheet.create({
     },
     searchInput: {
         flex: 1,
-        paddingVertical: 12,
+        paddingVertical: 10,
         color: '#FFFFFF',
         fontSize: 16,
     },
     loadingContainer: {
-        padding: 40,
+        flex: 1,
+        justifyContent: 'center',
         alignItems: 'center',
     },
     listContent: {
-        paddingBottom: 20,
+        paddingHorizontal: 20,
+        paddingBottom: 40,
     },
     exerciseCard: {
-        backgroundColor: '#2C2C2E',
-        borderRadius: 12,
-        padding: 16,
+        paddingVertical: 12,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+    },
+    separator: {
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: '#38383A',
+        width: '100%',
     },
     exerciseInfo: {
         flex: 1,
@@ -308,20 +321,11 @@ const styles = StyleSheet.create({
     exerciseName: {
         color: '#FFFFFF',
         fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 4,
+        fontWeight: '500',
+        marginBottom: 2,
     },
     exerciseDetail: {
         color: '#8E8E93',
-        fontSize: 14,
-    },
-    emptyContainer: {
-        padding: 40,
-        alignItems: 'center',
-    },
-    emptyText: {
-        color: '#8E8E93',
-        fontSize: 16,
-        marginTop: 12,
+        fontSize: 13,
     },
 });

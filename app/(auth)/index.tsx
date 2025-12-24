@@ -28,13 +28,6 @@ export default function AuthScreen() {
         scopes: ['profile', 'email'],
     });
 
-    useEffect(() => {
-        getAccessToken().then((accessToken) => {
-            if (accessToken) {
-                router.replace('/(home)');
-            }
-        });
-    }, []);
 
     useEffect(() => {
         if (response?.type === 'success') {

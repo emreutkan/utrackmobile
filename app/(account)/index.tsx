@@ -121,11 +121,6 @@ export default function AccountScreen() {
                                 {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : 'User'}
                             </Text>
                             <Text style={styles.profileEmail}>{user?.email || 'Loading...'}</Text>
-                            {user?.gender && (
-                                <Text style={styles.profileGender}>
-                                    {user.gender.charAt(0).toUpperCase() + user.gender.slice(1)}
-                                </Text>
-                            )}
                         </View>
                     </View>
                 </View>
@@ -144,9 +139,9 @@ export default function AccountScreen() {
                         </View>
                         <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
                     </TouchableOpacity>
+                </View>
 
-                    <View style={styles.separator} />
-
+                <View style={[styles.section, { marginTop: 12 }]}>
                     <TouchableOpacity 
                         style={styles.menuItem}
                         onPress={() => setIsEditingGender(true)}
@@ -329,12 +324,6 @@ const styles = StyleSheet.create({
     profileEmail: {
         fontSize: 15,
         color: '#8E8E93',
-        marginBottom: 4,
-    },
-    profileGender: {
-        fontSize: 14,
-        color: '#8E8E93',
-        textTransform: 'capitalize',
     },
     sectionTitle: {
         fontSize: 13,

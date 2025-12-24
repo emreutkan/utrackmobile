@@ -77,38 +77,73 @@ export default function UnifiedHeader({
 
     return (
         <>
-            <BlurView intensity={80} tint="dark" style={[styles.header, { top: headerTop }]}>
-                {showBackButton ? (
-                    <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-                        <Ionicons name="chevron-back" size={24} color="#0A84FF" />
-                        {backButtonText && (
-                            <Text style={styles.backButtonText}>{backButtonText}</Text>
-                        )}
-                    </TouchableOpacity>
-                ) : (
-                    <View style={styles.backButton} />
-                )}
-                
-                <Text style={styles.headerTitle}>{title}</Text>
-                
-                {rightButtonText && onRightButtonPress ? (
-                    <TouchableOpacity 
-                        onPress={onRightButtonPress}
-                        style={styles.rightButton}
-                    >
-                        <Text style={styles.rightButtonText}>{rightButtonText}</Text>
-                    </TouchableOpacity>
-                ) : rightButton ? (
-                    <TouchableOpacity 
-                        onPress={rightButton.onPress}
-                        style={styles.rightButton}
-                    >
-                        <Ionicons name={rightButton.icon} size={24} color="#0A84FF" />
-                    </TouchableOpacity>
-                ) : (
-                    <View style={styles.rightButton} />
-                )}
-            </BlurView>
+            {Platform.OS === 'ios' ? (
+                <BlurView intensity={80} tint="dark" style={[styles.header, { top: headerTop }]}>
+                    {showBackButton ? (
+                        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+                            <Ionicons name="chevron-back" size={24} color="#0A84FF" />
+                            {backButtonText && (
+                                <Text style={styles.backButtonText}>{backButtonText}</Text>
+                            )}
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.backButton} />
+                    )}
+                    
+                    <Text style={styles.headerTitle}>{title}</Text>
+                    
+                    {rightButtonText && onRightButtonPress ? (
+                        <TouchableOpacity 
+                            onPress={onRightButtonPress}
+                            style={styles.rightButton}
+                        >
+                            <Text style={styles.rightButtonText}>{rightButtonText}</Text>
+                        </TouchableOpacity>
+                    ) : rightButton ? (
+                        <TouchableOpacity 
+                            onPress={rightButton.onPress}
+                            style={styles.rightButton}
+                        >
+                            <Ionicons name={rightButton.icon} size={24} color="#0A84FF" />
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.rightButton} />
+                    )}
+                </BlurView>
+            ) : (
+                <View style={[styles.header, { top: headerTop, backgroundColor: 'rgba(28, 28, 30, 0.95)' }]}>
+                    {showBackButton ? (
+                        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+                            <Ionicons name="chevron-back" size={24} color="#0A84FF" />
+                            {backButtonText && (
+                                <Text style={styles.backButtonText}>{backButtonText}</Text>
+                            )}
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.backButton} />
+                    )}
+                    
+                    <Text style={styles.headerTitle}>{title}</Text>
+                    
+                    {rightButtonText && onRightButtonPress ? (
+                        <TouchableOpacity 
+                            onPress={onRightButtonPress}
+                            style={styles.rightButton}
+                        >
+                            <Text style={styles.rightButtonText}>{rightButtonText}</Text>
+                        </TouchableOpacity>
+                    ) : rightButton ? (
+                        <TouchableOpacity 
+                            onPress={rightButton.onPress}
+                            style={styles.rightButton}
+                        >
+                            <Ionicons name={rightButton.icon} size={24} color="#0A84FF" />
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.rightButton} />
+                    )}
+                </View>
+            )}
 
             {modalContent && (
                 <>
@@ -130,16 +165,29 @@ export default function UnifiedHeader({
                                 }
                             ]}
                         >
-                            <BlurView intensity={80} tint="dark" style={styles.modalBlur}>
-                                <KeyboardAvoidingView
-                                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                                    keyboardVerticalOffset={modalTop}
-                                >
-                                    <View style={styles.modalContent}>
-                                        {modalContent}
-                                    </View>
-                                </KeyboardAvoidingView>
-                            </BlurView>
+                            {Platform.OS === 'ios' ? (
+                                <BlurView intensity={80} tint="dark" style={styles.modalBlur}>
+                                    <KeyboardAvoidingView
+                                        behavior="padding"
+                                        keyboardVerticalOffset={modalTop}
+                                    >
+                                        <View style={styles.modalContent}>
+                                            {modalContent}
+                                        </View>
+                                    </KeyboardAvoidingView>
+                                </BlurView>
+                            ) : (
+                                <View style={[styles.modalBlur, { backgroundColor: 'rgba(28, 28, 30, 0.95)' }]}>
+                                    <KeyboardAvoidingView
+                                        behavior="height"
+                                        keyboardVerticalOffset={modalTop}
+                                    >
+                                        <View style={styles.modalContent}>
+                                            {modalContent}
+                                        </View>
+                                    </KeyboardAvoidingView>
+                                </View>
+                            )}
                         </Animated.View>
                     )}
                 </>

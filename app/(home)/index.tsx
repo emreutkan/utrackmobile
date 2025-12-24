@@ -433,12 +433,17 @@ export default function Home() {
                                     setShowStartWorkoutMenu(false);
                                 }}
                                 >
-                                    <BlurView intensity={80} tint="dark" style={styles.cardHeader}>
-                                    
-                                        <Text style={styles.contentTitle}>Start your workout for today</Text>
-                                        <Ionicons name="chevron-down" size={20} color="#8E8E93" />
-
-                                    </BlurView>
+                                    {Platform.OS === 'ios' ? (
+                                        <BlurView intensity={80} tint="dark" style={styles.cardHeader}>
+                                            <Text style={styles.contentTitle}>Start your workout for today</Text>
+                                            <Ionicons name="chevron-down" size={20} color="#8E8E93" />
+                                        </BlurView>
+                                    ) : (
+                                        <View style={[styles.cardHeader, { backgroundColor: 'rgba(28, 28, 30, 0.95)' }]}>
+                                            <Text style={styles.contentTitle}>Start your workout for today</Text>
+                                            <Ionicons name="chevron-down" size={20} color="#8E8E93" />
+                                        </View>
+                                    )}
                                 </TouchableOpacity>
                             ) : (
                                 <TouchableOpacity 
@@ -675,52 +680,83 @@ export default function Home() {
             </RNScrollView>
 
             {/* Bottom Navigation Bar */}
-            <BlurView intensity={80} tint="dark" style={[styles.bottomNavContainer, { bottom: insets.bottom + 12 }]}>
-                <TouchableOpacity 
-                    onPress={() => router.push('/(workouts)')} 
-                    style={styles.bottomNavButton}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="reader-outline" size={24} color={pathname.startsWith('/(workouts)') ? "#0A84FF" : "#8E8E93"} />
-                    <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(workouts)') ? "#0A84FF" : "#8E8E93" }]}>Workouts</Text>
-                </TouchableOpacity>
+            {Platform.OS === 'ios' ? (
+                <BlurView intensity={80} tint="dark" style={[styles.bottomNavContainer, { bottom: insets.bottom + 12 }]}>
+                    <TouchableOpacity 
+                        onPress={() => router.push('/(workouts)')} 
+                        style={styles.bottomNavButton}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="reader-outline" size={24} color={pathname.startsWith('/(workouts)') ? "#0A84FF" : "#8E8E93"} />
+                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(workouts)') ? "#0A84FF" : "#8E8E93" }]}>Workouts</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity 
-                    onPress={() => router.push('/(supplements)')} 
-                    style={styles.bottomNavButton}
-                    activeOpacity={0.7}
-                >
-                    <MaterialIcons name="medication" size={24} color={pathname.startsWith('/(supplements)') ? "#0A84FF" : "#8E8E93"} />
-                    <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(supplements)') ? "#0A84FF" : "#8E8E93" }]}>Supplements</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity 
+                        onPress={() => router.push('/(supplements)')} 
+                        style={styles.bottomNavButton}
+                        activeOpacity={0.7}
+                    >
+                        <MaterialIcons name="medication" size={24} color={pathname.startsWith('/(supplements)') ? "#0A84FF" : "#8E8E93"} />
+                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(supplements)') ? "#0A84FF" : "#8E8E93" }]}>Supplements</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity 
-                    onPress={() => router.push('/(calculations)')} 
-                    style={styles.bottomNavButton}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="calculator-outline" size={24} color={pathname.startsWith('/(calculations)') ? "#0A84FF" : "#8E8E93"} />
-                    <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(calculations)') ? "#0A84FF" : "#8E8E93" }]}>Calculations</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity 
+                        onPress={() => router.push('/(calculations)')} 
+                        style={styles.bottomNavButton}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="calculator-outline" size={24} color={pathname.startsWith('/(calculations)') ? "#0A84FF" : "#8E8E93"} />
+                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(calculations)') ? "#0A84FF" : "#8E8E93" }]}>Calculations</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity 
-                    onPress={() => router.push('/(recovery-status)')} 
-                    style={styles.bottomNavButton}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="fitness-outline" size={24} color={pathname.startsWith('/(recovery-status)') ? "#0A84FF" : "#8E8E93"} />
-                    <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(recovery-status)') ? "#0A84FF" : "#8E8E93" }]}>Recovery</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity 
+                        onPress={() => router.push('/(account)')} 
+                        style={styles.bottomNavButton}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="person-circle-outline" size={24} color={pathname.startsWith('/(account)') ? "#0A84FF" : "#8E8E93"} />
+                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(account)') ? "#0A84FF" : "#8E8E93" }]}>Account</Text>
+                    </TouchableOpacity>
+                </BlurView>
+            ) : (
+                <View style={[styles.bottomNavContainer, { bottom: insets.bottom + 12, backgroundColor: 'rgba(28, 28, 30, 0.95)' }]}>
+                    <TouchableOpacity 
+                        onPress={() => router.push('/(workouts)')} 
+                        style={styles.bottomNavButton}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="reader-outline" size={24} color={pathname.startsWith('/(workouts)') ? "#0A84FF" : "#8E8E93"} />
+                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(workouts)') ? "#0A84FF" : "#8E8E93" }]}>Workouts</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity 
-                    onPress={() => router.push('/(account)')} 
-                    style={styles.bottomNavButton}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="person-circle-outline" size={24} color={pathname.startsWith('/(account)') ? "#0A84FF" : "#8E8E93"} />
-                    <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(account)') ? "#0A84FF" : "#8E8E93" }]}>Account</Text>
-                </TouchableOpacity>
-            </BlurView>
+                    <TouchableOpacity 
+                        onPress={() => router.push('/(supplements)')} 
+                        style={styles.bottomNavButton}
+                        activeOpacity={0.7}
+                    >
+                        <MaterialIcons name="medication" size={24} color={pathname.startsWith('/(supplements)') ? "#0A84FF" : "#8E8E93"} />
+                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(supplements)') ? "#0A84FF" : "#8E8E93" }]}>Supplements</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        onPress={() => router.push('/(calculations)')} 
+                        style={styles.bottomNavButton}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="calculator-outline" size={24} color={pathname.startsWith('/(calculations)') ? "#0A84FF" : "#8E8E93"} />
+                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(calculations)') ? "#0A84FF" : "#8E8E93" }]}>Calculations</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        onPress={() => router.push('/(account)')} 
+                        style={styles.bottomNavButton}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="person-circle-outline" size={24} color={pathname.startsWith('/(account)') ? "#0A84FF" : "#8E8E93"} />
+                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(account)') ? "#0A84FF" : "#8E8E93" }]}>Account</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
 
             {/* Start Workout Menu Modal */}
@@ -741,33 +777,63 @@ export default function Home() {
                             }
                         ]}
                     >
-                        <BlurView intensity={80} tint="dark" style={styles.menuBlur}>
-                            <TouchableOpacity
-                                style={styles.menuItem}
-                                onPress={() => {
-                                    setShowStartWorkoutMenu(false);
-                                    setModalCreateButtonText('Start Workout');
-                                    setModalCreateButtonAction('createWorkout');
-                                    setModalVisible(true);
-                                }}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={styles.menuItemText}>New workout</Text>
-                                <Ionicons name="chevron-forward" size={18} color="#8E8E93" />
-                            </TouchableOpacity>
-                            <View style={styles.menuDivider} />
-                            <TouchableOpacity
-                                style={styles.menuItem}
-                                onPress={async () => {
-                                    setShowStartWorkoutMenu(false);
-                                    await addRestDay();
-                                }}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={styles.menuItemText}>Rest day</Text>
-                                <Ionicons name="chevron-forward" size={18} color="#8E8E93" />
-                            </TouchableOpacity>
-                        </BlurView>
+                        {Platform.OS === 'ios' ? (
+                            <BlurView intensity={80} tint="dark" style={styles.menuBlur}>
+                                <TouchableOpacity
+                                    style={styles.menuItem}
+                                    onPress={() => {
+                                        setShowStartWorkoutMenu(false);
+                                        setModalCreateButtonText('Start Workout');
+                                        setModalCreateButtonAction('createWorkout');
+                                        setModalVisible(true);
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={styles.menuItemText}>New workout</Text>
+                                    <Ionicons name="chevron-forward" size={18} color="#8E8E93" />
+                                </TouchableOpacity>
+                                <View style={styles.menuDivider} />
+                                <TouchableOpacity
+                                    style={styles.menuItem}
+                                    onPress={async () => {
+                                        setShowStartWorkoutMenu(false);
+                                        await addRestDay();
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={styles.menuItemText}>Rest day</Text>
+                                    <Ionicons name="chevron-forward" size={18} color="#8E8E93" />
+                                </TouchableOpacity>
+                            </BlurView>
+                        ) : (
+                            <View style={[styles.menuBlur, { backgroundColor: 'rgba(28, 28, 30, 0.95)' }]}>
+                                <TouchableOpacity
+                                    style={styles.menuItem}
+                                    onPress={() => {
+                                        setShowStartWorkoutMenu(false);
+                                        setModalCreateButtonText('Start Workout');
+                                        setModalCreateButtonAction('createWorkout');
+                                        setModalVisible(true);
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={styles.menuItemText}>New workout</Text>
+                                    <Ionicons name="chevron-forward" size={18} color="#8E8E93" />
+                                </TouchableOpacity>
+                                <View style={styles.menuDivider} />
+                                <TouchableOpacity
+                                    style={styles.menuItem}
+                                    onPress={async () => {
+                                        setShowStartWorkoutMenu(false);
+                                        await addRestDay();
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={styles.menuItemText}>Rest day</Text>
+                                    <Ionicons name="chevron-forward" size={18} color="#8E8E93" />
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </View>
                 </>
             )}

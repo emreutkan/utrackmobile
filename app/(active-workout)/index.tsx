@@ -3,9 +3,10 @@ import { completeWorkout, getActiveWorkout, getRestTimerState } from '@/api/Work
 import WorkoutDetailView from '@/components/WorkoutDetailView';
 import { useActiveWorkoutStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function ActiveWorkoutScreen() {
     const [activeWorkout, setActiveWorkout] = useState<any>(null);
@@ -349,14 +350,93 @@ export default function ActiveWorkoutScreen() {
                 onShowStatistics={(exerciseId: number) => router.push(`/(exercise-statistics)/${exerciseId}`)}
             />
             {renderAddExerciseModal()}
+            {Platform.OS === 'ios' ? (
+                <BlurView intensity={80} tint="dark" style={styles.WorkoutFooter}>
+                    <View style={styles.footerContent}>
+                        <TouchableOpacity 
+                            style={styles.completeWorkoutButton}
+                            onPress={handleFinishWorkout}
+                        >
+                            <Text style={styles.completeWorkoutButtonText}>Finish Workout</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => {
+                                setIsModalVisible(true);
+                            }}
+                            style={styles.fabButton}
+                        >
+                            <Ionicons name="add" size={28} color="white" />
+                        </TouchableOpacity>
+                    </View>
+                </BlurView>
+            ) : (
+                <View style={[styles.WorkoutFooter, { backgroundColor: 'rgba(28, 28, 30, 0.95)' }]}>
+                    <View style={styles.footerContent}>
+                        <TouchableOpacity 
+                            style={styles.completeWorkoutButton}
+                            onPress={handleFinishWorkout}
+                        >
+                            <Text style={styles.completeWorkoutButtonText}>Finish Workout</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => {
+                                setIsModalVisible(true);
+                            }}
+                            style={styles.fabButton}
+                        >
+                            <Ionicons name="add" size={28} color="white" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
         </>
     );
 }
 
 const styles = StyleSheet.create({
+    WorkoutFooter: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 50,
+        marginHorizontal: 10,
+        overflow: 'hidden',
+    },
+    footerContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    completeWorkoutButton: {
+        backgroundColor: '#8B5CF6', // Muted purple
+        flex: 1,
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    completeWorkoutButtonText: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
     modalContainer: {
         flex: 1,
         backgroundColor: '#000000',
+    },
+    fabButton: {
+        backgroundColor: '#0A84FF',
+        padding: 10,
+        borderRadius: 20,
+
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     modalHeader: {
         flexDirection: 'row',

@@ -1,12 +1,13 @@
 import { addSetToExercise, deleteSet, getExercises, removeExerciseFromWorkout } from '@/api/Exercises';
 import { Workout } from '@/api/types';
 import { addExerciseToPastWorkout, deleteWorkout, getWorkout } from '@/api/Workout';
-import WorkoutDetailView from '@/components/WorkoutDetailView';
 import UnifiedHeader from '@/components/UnifiedHeader';
+import WorkoutDetailView from '@/components/WorkoutDetailView';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function WorkoutDetailScreen() {
@@ -80,7 +81,7 @@ export default function WorkoutDetailScreen() {
     const handleRemoveExercise = async (exerciseId: number) => {
         if (!workout?.id) return;
         try {
-            const success = await removeExerciseFromWorkout(exerciseId);
+            const success = await removeExerciseFromWorkout(workout.id, exerciseId);
             if (success) {
                 fetchWorkout();
             }
@@ -271,6 +272,35 @@ export default function WorkoutDetailScreen() {
             </ScrollView>
 
             {renderAddExerciseModal()}
+            {isEditMode && (
+                Platform.OS === 'ios' ? (
+                    <BlurView intensity={80} tint="dark" style={styles.WorkoutFooter}>
+                        <View style={styles.footerContent}>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setIsModalVisible(true);
+                                }}
+                                style={styles.fabButton}
+                            >
+                                <Ionicons name="add" size={28} color="white" />
+                            </TouchableOpacity>
+                        </View>
+                    </BlurView>
+                ) : (
+                    <View style={[styles.WorkoutFooter, { backgroundColor: 'rgba(28, 28, 30, 0.95)' }]}>
+                        <View style={styles.footerContent}>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setIsModalVisible(true);
+                                }}
+                                style={styles.fabButton}
+                            >
+                                <Ionicons name="add" size={28} color="white" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )
+            )}
         </View>
     );
 }
@@ -279,6 +309,31 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#000000',
+    },
+    WorkoutFooter: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 50,
+        marginHorizontal: 10,
+        overflow: 'hidden',
+    },
+    footerContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+
+    fabButton: {
+        backgroundColor: '#0A84FF',
+        padding: 10,
+        borderRadius: 20,
+
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     menuItem: {
         flexDirection: 'row',

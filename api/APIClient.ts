@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { API_URL, REFRESH_URL } from './ApiBase';
 import { getAccessToken, getRefreshToken, storeAccessToken, storeRefreshToken, clearTokens } from './Storage';
+import { triggerTokenError } from '@/components/AuthCheck';
 
 const apiClient = axios.create({
     baseURL: API_URL,
@@ -83,6 +84,7 @@ apiClient.interceptors.response.use(
                     // No refresh token at all - logout immediately
                     console.log("No refresh token found - logging out");
                     await clearTokens();
+                    triggerTokenError(); // Trigger auth check
                     // Trigger logout by rejecting with a specific error
                     throw new Error("NO_REFRESH_TOKEN");
                 }
@@ -115,6 +117,7 @@ apiClient.interceptors.response.use(
                 // Refresh failed (token expired or invalid) - logout immediately
                 console.log("Refresh token expired or invalid - logging out");
                 await clearTokens();
+                triggerTokenError(); // Trigger auth check to show loading and route to login
                 isRefreshing = false;
                 processQueue(refreshError, null);
                 // Reject with a specific error that can be caught by components if needed

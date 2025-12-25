@@ -1,6 +1,5 @@
-import { login } from "@/api/Auth";
 import { router } from "expo-router";
-import { Button } from "react-native";
+import { TouchableOpacity, Text, StyleSheet } from "react-native";
 
 const debug: boolean = true;
 export default debug;
@@ -14,14 +13,27 @@ export const debugLoginData = (): { email: string, password: string } => {
 
 export const DebugLoginButton = () => {
     return (
-        <Button title="Debug" onPress={async () => {
-            const { email, password } = debugLoginData();
-            const result = await login(email, password);
-            if (typeof result === 'object' && result.access && result.refresh) {
-                router.replace('/(home)');
-            } else {
-                console.error(typeof result === 'string' ? result : 'An unknown error occurred');
-            }
-        }} />
+        <TouchableOpacity 
+            style={styles.button}
+            onPress={() => router.push('/(auth)/debug')}
+        >
+            <Text style={styles.buttonText}>Debug</Text>
+        </TouchableOpacity>
     )
 }
+
+const styles = StyleSheet.create({
+    button: {
+        backgroundColor: '#1C1C1E',
+        borderRadius: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderWidth: 1,
+        borderColor: '#2C2C2E',
+    },
+    buttonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+});

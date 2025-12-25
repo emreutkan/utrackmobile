@@ -1,5 +1,5 @@
 import apiClient from './APIClient';
-import { GOOGLE_LOGIN_URL, LOGIN_URL, REGISTER_URL } from './ApiBase';
+import { getGOOGLE_LOGIN_URL, LOGIN_URL, REGISTER_URL } from './ApiBase';
 import { storeAccessToken, storeRefreshToken } from './Storage';
 
 // login will either return the access and refresh tokens or an error message
@@ -64,7 +64,8 @@ export const googleLogin = async (accessToken: string): Promise<{ access: string
         // Log the token being sent
         console.log("Sending Google Access Token:", accessToken);
         
-        const response = await apiClient.post(GOOGLE_LOGIN_URL, { access_token: accessToken });
+        const googleLoginUrl = await getGOOGLE_LOGIN_URL();
+        const response = await apiClient.post(googleLoginUrl, { access_token: accessToken });
         
         console.log("Google Login Response Status:", response.status);
         console.log("Google Login Response Data:", JSON.stringify(response.data));

@@ -1,26 +1,58 @@
 import { Platform } from 'react-native';
+import { getBackendPreference, BackendType } from './Storage';
 
-// Deployment API (no port) - ACTIVE
-const DEPLOYMENT_IP = '16.16.248.86';
+// Backend configurations
+const LOCAL_IP = '192.168.1.7';
+const EC2_DOMAIN = 'api.utrack.irfanemreutkan.com';
 
-// Local API (with port 8000) - COMMENTED OUT
- const LOCAL_IP = '192.168.1.7';
+// Get API URLs based on backend preference
+export const getAPI_URL = async (): Promise<string> => {
+    const backend = await getBackendPreference();
+    if (backend === 'local') {
+        return `http://${LOCAL_IP}:8000/api`;
+    } else {
+        return `http://${EC2_DOMAIN}/api`;
+    }
+};
 
-const API_IP = Platform.select({
-    // web: DEPLOYMENT_IP,
-    // default: DEPLOYMENT_IP
-    // For local development, uncomment below and comment above:
-    web: LOCAL_IP,
-    default: LOCAL_IP
-});
+export const getBASE_URL = async (): Promise<string> => {
+    const backend = await getBackendPreference();
+    if (backend === 'local') {
+        return `http://${LOCAL_IP}:8000`;
+    } else {
+        return `http://${EC2_DOMAIN}`;
+    }
+};
 
-// Deployment API (HTTP, no port) - ACTIVE
-// export const API_URL = `http://${API_IP}/api`;
-// export const BASE_URL = `http://${API_IP}`;
+// Synchronous versions (for immediate use, defaults to local)
+// These will be updated when backend preference changes
+let cachedAPI_URL = `http://${LOCAL_IP}:8000/api`;
+let cachedBASE_URL = `http://${LOCAL_IP}:8000`;
 
-// Local API (HTTP with port 8000) - COMMENTED OUT
-export const API_URL = `http://${API_IP}:8000/api`;
-export const BASE_URL = `http://${API_IP}:8000`;
+// Initialize cache
+getAPI_URL().then(url => cachedAPI_URL = url);
+getBASE_URL().then(url => cachedBASE_URL = url);
+
+// Export cached values for synchronous access
+export let API_URL = cachedAPI_URL;
+export let BASE_URL = cachedBASE_URL;
+
+// Function to update API base URL (called from debug view)
+export const updateApiBaseUrl = async (backend: BackendType) => {
+    if (backend === 'local') {
+        cachedAPI_URL = `http://${LOCAL_IP}:8000/api`;
+        cachedBASE_URL = `http://${LOCAL_IP}:8000`;
+    } else {
+        cachedAPI_URL = `http://${EC2_DOMAIN}/api`;
+        cachedBASE_URL = `http://${EC2_DOMAIN}`;
+    }
+    API_URL = cachedAPI_URL;
+    BASE_URL = cachedBASE_URL;
+    
+    // Update the axios instance baseURL
+    const apiClient = require('./APIClient').default;
+    apiClient.defaults.baseURL = cachedAPI_URL;
+};
 
 // Relative URLs (will be combined with baseURL from APIClient)
 export const LOGIN_URL = `/user/login/`;
@@ -29,4 +61,7 @@ export const REFRESH_URL = `/token/refresh/`;
 export const CREATE_WORKOUT_URL = `/workout/create/`;
 
 // Full URL for Google login (uses BASE_URL, not API_URL)
-export const GOOGLE_LOGIN_URL = `${BASE_URL}/auth/google/`;
+export const getGOOGLE_LOGIN_URL = async () => {
+    const baseUrl = await getBASE_URL();
+    return `${baseUrl}/auth/google/`;
+};

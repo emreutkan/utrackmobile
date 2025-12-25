@@ -1,14 +1,20 @@
 import axios from 'axios';
-import { API_URL, REFRESH_URL } from './ApiBase';
+import { API_URL, REFRESH_URL, getAPI_URL } from './ApiBase';
 import { getAccessToken, getRefreshToken, storeAccessToken, storeRefreshToken, clearTokens } from './Storage';
 import { triggerTokenError } from '@/components/AuthCheck';
 
+// Initialize with default (local) API URL
 const apiClient = axios.create({
     baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
     },
     timeout: 10000,
+});
+
+// Update baseURL on initialization with actual preference
+getAPI_URL().then(url => {
+    apiClient.defaults.baseURL = url;
 });
 
 export default apiClient;
@@ -91,7 +97,9 @@ apiClient.interceptors.response.use(
 
                 // Call the refresh endpoint
                 // We use axios directly to avoid infinite loops with the interceptor
-                const response = await axios.post(REFRESH_URL, { refresh: refreshToken });
+                const apiUrl = await getAPI_URL();
+                const refreshUrl = `${apiUrl}${REFRESH_URL}`;
+                const response = await axios.post(refreshUrl, { refresh: refreshToken });
                 
                 if (response.status === 200) {
                     const newAccessToken = response.data.access;

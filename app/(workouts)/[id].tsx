@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function WorkoutDetailScreen() {
@@ -214,7 +214,7 @@ export default function WorkoutDetailScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { paddingTop: insets.top + 70 }]}>
             <UnifiedHeader
                 title={workout?.title || 'Workout'}
                 rightButton={
@@ -251,25 +251,18 @@ export default function WorkoutDetailScreen() {
                 onModalClose={() => setIsMenuModalVisible(false)}
             />
             
-            <ScrollView 
-                style={styles.scrollView}
-                contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 80 }]}
-                showsVerticalScrollIndicator={false}
-            >
-                <WorkoutDetailView 
-                    workout={workout} 
-                    elapsedTime={formatDuration(workout?.duration || 0)} 
-                    isActive={false}
-                    isEditMode={isEditMode}
-                    isViewOnly={!isEditMode}
-                    onAddExercise={isEditMode ? () => setIsModalVisible(true) : undefined}
-                    onRemoveExercise={isEditMode ? handleRemoveExercise : undefined}
-                    onAddSet={isEditMode ? handleAddSet : undefined}
-                    onDeleteSet={isEditMode ? handleDeleteSet : undefined}
-                    onShowStatistics={(exerciseId: number) => router.push(`/(exercise-statistics)/${exerciseId}`)}
-                />
-                <View style={{ height: insets.bottom + 40 }} />
-            </ScrollView>
+            <WorkoutDetailView 
+                workout={workout} 
+                elapsedTime={formatDuration(workout?.duration || 0)} 
+                isActive={false}
+                isEditMode={isEditMode}
+                isViewOnly={!isEditMode}
+                onAddExercise={isEditMode ? () => setIsModalVisible(true) : undefined}
+                onRemoveExercise={isEditMode ? handleRemoveExercise : undefined}
+                onAddSet={isEditMode ? handleAddSet : undefined}
+                onDeleteSet={isEditMode ? handleDeleteSet : undefined}
+                onShowStatistics={(exerciseId: number) => router.push(`/(exercise-statistics)/${exerciseId}`)}
+            />
 
             {renderAddExerciseModal()}
             {isEditMode && (
@@ -349,12 +342,6 @@ const styles = StyleSheet.create({
     },
     deleteText: {
         color: '#FF3B30',
-    },
-    scrollView: {
-        flex: 1,
-    },
-    scrollContent: {
-        paddingTop: 8,
     },
     modalContainer: {
         flex: 1,

@@ -409,7 +409,6 @@ export default function WorkoutExerciseDetailsView({
     isActive,
     isEditMode = false,
     isViewOnly = false,
-    onAddExercise,
     onRemoveExercise,
     onAddSet,
     onDeleteSet,
@@ -419,7 +418,6 @@ export default function WorkoutExerciseDetailsView({
     const insets = useSafeAreaInsets();
     const [lockedExerciseIds, setLockedExerciseIds] = useState<Set<number>>(new Set());
     const [selectedExerciseInfo, setSelectedExerciseInfo] = useState<any>(null);
-    const flatListRef = useRef<any>(null);
 
     // Swipe Logic
     const swipeableRefs = useRef<Map<string, SwipeableMethods>>(new Map());
@@ -476,23 +474,17 @@ export default function WorkoutExerciseDetailsView({
         onAddSet?.(exerciseId, data);
     };
 
-    const handleInputFocus = (index: number) => {
-        setTimeout(() => {
-            flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0 });
-        }, 100);
-        onInputFocus?.(index);
-    };
-
     // Check if there's at least one exercise with at least one set
     const hasSets = exercises.some((ex: any) => ex.sets && ex.sets.length > 0);
 
     const renderItems = ({item, drag, isActive, getIndex}: {item: any, drag: () => void, isActive: boolean, getIndex: () => number | undefined}) => {
         return (
-            <ScaleDecorator activeScale={0.8}>
+            <ScaleDecorator activeScale={0.95}>
                 <TouchableOpacity
                     onLongPress={isViewOnly ? undefined : drag}
                     disabled={isActive || isViewOnly} 
-                    delayLongPress={100}
+                    delayLongPress={200}
+                    activeOpacity={0.7}
                 >
                     <ExerciseCard
                         key={item.order}
@@ -506,8 +498,7 @@ export default function WorkoutExerciseDetailsView({
                         onDeleteSet={onDeleteSet}
                         swipeControl={swipeControl}
                         onInputFocus={() => {
-                            const idx = getIndex();
-                            if (idx !== undefined) handleInputFocus(idx);
+                            onInputFocus?.(getIndex() ?? 0);
                         }}
                         onShowInfo={(exercise: any) => setSelectedExerciseInfo(exercise)}
                         onShowStatistics={onShowStatistics}
@@ -520,34 +511,33 @@ export default function WorkoutExerciseDetailsView({
 
     return (
         <>
-            <TouchableWithoutFeedback onPress={closeCurrentSwipeable}>
-                <View style={styles.content}>
-                    {exercises && exercises.length > 0 ? (
-                        <DraggableFlatList
-                            ref={flatListRef}
-                            data={exercises}
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{ paddingBottom: hasSets && isActive ? 200 : 120 }}
-                            onDragEnd={isViewOnly ? undefined : async ({ data }: { data: any }) => {
-                                setExercises(data);
-                                const exerciseOrders = data.map((item: any, index: number) => ({ id: item.id, order: index + 1 }));
-                                const response = await updateExerciseOrder(workout.id, exerciseOrders);
-                                if (response) {
-                                    console.log('Exercise order updated successfully');
-                                } else {
-                                    console.log('Failed to update exercise order');
-                                }
-                            }}
-                            keyExtractor={(item) => item.id.toString()}
-                            renderItem={renderItems}
-                        />
-                    ) : (
-                        <View style={styles.placeholderContainer}>
-                            <Text style={styles.placeholderText}>No exercises yet. Tap the + button to add exercises.</Text>
-                        </View>
-                    )}
-                </View>
-            </TouchableWithoutFeedback>
+            <View style={styles.content}>
+                {exercises && exercises.length > 0 ? (
+                    <DraggableFlatList
+                        data={exercises}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingBottom: hasSets && isActive ? 200 : 120 }}
+                        onDragEnd={isViewOnly ? undefined : async ({ data }: { data: any }) => {
+                            setExercises(data);
+                            const exerciseOrders = data.map((item: any, index: number) => ({ id: item.id, order: index + 1 }));
+                            const response = await updateExerciseOrder(workout.id, exerciseOrders);
+                            if (response) {
+                                console.log('Exercise order updated successfully');
+                            } else {
+                                console.log('Failed to update exercise order');
+                            }
+                        }}
+                        keyExtractor={(item) => item.id.toString()}
+                        renderItem={renderItems}
+                        simultaneousHandlers={[]}
+                        activationDistance={10}
+                    />
+                ) : (
+                    <View style={styles.placeholderContainer}>
+                        <Text style={styles.placeholderText}>No exercises yet. Tap the + button to add exercises.</Text>
+                    </View>
+                )}
+            </View>
 
             {/* Exercise Info Modal */}
             <Modal

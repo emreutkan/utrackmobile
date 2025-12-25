@@ -1,8 +1,6 @@
 import { useActiveWorkoutStore } from '@/state/userStore';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RestTimerBar from './RestTimerBar';
 import WorkoutDetailsView from './WorkoutDetailsView';
@@ -73,23 +71,24 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
     };
 
     // Check if there's at least one exercise with at least one set
-    const hasSets = exercises.some((ex: any) => ex.sets && ex.sets.length > 0);
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#000000' }}>
+        <View style={{ flex: 1, backgroundColor: '#000000',  }}>
             <View style={[styles.container, 
                 isActive ? { paddingTop: insets.top, paddingBottom: insets.bottom } : { paddingBottom: insets.bottom }]}>
                 <KeyboardAvoidingView 
-                    style={{ flex: 1 }}
+                    style={{ flex: 1 } }
                     behavior={Platform.OS === "ios" ? "padding" : undefined}
                     keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
                 >
-                    {/* Workout Details View */}
-                    <WorkoutDetailsView 
-                        workout={workout} 
-                        elapsedTime={elapsedTime} 
-                        isActive={isActive} 
-                    />
+                    {/* Workout Details View - Hidden in edit mode */}
+                    {!isEditMode && (
+                        <WorkoutDetailsView 
+                            workout={workout} 
+                            elapsedTime={elapsedTime} 
+                            isActive={isActive} 
+                        />
+                    )}
                     
                     {/* Rest Timer Bar */}
                     {isActive && !isEditMode && (
@@ -104,7 +103,6 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
                         isActive={isActive}
                         isEditMode={isEditMode}
                         isViewOnly={isViewOnly}
-                        onAddExercise={onAddExercise}
                         onRemoveExercise={onRemoveExercise}
                         onAddSet={handleAddSet}
                         onDeleteSet={onDeleteSet}
@@ -114,62 +112,7 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
                 </KeyboardAvoidingView>
             </View>
             
-            {/* Footer */}
-            {!isViewOnly && (
-                Platform.OS === 'ios' ? (
-                    <BlurView intensity={80} tint="dark" style={styles.WorkoutFooter}>
-                        <View style={styles.footerContent}>
-                            {isActive && onCompleteWorkout && hasSets ? (
-                                <TouchableOpacity 
-                                    style={styles.completeWorkoutButton}
-                                    onPress={onCompleteWorkout}
-                                >
-                                    <Text style={styles.completeWorkoutButtonText}>Finish Workout</Text>
-                                </TouchableOpacity>
-                            ) : (
-                                <View style={{ flex: 1 }} />
-                            )}
-                            {(isActive || isEditMode) && !isViewOnly && onAddExercise && (
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        closeCurrentSwipeable();
-                                        onAddExercise();
-                                    }}
-                                    style={styles.fabButton}
-                                >
-                                    <Ionicons name="add" size={28} color="white" />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    </BlurView>
-                ) : (
-                    <View style={[styles.WorkoutFooter, { backgroundColor: 'rgba(28, 28, 30, 0.95)' }]}>
-                        <View style={styles.footerContent}>
-                            {isActive && onCompleteWorkout && hasSets ? (
-                                <TouchableOpacity 
-                                    style={styles.completeWorkoutButton}
-                                    onPress={onCompleteWorkout}
-                                >
-                                    <Text style={styles.completeWorkoutButtonText}>Finish Workout</Text>
-                                </TouchableOpacity>
-                            ) : (
-                                <View style={{ flex: 1 }} />
-                            )}
-                            {(isActive || isEditMode) && !isViewOnly && onAddExercise && (
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        closeCurrentSwipeable();
-                                        onAddExercise();
-                                    }}
-                                    style={styles.fabButton}
-                                >
-                                    <Ionicons name="add" size={28} color="white" />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    </View>
-                )
-            )}
+    
         </View>
     );
 }

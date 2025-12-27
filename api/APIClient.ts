@@ -22,6 +22,12 @@ export default apiClient;
 
 // 1. Request Interceptor: Automatically add the token to every request
 apiClient.interceptors.request.use(async (config) => {
+    // Ensure baseURL is always correct (in case app was restarted)
+    const correctBaseURL = await getAPI_URL();
+    if (config.baseURL !== correctBaseURL) {
+        config.baseURL = correctBaseURL;
+    }
+    
     const accessToken = await getAccessToken();
     // Construct full URL - if url already starts with http/https, use it as-is
     const fullUrl = config.url?.startsWith('http') 
@@ -87,11 +93,10 @@ apiClient.interceptors.response.use(
             try {
                 const refreshToken = await getRefreshToken();
                 if (!refreshToken) {
-                    // No refresh token at all - logout immediately
-                    console.log("No refresh token found - logging out");
+                    // No refresh token at all - just reject, don't trigger error (AuthCheck handles it)
+                    console.log("No refresh token found - rejecting request");
                     await clearTokens();
-                    triggerTokenError(); // Trigger auth check
-                    // Trigger logout by rejecting with a specific error
+                    // Don't trigger token error here - AuthCheck already handles no-token case
                     throw new Error("NO_REFRESH_TOKEN");
                 }
 
@@ -123,9 +128,12 @@ apiClient.interceptors.response.use(
                 throw new Error("Refresh failed");
             } catch (refreshError: any) {
                 // Refresh failed (token expired or invalid) - logout immediately
-                console.log("Refresh token expired or invalid - logging out");
+                console.log("Refresh token expired or invalid - clearing tokens");
                 await clearTokens();
-                triggerTokenError(); // Trigger auth check to show loading and route to login
+                // Only trigger if it's an actual auth error (401/403), not network errors
+                if (refreshError?.response?.status === 401 || refreshError?.response?.status === 403) {
+                    triggerTokenError(); // Trigger auth check to show loading and route to login
+                }
                 isRefreshing = false;
                 processQueue(refreshError, null);
                 // Reject with a specific error that can be caught by components if needed

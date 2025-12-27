@@ -1,6 +1,6 @@
 
 import { clearTokens } from '@/api/Storage';
-import { updateGender, updateHeight } from '@/api/account';
+import { updateGender, updateHeight, changePassword } from '@/api/account';
 import UnifiedHeader from '@/components/UnifiedHeader';
 import { useUserStore } from '@/state/userStore'; // Use the store!
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +14,11 @@ export default function AccountScreen() {
     const { user, fetchUser, clearUser } = useUserStore();
     const [isEditingHeight, setIsEditingHeight] = useState(false);
     const [isEditingGender, setIsEditingGender] = useState(false);
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
     const [tempHeight, setTempHeight] = useState('');
     const [tempGender, setTempGender] = useState<'male' | 'female'>('male');
+    const [oldPassword, setOldPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     // Fetch user on mount (just in case it wasn't fetched during login yet)
@@ -98,6 +101,35 @@ export default function AccountScreen() {
         }
     };
 
+    const handleChangePassword = async () => {
+        if (!oldPassword || !newPassword) {
+            Alert.alert("Missing Fields", "Please enter both old and new password.");
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            Alert.alert("Invalid Password", "New password must be at least 8 characters long.");
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const result = await changePassword(oldPassword, newPassword);
+            if (result?.message) {
+                setIsChangingPassword(false);
+                setOldPassword('');
+                setNewPassword('');
+                Alert.alert("Success", result.message);
+            } else if (result?.error) {
+                Alert.alert("Error", result.error);
+            }
+        } catch (error: any) {
+            Alert.alert("Error", "Failed to change password");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             {/* iOS-style Navigation Bar */}
@@ -151,6 +183,20 @@ export default function AccountScreen() {
                             <Text style={styles.menuValue}>
                                 {user?.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : 'Not set'}
                             </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Password Change */}
+                <View style={[styles.section, { marginTop: 12 }]}>
+                    <TouchableOpacity 
+                        style={styles.menuItem}
+                        onPress={() => setIsChangingPassword(true)}
+                    >
+                        <View style={styles.menuItemLeft}>
+                            <Ionicons name="lock-closed-outline" size={20} color="#0A84FF" style={styles.menuIcon} />
+                            <Text style={styles.menuLabel}>Change Password</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
                     </TouchableOpacity>
@@ -274,6 +320,65 @@ export default function AccountScreen() {
                                     <ActivityIndicator size="small" color="#FFFFFF" />
                                 ) : (
                                     <Text style={styles.modalButtonSaveText}>Save</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Password Change Modal */}
+            <Modal
+                visible={isChangingPassword}
+                animationType="fade"
+                transparent
+                onRequestClose={() => {
+                    setIsChangingPassword(false);
+                    setOldPassword('');
+                    setNewPassword('');
+                }}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Change Password</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            value={oldPassword}
+                            onChangeText={setOldPassword}
+                            placeholder="Old Password"
+                            placeholderTextColor="#8E8E93"
+                            secureTextEntry
+                            autoCapitalize="none"
+                        />
+                        <TextInput
+                            style={styles.modalInput}
+                            value={newPassword}
+                            onChangeText={setNewPassword}
+                            placeholder="New Password (min 8 characters)"
+                            placeholderTextColor="#8E8E93"
+                            secureTextEntry
+                            autoCapitalize="none"
+                        />
+                        <View style={styles.modalButtonRow}>
+                            <TouchableOpacity 
+                                style={[styles.modalButton, styles.modalButtonCancel]}
+                                onPress={() => {
+                                    setIsChangingPassword(false);
+                                    setOldPassword('');
+                                    setNewPassword('');
+                                }}
+                            >
+                                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalButton, styles.modalButtonSave]}
+                                onPress={handleChangePassword}
+                                disabled={isSaving}
+                            >
+                                {isSaving ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <Text style={styles.modalButtonSaveText}>Change</Text>
                                 )}
                             </TouchableOpacity>
                         </View>

@@ -1,11 +1,10 @@
 import { googleLogin, login } from '@/api/Auth';
 import { getAccessToken } from '@/api/Storage';
-import debug, { DebugLoginButton } from '@/state/debug';
 import { Ionicons } from '@expo/vector-icons';
 import * as Google from 'expo-auth-session/providers/google';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,6 +17,8 @@ export default function AuthScreen() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const tapCount = useRef(0);
+    const tapTimeout = useRef<NodeJS.Timeout | null>(null);
 
     // Google Auth Request
     const [request, response, promptAsync] = Google.useAuthRequest({
@@ -37,6 +38,34 @@ export default function AuthScreen() {
             }
         }
     }, [response]);
+
+    useEffect(() => {
+        return () => {
+            if (tapTimeout.current) {
+                clearTimeout(tapTimeout.current);
+            }
+        };
+    }, []);
+
+    const handleUtrackTap = () => {
+        tapCount.current += 1;
+        
+        // Clear existing timeout
+        if (tapTimeout.current) {
+            clearTimeout(tapTimeout.current);
+        }
+        
+        // If 5 taps, navigate to debug
+        if (tapCount.current >= 5) {
+            tapCount.current = 0;
+            router.push('/(auth)/debug');
+        } else {
+            // Reset counter after 2 seconds of no taps
+            tapTimeout.current = setTimeout(() => {
+                tapCount.current = 0;
+            }, 2000);
+        }
+    };
 
     const handleGoogleLogin = async (token: string) => {
         setLoading(true);
@@ -86,12 +115,19 @@ export default function AuthScreen() {
 
     return (
         <View style={styles.container}>
-             {debug ? <View style={{ marginTop: 50 }}><DebugLoginButton /></View> : null}
-             
             <KeyboardAvoidingView 
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={[styles.content, { paddingTop: insets.top }]}
             >
+                <View style={styles.heroSection}>
+                    <TouchableOpacity 
+                        onPress={handleUtrackTap}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.heroTitle}>Utrack</Text>
+                    </TouchableOpacity>
+                </View>
+                
                 <View style={styles.header}>
                     <Text style={styles.title}>Log In</Text>
                     <Text style={styles.subtitle}>Sign in to access your workouts</Text>
@@ -190,6 +226,16 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         padding: 24,
+    },
+    heroSection: {
+        alignItems: 'center',
+        marginBottom: 48,
+    },
+    heroTitle: {
+        fontSize: 48,
+        fontWeight: '800',
+        color: '#0A84FF',
+        letterSpacing: 2,
     },
     header: {
         marginBottom: 32,

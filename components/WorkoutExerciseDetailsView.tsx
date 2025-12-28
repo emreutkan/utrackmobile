@@ -97,19 +97,24 @@ export default function WorkoutExerciseDetailsView({
         onAddSet?.(exerciseId, data);
     };
 
+    const handleUpdateSet = (setId: number, updatedSet: any) => {
+        // Update the exercises state with the updated set
+        const updatedExercises = exercises.map((exercise: any) => ({
+            ...exercise,
+            sets: exercise.sets?.map((set: any) => 
+                set.id === setId ? { ...set, ...updatedSet } : set
+            ) || []
+        }));
+        setExercises(updatedExercises);
+    };
+
     // Check if there's at least one exercise with at least one set
     const hasSets = exercises.some((ex: any) => ex.sets && ex.sets.length > 0);
 
     const renderItems = ({item, drag, isActive, getIndex}: {item: any, drag: () => void, isActive: boolean, getIndex: () => number | undefined}) => {
         return (
             <ScaleDecorator activeScale={0.95}>
-                <TouchableOpacity
-                    onLongPress={isViewOnly ? undefined : drag}
-                    disabled={isActive || isViewOnly} 
-                    delayLongPress={Platform.OS === 'android' ? 300 : 200}
-                    activeOpacity={0.7}
-                    style={{ flex: 1 }}
-                >
+
                     <ExerciseCard
                         key={item.order}
                         workoutExercise={item}
@@ -120,6 +125,7 @@ export default function WorkoutExerciseDetailsView({
                         onRemove={onRemoveExercise}
                         onAddSet={handleAddSet}
                         onDeleteSet={onDeleteSet}
+                        onUpdateSet={handleUpdateSet}
                         swipeControl={swipeControl}
                         onInputFocus={() => {
                             onInputFocus?.(getIndex() ?? 0);
@@ -127,8 +133,9 @@ export default function WorkoutExerciseDetailsView({
                         onShowInfo={(exercise: any) => setSelectedExerciseInfo(exercise)}
                         onShowStatistics={onShowStatistics}
                         isActive={isActive}
+                        drag={drag}
                     />
-                </TouchableOpacity>
+                
             </ScaleDecorator>
         );
     };

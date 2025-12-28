@@ -68,6 +68,8 @@ export interface UpdateSetRequest {
     reps?: number;
     weight?: number;
     reps_in_reserve?: number;
+    rest_time_before_set?: number;
+    is_warmup?: boolean;
 }
 
 export const updateSet = async (setId: number, data: UpdateSetRequest) => {

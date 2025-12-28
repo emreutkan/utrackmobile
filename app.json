@@ -48,6 +48,16 @@
           }
         }
       ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "networkSecurityConfig": "./android/app/src/main/res/xml/network_security_config.xml"
+          }
+        }
+      ],
+      "./plugins/withImmersiveMode",
       "expo-secure-store",
       "expo-web-browser"
     ],

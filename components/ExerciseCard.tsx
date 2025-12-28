@@ -1,3 +1,4 @@
+import { updateSet } from '@/api/Exercises';
 import { getRestTimerState } from '@/api/Workout';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
@@ -9,13 +10,14 @@ interface SwipeActionProps {
     progress: any;
     dragX: any;
     onPress: () => void;
+    drag?: () => void;
     iconSize?: number;
-    style?: any;
+    style?: any;    
     iconName: keyof typeof Ionicons.glyphMap;
     color?: string;
 }
 
-const SwipeAction = ({ progress, dragX, onPress, iconSize = 24, style, iconName, color = "#FFFFFF" }: SwipeActionProps) => {
+const SwipeAction = ({ progress, dragX, onPress, drag, iconSize = 24, style, iconName, color = "#FFFFFF" }: SwipeActionProps) => {
     const animatedStyle = useAnimatedStyle(() => {
         const scale = interpolate(progress.value, [0, 1], [0.5, 1], Extrapolation.CLAMP);
         return { transform: [{ scale }] };
@@ -37,7 +39,91 @@ const SwipeAction = ({ progress, dragX, onPress, iconSize = 24, style, iconName,
 };
 
 // SetRow Component
-const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, swipeRef, onOpen, onClose }: any) => {
+const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMode, swipeRef, onOpen, onClose, onUpdate }: any) => {
+    const formatRestTimeForInput = (seconds: number) => {
+        if (!seconds) return '';
+        if (seconds < 60) return `${seconds}`;
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return s > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${m}`;
+    };
+
+    const getInitialValues = () => ({
+        weight: set.weight?.toString() || '',
+        reps: set.reps?.toString() || '',
+        rir: set.reps_in_reserve?.toString() || '',
+        restTime: set.rest_time_before_set ? formatRestTimeForInput(set.rest_time_before_set) : ''
+    });
+
+    const [localValues, setLocalValues] = useState(getInitialValues());
+    const originalValuesRef = React.useRef(getInitialValues());
+    const currentValuesRef = React.useRef(getInitialValues());
+
+    // Match AddSetRow visibility condition, but also allow editing when workout is active
+    // AddSetRow is visible when: !isViewOnly && (!isLocked || isEditMode)
+    // But we also want sets editable when workout is active (isActive = true)
+    const isEditable = !isViewOnly && (!isLocked || isEditMode || isActive);
+
+    React.useEffect(() => {
+        const newValues = getInitialValues();
+        setLocalValues(newValues);
+        originalValuesRef.current = newValues;
+        currentValuesRef.current = newValues;
+    }, [set.weight, set.reps, set.reps_in_reserve, set.rest_time_before_set]);
+
+    const parseRestTime = (input: string): number => {
+        if (!input) return 0;
+        if (input.includes(':')) {
+            const [min, sec] = input.split(':').map(Number);
+            return (min || 0) * 60 + (sec || 0);
+        }
+        return parseInt(input) || 0;
+    };
+
+    const handleBlur = (field: string) => {
+        const currentValue = currentValuesRef.current[field as keyof typeof currentValuesRef.current];
+        const original = originalValuesRef.current[field as keyof typeof originalValuesRef.current];
+        
+        // Check if value has changed
+        if (currentValue === original) {
+            return; // No change, don't update
+        }
+
+        const updateData: any = {};
+        
+        if (field === 'weight') {
+            const numValue = currentValue ? parseFloat(currentValue) : null;
+            const originalNum = original ? parseFloat(original) : null;
+            if (numValue !== originalNum && numValue !== null && !isNaN(numValue)) {
+                updateData.weight = numValue;
+            }
+        } else if (field === 'reps') {
+            const numValue = currentValue ? parseInt(currentValue) : null;
+            const originalNum = original ? parseInt(original) : null;
+            if (numValue !== originalNum && numValue !== null && !isNaN(numValue)) {
+                updateData.reps = numValue;
+            }
+        } else if (field === 'rir') {
+            const numValue = currentValue ? parseInt(currentValue) : null;
+            const originalNum = original ? parseInt(original) : null;
+            if (numValue !== originalNum && numValue !== null && !isNaN(numValue)) {
+                updateData.reps_in_reserve = numValue;
+            }
+        } else if (field === 'restTime') {
+            const seconds = parseRestTime(currentValue);
+            const originalSeconds = parseRestTime(original);
+            if (seconds !== originalSeconds) {
+                updateData.rest_time_before_set = seconds;
+            }
+        }
+
+        if (Object.keys(updateData).length > 0 && onUpdate) {
+            onUpdate(set.id, updateData);
+            // Update original values after successful update
+            originalValuesRef.current = { ...currentValuesRef.current };
+        }
+    };
+
     const renderRightActions = (progress: any, dragX: any) => (
         <SwipeAction
             progress={progress}
@@ -78,11 +164,73 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, swipeRef, onOpen, 
             rightThreshold={40}
         >
             <View style={styles.setRow}>
-                <Text style={[styles.setText, {maxWidth: 30}]}>{index + 1}</Text>
-                <Text style={[styles.setText, {}]}>{formatWeight(set.weight)}</Text>
-                <Text style={[styles.setText, {}]}>{set.reps}</Text>
-                <Text style={[styles.setText, {}]}>{set.reps_in_reserve ?? '-'}</Text>
-                <Text style={[styles.setText, {}]}>{formatRestTime(set.rest_time_before_set)}</Text>
+                <Text style={[styles.setText, {maxWidth: 30}, set.is_warmup && { color: '#FF9F0A', fontWeight: 'bold' }]}>
+                    {set.is_warmup ? 'W' : index + 1}
+                </Text>
+                {isEditable ? (
+                    <TextInput
+                        style={[styles.setInput]}
+                        value={localValues.weight}
+                        onChangeText={(value) => {
+                            setLocalValues(prev => ({ ...prev, weight: value }));
+                            currentValuesRef.current.weight = value;
+                        }}
+                        onBlur={() => handleBlur('weight')}
+                        keyboardType="numeric"
+                        placeholder="kg"
+                        placeholderTextColor="#8E8E93"
+                    />
+                ) : (
+                    <Text style={[styles.setText, {}]}>{formatWeight(set.weight)}</Text>
+                )}
+                {isEditable ? (
+                    <TextInput
+                        style={[styles.setInput]}
+                        value={localValues.reps}
+                        onChangeText={(value) => {
+                            setLocalValues(prev => ({ ...prev, reps: value }));
+                            currentValuesRef.current.reps = value;
+                        }}
+                        onBlur={() => handleBlur('reps')}
+                        keyboardType="numeric"
+                        placeholder="reps"
+                        placeholderTextColor="#8E8E93"
+                    />
+                ) : (
+                    <Text style={[styles.setText, {}]}>{set.reps}</Text>
+                )}
+                {isEditable ? (
+                    <TextInput
+                        style={[styles.setInput]}
+                        value={localValues.rir}
+                        onChangeText={(value) => {
+                            setLocalValues(prev => ({ ...prev, rir: value }));
+                            currentValuesRef.current.rir = value;
+                        }}
+                        onBlur={() => handleBlur('rir')}
+                        keyboardType="numeric"
+                        placeholder="RIR"
+                        placeholderTextColor="#8E8E93"
+                    />
+                ) : (
+                    <Text style={[styles.setText, {}]}>{set.reps_in_reserve != null ? set.reps_in_reserve.toString() : '-'}</Text>
+                )}
+                {isEditable ? (
+                    <TextInput
+                        style={[styles.setInput]}
+                        value={localValues.restTime}
+                        onChangeText={(value) => {
+                            setLocalValues(prev => ({ ...prev, restTime: value }));
+                            currentValuesRef.current.restTime = value;
+                        }}
+                        onBlur={() => handleBlur('restTime')}
+                        keyboardType="numbers-and-punctuation"
+                        placeholder="Rest"
+                        placeholderTextColor="#8E8E93"
+                    />
+                ) : (
+                    <Text style={[styles.setText, {}]}>{formatRestTime(set.rest_time_before_set)}</Text>
+                )}
             </View>
         </ReanimatedSwipeable>
     );
@@ -135,7 +283,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
 
     return (
         <>
-            <View style={styles.setRow}>
+            <View style={[styles.setRow, styles.addSetRowContainer]}>
                 <TouchableOpacity
                     onPress={() => setInputs(p => ({ ...p, isWarmup: !p.isWarmup }))}
                     style={{ width: 30, alignItems: 'center', paddingVertical: 10, }}
@@ -146,7 +294,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
                 </TouchableOpacity>
 
                 <TextInput
-                    style={[styles.setInput]}
+                    style={[styles.setInput, styles.addSetInput]}
                     value={inputs.weight}
                     onChangeText={(t: string) => setInputs(p => ({ ...p, weight: t }))}
                     keyboardType="numeric"
@@ -155,7 +303,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
                     onFocus={onFocus}
                 />
                 <TextInput
-                    style={[styles.setInput]}
+                    style={[styles.setInput, styles.addSetInput]}
                     value={inputs.reps}
                     onChangeText={(t: string) => setInputs(p => ({ ...p, reps: t }))}
                     keyboardType="numeric"
@@ -164,7 +312,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
                     onFocus={onFocus}
                 />
                 <TextInput
-                    style={[styles.setInput]}
+                    style={[styles.setInput, styles.addSetInput]}
                     value={inputs.rir}
                     onChangeText={(t: string) => setInputs(p => ({ ...p, rir: t }))}
                     keyboardType="numeric"
@@ -173,7 +321,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
                     onFocus={onFocus}
                 />
                 <TextInput
-                    style={[styles.setInput]}
+                    style={[styles.setInput, styles.addSetInput]}
                     value={inputs.restTime}
                     onChangeText={(t: string) => setInputs(p => ({ ...p, restTime: t }))}
                     keyboardType="numbers-and-punctuation"
@@ -197,7 +345,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
 };
 
 // ExerciseCard Component
-export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly, onToggleLock, onRemove, onAddSet, onDeleteSet, swipeControl, onInputFocus, onShowInfo, onShowStatistics, isActive }: any) => {
+export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly, onToggleLock, onRemove, onAddSet, onDeleteSet, swipeControl, onInputFocus, onShowInfo, onShowStatistics, isActive, drag, onUpdateSet }: any) => {
     const exercise = workoutExercise.exercise || (workoutExercise.name ? workoutExercise : null);
     if (!exercise) return null;
 
@@ -207,6 +355,17 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
     const lastSet = sets.length > 0 ? sets[sets.length - 1] : null;
     const nextSetNumber = sets.length + 1;
     const [showMenu, setShowMenu] = useState(false);
+
+    const handleUpdateSet = async (setId: number, data: any) => {
+        try {
+            const result = await updateSet(setId, data);
+            if (result && onUpdateSet) {
+                onUpdateSet(setId, result);
+            }
+        } catch (error) {
+            console.error('Failed to update set:', error);
+        }
+    };
 
     const renderLeftActions = (progress: any, dragX: any) => (
         <SwipeAction
@@ -247,6 +406,15 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
         >
             <View style={[styles.exerciseCard, { marginBottom: 0 }]}>
                 <View style={styles.exerciseRow}>
+                <TouchableOpacity
+                    onLongPress={isViewOnly ? undefined : drag}
+                    disabled={isActive || isViewOnly} 
+                    delayLongPress={Platform.OS === 'android' ? 300 : 200}
+                    activeOpacity={0.7}
+                    
+                    style={{ flex: 1 }}
+
+                >
                     <View style={styles.exerciseInfo}>
                         <View style={styles.exerciseNameRow}>
                             <Text style={styles.exerciseName}>
@@ -260,6 +428,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                                 <Ionicons name="ellipsis-horizontal" size={20} color="#8E8E93" />
                             </TouchableOpacity>
                         </View>
+
                         <View style={styles.exerciseInfoRow}>
                             <View style={styles.exerciseMusclesContainer}>
                                 {exercise.primary_muscle && (
@@ -284,13 +453,20 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                                     <Text style={styles.exerciseTagText}>{exercise.equipment_type}</Text>
                                 </View>
                             )}
-                        </View>
+                            </View>
                     </View>
+                    </TouchableOpacity>
                 </View>
 
                 {(sets.length > 0 || !isLocked) && (
-                    <View style={styles.setsContainer}>
-                        <View style={styles.setsHeader}>
+                        <View 
+                        style={styles.setsContainer}
+                        onStartShouldSetResponder={() => true}
+                        onMoveShouldSetResponder={() => false}
+                        onResponderGrant={() => {
+                            // Stop drag from activating when touching sets area
+                        }}
+>                        <View style={styles.setsHeader}>
                             <Text style={[styles.setHeaderText, {maxWidth: 30}]}>Set</Text>
                             <Text style={[styles.setHeaderText, {}]}>Weight</Text>
                             <Text style={[styles.setHeaderText, {}]}>Reps</Text>
@@ -308,6 +484,9 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                                     onDelete={onDeleteSet}
                                     isLocked={isLocked}
                                     isViewOnly={isViewOnly}
+                                    isActive={isActive}
+                                    isEditMode={isEditMode}
+                                    onUpdate={handleUpdateSet}
                                     swipeRef={(ref: any) => swipeControl.register(setKey, ref)}
                                     onOpen={() => swipeControl.onOpen(setKey)}
                                     onClose={() => swipeControl.onClose(setKey)}
@@ -547,6 +726,28 @@ const styles = StyleSheet.create({
         ...Platform.select({
             android: { includeFontPadding: false },
         }),
+    },
+    setRowInput: {
+        backgroundColor: '#2C2C2E',
+        borderBottomWidth: 2,
+        borderBottomColor: '#0A84FF',
+        borderRadius: 6,
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+    },
+    addSetRowContainer: {
+        backgroundColor: '#1A1A1C',
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        marginTop: 4,
+        borderWidth: 1,
+        borderColor: '#2C2C2E',
+    },
+    addSetInput: {
+        backgroundColor: '#2C2C2E',
+        borderBottomWidth: 1,
+        borderBottomColor: '#6366F1',
+        borderRadius: 4,
     },
     deleteSetAction: {
         backgroundColor: '#FF3B30',

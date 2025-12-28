@@ -7,6 +7,7 @@ import { BlurView } from 'expo-blur';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ActiveWorkoutScreen() {
     const [activeWorkout, setActiveWorkout] = useState<any>(null);
@@ -336,6 +337,7 @@ export default function ActiveWorkoutScreen() {
         );
     }
 
+    const insets = useSafeAreaInsets();
     return (
         <>
             <WorkoutDetailView 
@@ -351,7 +353,7 @@ export default function ActiveWorkoutScreen() {
             />
             {renderAddExerciseModal()}
             {Platform.OS === 'ios' ? (
-                <BlurView intensity={80} tint="dark" style={styles.WorkoutFooter}>
+                <BlurView intensity={80} tint="dark" style={[styles.WorkoutFooter, {paddingBottom: insets.bottom}]}>
                     <View style={styles.footerContent}>
                         <TouchableOpacity 
                             style={styles.completeWorkoutButton}

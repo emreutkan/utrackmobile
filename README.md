@@ -1,5 +1,7 @@
 # uTrack - Personal Fitness Tracker
 
+**Alpha Version 1**
+
 A comprehensive mobile fitness app designed to help you track your workouts, monitor progress, and optimize your training.
 
 ## Features

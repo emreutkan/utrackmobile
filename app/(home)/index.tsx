@@ -216,7 +216,7 @@ export default function Home() {
 
     const getRecoveringMuscles = () => {
         return Object.entries(recoveryStatus)
-            .filter(([_, status]) => !status.is_recovered && status.fatigue_score > 0)
+            .filter(([_, status]) => !status.is_recovered && Number(status.fatigue_score) > 0)
             .sort(([_, a], [__, b]) => a.hours_until_recovery - b.hours_until_recovery)
             .slice(0, 5);
     };

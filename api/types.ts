@@ -314,7 +314,7 @@ export interface AvailableYearsResponse {
 export interface MuscleRecovery {
     id: number | null;
     muscle_group: string;
-    fatigue_score: number;
+    fatigue_score: number | string; // Can be number or string from API
     total_sets: number;
     recovery_hours: number;
     recovery_until: string | null;

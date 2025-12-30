@@ -16,6 +16,8 @@ const StorybookUIRoot = view.getStorybookUI({
     getItem: AsyncStorage.getItem,
     setItem: AsyncStorage.setItem,
   },
+  shouldDisableKeyboardAvoidingView: true,
+  enableAddons: true,
 });
 
 export default StorybookUIRoot;

@@ -6,38 +6,38 @@ const isWeb = Platform.OS === 'web';
 export type BackendType = 'local' | 'ec2';
 
 export const storeAccessToken = async (token: string) => {
-    if (isWeb) {
-       // localStorage.setItem('access_token', token);
+    if (isWeb && typeof localStorage !== 'undefined') {
+        localStorage.setItem('access_token', token);
     } else {
         await SecureStore.setItemAsync('access_token', token);
     }
 }
 
 export const storeRefreshToken = async (token: string) => {
-    if (isWeb) {
-      //  localStorage.setItem('refresh_token', token);
+    if (isWeb && typeof localStorage !== 'undefined') {
+        localStorage.setItem('refresh_token', token);
     } else {
         await SecureStore.setItemAsync('refresh_token', token);
     }
 }
 
 export const getAccessToken = async () => {
-    if (isWeb) {
-      //  return localStorage.getItem('access_token');
+    if (isWeb && typeof localStorage !== 'undefined') {
+        return localStorage.getItem('access_token');
     }
     return await SecureStore.getItemAsync('access_token');
 }
 
 export const getRefreshToken = async () => {
-    if (isWeb) {
-      //  return localStorage.getItem('refresh_token');
+    if (isWeb && typeof localStorage !== 'undefined') {
+        return localStorage.getItem('refresh_token');
     }
     return await SecureStore.getItemAsync('refresh_token');
 }
 
 export const clearTokens = async () => {
     if (isWeb && typeof localStorage !== 'undefined') {
-      //  localStorage.removeItem('access_token');
+        localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
     } else {
         await SecureStore.deleteItemAsync('access_token');
@@ -46,8 +46,8 @@ export const clearTokens = async () => {
 }
 
 export const setBackendPreference = async (backend: BackendType) => {
-    if (isWeb) {
-      //  localStorage.setItem('backend_preference', backend);
+    if (isWeb && typeof localStorage !== 'undefined') {
+        localStorage.setItem('backend_preference', backend);
     } else {
         await SecureStore.setItemAsync('backend_preference', backend);
     }

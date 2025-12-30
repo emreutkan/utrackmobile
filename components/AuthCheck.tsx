@@ -1,8 +1,8 @@
-import { getAccessToken, getRefreshToken, clearTokens, storeAccessToken, storeRefreshToken } from '@/api/Storage';
 import { getBASE_URL, REFRESH_URL } from '@/api/ApiBase';
+import { clearTokens, getAccessToken, getRefreshToken, storeAccessToken, storeRefreshToken } from '@/api/Storage';
 import axios from 'axios';
 import { useRouter, useSegments } from 'expo-router';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -81,18 +81,18 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
                 refreshTokenLength: refreshToken?.length || 0
             });
 
-            // No tokens - go to login
+            // No tokens - go to login (but allow storybook)
             if (!accessToken && !refreshToken) {
                 console.log('[AuthCheck] No tokens found');
                 isCheckingRef.current = false;
                 setIsChecking(false);
                 console.log('[AuthCheck] isChecking set to false');
-                // Only route if not already on auth
-                if (segments[0] !== '(auth)') {
+                // Only route if not already on auth or storybook
+                if (segments[0] !== '(auth)' && segments[0] !== '(storybook)') {
                     console.log('[AuthCheck] Not on auth, calling router.replace');
                     router.replace('/(auth)');
                 } else {
-                    console.log('[AuthCheck] Already on auth screen, staying put');
+                    console.log('[AuthCheck] Already on auth/storybook screen, staying put');
                 }
                 return;
             }
@@ -123,8 +123,10 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
                         setIsChecking(false);
                         setInitialRoute('/(home)');
                         console.log('[AuthCheck] isChecking set to false, setting initial route to home');
-                        // Route immediately
-                        router.replace('/(home)');
+                        // Route immediately, but preserve storybook route
+                        if (segments[0] !== '(storybook)') {
+                            router.replace('/(home)');
+                        }
                         return;
                     }
                 } catch (error: any) {
@@ -141,12 +143,12 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
                     });
                     
                     if (isAuthError) {
-                        // Token is actually invalid - clear and go to login
+                        // Token is actually invalid - clear and go to login (but allow storybook)
                         console.log('[AuthCheck] Authentication error (401/403), clearing tokens and routing to auth');
                         await clearTokens();
                         isCheckingRef.current = false;
                         setIsChecking(false);
-                        if (segments[0] !== '(auth)') {
+                        if (segments[0] !== '(auth)' && segments[0] !== '(storybook)') {
                             setTimeout(() => {
                                 router.replace('/(auth)');
                             }, 100);
@@ -157,7 +159,10 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
                         isCheckingRef.current = false;
                         setIsChecking(false);
                         setInitialRoute('/(home)');
-                        router.replace('/(home)');
+                        // Preserve storybook route
+                        if (segments[0] !== '(storybook)') {
+                            router.replace('/(home)');
+                        }
                     }
                     return;
                 }
@@ -171,17 +176,19 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
                 setIsChecking(false);
                 setInitialRoute('/(home)');
                 console.log('[AuthCheck] isChecking set to false, setting initial route to home');
-                // Route immediately
-                router.replace('/(home)');
+                // Route immediately, but preserve storybook route
+                if (segments[0] !== '(storybook)') {
+                    router.replace('/(home)');
+                }
                 return;
             }
 
-            // Fallback - go to login
+            // Fallback - go to login (but allow storybook)
             console.log('[AuthCheck] Fallback: routing to auth');
             isCheckingRef.current = false;
             setIsChecking(false);
             console.log('[AuthCheck] isChecking set to false, checking segments before routing');
-            if (segments[0] !== '(auth)') {
+            if (segments[0] !== '(auth)' && segments[0] !== '(storybook)') {
                 setTimeout(() => {
                     router.replace('/(auth)');
                 }, 100);
@@ -192,7 +199,7 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
             isCheckingRef.current = false;
             setIsChecking(false);
             console.log('[AuthCheck] Checking segments before routing in catch block');
-            if (segments[0] !== '(auth)') {
+            if (segments[0] !== '(auth)' && segments[0] !== '(storybook)') {
                 setTimeout(() => {
                     router.replace('/(auth)');
                 }, 100);
@@ -204,7 +211,7 @@ export default function AuthCheck({ children }: { children: React.ReactNode }) {
     
     // Redirect if we're on wrong route after auth check
     useEffect(() => {
-        if (!isChecking && initialRoute && segments[0] && segments[0] !== '(auth)' && segments[0] !== '(home)') {
+        if (!isChecking && initialRoute && segments[0] && segments[0] !== '(auth)' && segments[0] !== '(home)' && segments[0] !== '(storybook)') {
             console.log('[AuthCheck] Redirecting from', segments[0], 'to home');
             router.replace(initialRoute);
         }

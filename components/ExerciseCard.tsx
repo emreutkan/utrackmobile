@@ -2,9 +2,12 @@ import { updateSet } from '@/api/Exercises';
 import { getRestTimerState } from '@/api/Workout';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Alert, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, Dimensions, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const IS_WEB_SMALL = Platform.OS === 'web' && SCREEN_WIDTH <= 750;
 
 interface SwipeActionProps {
     progress: any;
@@ -528,7 +531,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                                     onShowInfo?.(exercise);
                                 }}
                             >
-                                <Ionicons name="information-circle-outline" size={22} color="#FFFFFF" />
+                                <Ionicons name="information-circle-outline" size={22} color="#FFFFFF" style={Platform.OS === 'web' ? { marginRight: 12 } : {}} />
                                 <Text style={styles.menuItemText}>Info</Text>
                             </TouchableOpacity>
                             
@@ -539,7 +542,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                                     onShowStatistics?.(exercise.id);
                                 }}
                             >
-                                <Ionicons name="stats-chart-outline" size={22} color="#FFFFFF" />
+                                <Ionicons name="stats-chart-outline" size={22} color="#FFFFFF" style={Platform.OS === 'web' ? { marginRight: 12 } : {}} />
                                 <Text style={styles.menuItemText}>Statistics</Text>
                             </TouchableOpacity>
                             
@@ -554,7 +557,8 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                                     <Ionicons 
                                         name={isLocked ? "lock-open-outline" : "lock-closed-outline"} 
                                         size={22} 
-                                        color={isLocked ? "#FF9F0A" : "#FFFFFF"} 
+                                        color={isLocked ? "#FF9F0A" : "#FFFFFF"}
+                                        style={Platform.OS === 'web' ? { marginRight: 12 } : {}}
                                     />
                                     <Text style={styles.menuItemText}>
                                         {isLocked ? "Unlock" : "Lock"}
@@ -588,7 +592,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                                         );
                                     }}
                                 >
-                                    <Ionicons name="trash-outline" size={22} color="#FF3B30" />
+                                    <Ionicons name="trash-outline" size={22} color="#FF3B30" style={Platform.OS === 'web' ? { marginRight: 12 } : {}} />
                                     <Text style={[styles.menuItemText, styles.menuItemTextDelete]}>Delete All Sets</Text>
                                 </TouchableOpacity>
                             )}
@@ -612,7 +616,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                                         );
                                     }}
                                 >
-                                    <Ionicons name="trash-outline" size={22} color="#FF3B30" />
+                                    <Ionicons name="trash-outline" size={22} color="#FF3B30" style={Platform.OS === 'web' ? { marginRight: 12 } : {}} />
                                     <Text style={[styles.menuItemText, styles.menuItemTextDelete]}>Delete Exercise</Text>
                                 </TouchableOpacity>
                             )}
@@ -674,7 +678,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 12,
         paddingHorizontal: 16,
-        gap: 12,
     },
     menuItemDelete: {
         borderTopWidth: 1,
@@ -698,14 +701,21 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         flexWrap: 'wrap',
-        gap: 8,
         flex: 1,
+        ...Platform.select({
+            web: {},
+            default: { gap: 8 },
+        }),
     },
     exerciseTag: {
         backgroundColor: '#2C2C2E',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 6,
+        ...Platform.select({
+            web: { marginRight: 8, marginBottom: 4 },
+            default: {},
+        }),
     },
     primaryMuscleTag: {
         // Slightly brighter for primary muscle distinction
@@ -731,6 +741,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         marginBottom: 8,
         paddingLeft: 4,
+        ...Platform.select({
+            web: {
+                display: 'flex',
+                width: '100%',
+            },
+        }),
     },
     setHeaderText: {
         flex: 1,
@@ -738,6 +754,17 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         textAlign: 'center',
+        ...Platform.select({
+            web: {
+                ...(IS_WEB_SMALL && {
+                    fontSize: 10,
+                    paddingHorizontal: 2,
+                    maxWidth: 70,
+                    flex: 0,
+                    minWidth: 60,
+                }),
+            },
+        }),
     },
     setRow: {
         flexDirection: 'row',
@@ -746,6 +773,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 0,
         alignItems: 'center',
         backgroundColor: '#1C1C1E',
+        ...Platform.select({
+            web: {
+                display: 'flex',
+                width: '100%',
+                ...(IS_WEB_SMALL && {
+                    paddingBottom: 6,
+                    paddingTop: 3,
+                }),
+            },
+        }),
     },
     setText: {
         flex: 1,
@@ -756,6 +793,19 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         ...Platform.select({
             android: { includeFontPadding: false },
+            web: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                ...(IS_WEB_SMALL && {
+                    fontSize: 13,
+                    lineHeight: 16,
+                    paddingHorizontal: 2,
+                    maxWidth: 70,
+                    flexShrink: 1,
+                    minWidth: 55,
+                }),
+            },
         }),
     },
     setInput: {
@@ -775,6 +825,26 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         ...Platform.select({
             android: { includeFontPadding: false },
+            web: {
+                outline: 'none',
+                borderTopWidth: 0,
+                borderLeftWidth: 0,
+                borderRightWidth: 0,
+                borderTopColor: 'transparent',
+                borderLeftColor: 'transparent',
+                borderRightColor: 'transparent',
+                ...(IS_WEB_SMALL && {
+                    fontSize: 13,
+                    lineHeight: 16,
+                    paddingVertical: 6,
+                    paddingBottom: 3,
+                    marginHorizontal: 2,
+                    minHeight: 36,
+                    maxWidth: 70,
+                    flex: 0,
+                    minWidth: 60,
+                }),
+            },
         }),
     },
     setRowInput: {
@@ -798,6 +868,17 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#6366F1',
         borderRadius: 4,
+        ...Platform.select({
+            web: {
+                outline: 'none',
+                borderTopWidth: 0,
+                borderLeftWidth: 0,
+                borderRightWidth: 0,
+                borderTopColor: 'transparent',
+                borderLeftColor: 'transparent',
+                borderRightColor: 'transparent',
+            },
+        }),
     },
     deleteSetAction: {
         backgroundColor: '#FF3B30',

@@ -6,6 +6,15 @@ import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+// Web-compatible alert helper
+const showAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+        window.alert(`${title}\n\n${message}`);
+    } else {
+        Alert.alert(title, message);
+    }
+};
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Handle deep linking for authentication
@@ -75,10 +84,10 @@ export default function AuthScreen() {
             if (typeof result === 'object' && result.access) {
                 router.replace('/(home)');
             } else {
-                Alert.alert("Google Login Failed", typeof result === 'string' ? result : 'An unknown error occurred');
+                showAlert("Google Login Failed", typeof result === 'string' ? result : 'An unknown error occurred');
             }
         } catch (e) {
-            Alert.alert("Error", "An unexpected error occurred during Google login.");
+            showAlert("Error", "An unexpected error occurred during Google login.");
         } finally {
             setLoading(false);
         }
@@ -86,7 +95,7 @@ export default function AuthScreen() {
 
     const handleLogin = async () => {
         if (!email || !password) {
-            Alert.alert("Missing Information", "Please enter both email and password.");
+            showAlert("Missing Information", "Please enter both email and password.");
             return;
         }
 
@@ -96,10 +105,10 @@ export default function AuthScreen() {
             if (typeof result === 'object' && result.access && result.refresh) {
                 router.replace('/(home)');
             } else {
-                Alert.alert("Login Failed", typeof result === 'string' ? result : 'An unknown error occurred');
+                showAlert("Login Failed", typeof result === 'string' ? result : 'An unknown error occurred');
             }
         } catch (e) {
-            Alert.alert("Error", "An unexpected error occurred. Please try again.");
+            showAlert("Error", "An unexpected error occurred. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -109,7 +118,7 @@ export default function AuthScreen() {
         if (provider === 'Google') {
             promptAsync();
         } else {
-            Alert.alert(`${provider} Login`, "This feature is coming soon!");
+            showAlert(`${provider} Login`, "This feature is coming soon!");
         }
     };
 

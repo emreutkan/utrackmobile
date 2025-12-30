@@ -95,6 +95,13 @@ export default function DebugView() {
                     >
                         <Text style={styles.buttonText}>Debug Login</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={[styles.button, { marginTop: 12, backgroundColor: '#FF9500' }]}
+                        onPress={() => router.push('/(storybook)')}
+                    >
+                        <Ionicons name="book-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                        <Text style={styles.buttonText}>Storybook</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <View style={styles.section}>

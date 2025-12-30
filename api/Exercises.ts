@@ -44,6 +44,9 @@ export interface AddSetRequest {
     rest_time_before_set?: number;
     is_warmup?: boolean;
     reps_in_reserve?: number;
+    eccentric_time?: number; // Time under tension - eccentric phase (seconds)
+    concentric_time?: number; // Time under tension - concentric phase (seconds)
+    total_tut?: number; // Total time under tension (seconds)
 }
 
 export const addSetToExercise = async (workoutExerciseId: number, data: AddSetRequest) => {
@@ -51,7 +54,12 @@ export const addSetToExercise = async (workoutExerciseId: number, data: AddSetRe
         const response = await apiClient.post(`/workout/exercise/${workoutExerciseId}/add_set/`, data);
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        // Handle validation errors (400 Bad Request)
+        if (error.response?.status === 400 && error.response?.data) {
+            return { error: true, validationErrors: error.response.data };
+        }
+        // Handle other errors
+        return { error: true, message: error.response?.data?.detail || error.message || 'An unknown error occurred' };
     }
 }
 
@@ -70,6 +78,9 @@ export interface UpdateSetRequest {
     reps_in_reserve?: number;
     rest_time_before_set?: number;
     is_warmup?: boolean;
+    eccentric_time?: number; // Time under tension - eccentric phase (seconds)
+    concentric_time?: number; // Time under tension - concentric phase (seconds)
+    total_tut?: number; // Total time under tension (seconds)
 }
 
 export const updateSet = async (setId: number, data: UpdateSetRequest) => {
@@ -77,7 +88,12 @@ export const updateSet = async (setId: number, data: UpdateSetRequest) => {
         const response = await apiClient.patch(`/workout/set/${setId}/update/`, data);
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        // Handle validation errors (400 Bad Request)
+        if (error.response?.status === 400 && error.response?.data) {
+            return { error: true, validationErrors: error.response.data };
+        }
+        // Handle other errors
+        return { error: true, message: error.response?.data?.detail || error.message || 'An unknown error occurred' };
     }
 }
 

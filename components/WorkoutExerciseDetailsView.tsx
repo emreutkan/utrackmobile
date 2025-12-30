@@ -111,7 +111,7 @@ export default function WorkoutExerciseDetailsView({
     // Check if there's at least one exercise with at least one set
     const hasSets = exercises.some((ex: any) => ex.sets && ex.sets.length > 0);
 
-    const renderItems = ({item, drag, isActive, getIndex}: {item: any, drag: () => void, isActive: boolean, getIndex: () => number | undefined}) => {
+    const renderItems = ({item, drag, isActive: isDragging, getIndex}: {item: any, drag: () => void, isActive: boolean, getIndex: () => number | undefined}) => {
         return (
             <ScaleDecorator activeScale={0.95}>
 

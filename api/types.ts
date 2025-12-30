@@ -58,6 +58,9 @@ export interface WorkoutExerciseSet {
     reps_in_reserve: number;
     rest_time_before_set: number;
     is_warmup: boolean;
+    eccentric_time?: number | null; // Time under tension - eccentric phase (seconds)
+    concentric_time?: number | null; // Time under tension - concentric phase (seconds)
+    total_tut?: number | null; // Total time under tension (seconds)
 }
 
 export interface GetWorkoutsResponse {

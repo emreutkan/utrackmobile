@@ -152,17 +152,66 @@ export default function ActiveWorkoutScreen() {
         }
     };
 
+    const formatValidationErrors = (validationErrors: any): string => {
+        if (!validationErrors || typeof validationErrors !== 'object') {
+            return 'Validation failed';
+        }
+
+        const messages: string[] = [];
+        Object.keys(validationErrors).forEach(field => {
+            const fieldErrors = validationErrors[field];
+            if (Array.isArray(fieldErrors)) {
+                fieldErrors.forEach((error: string) => {
+                    // Convert backend messages to user-friendly ones
+                    let friendlyMessage = error;
+                    if (error.includes('less than or equal to 100')) {
+                        friendlyMessage = field === 'reps' ? 'Reps must be between 0 and 100' : 'RIR must be between 0 and 100';
+                    } else if (error.includes('less than or equal to 10800')) {
+                        friendlyMessage = 'Rest time cannot exceed 3 hours';
+                    } else if (error.includes('less than or equal to 600')) {
+                        friendlyMessage = 'Time under tension cannot exceed 10 minutes';
+                    } else if (error.includes('greater than or equal to 0')) {
+                        friendlyMessage = `${field} cannot be negative`;
+                    }
+                    messages.push(friendlyMessage);
+                });
+            } else {
+                messages.push(fieldErrors);
+            }
+        });
+
+        return messages.join('\n');
+    };
+
     const handleAddSet = async (workoutExerciseId: number, set: { weight: number, reps: number, reps_in_reserve?: number }) => {
         try {
-            await addSetToExercise(workoutExerciseId, set);
-            // Refresh workout
-            const updatedWorkout = await getActiveWorkout();
-            setActiveWorkout(updatedWorkout);
-            // Refresh rest timer state from backend
-            fetchRestTimerState();
-        } catch (error) {
+            const result = await addSetToExercise(workoutExerciseId, set);
+            
+            // Check if result has validation errors
+            if (result && typeof result === 'object' && result.error) {
+                if (result.validationErrors) {
+                    const errorMessage = formatValidationErrors(result.validationErrors);
+                    Alert.alert('Validation Error', errorMessage);
+                } else if (result.message) {
+                    Alert.alert('Error', result.message);
+                } else {
+                    Alert.alert('Error', 'Failed to add set');
+                }
+                return;
+            }
+            
+            // Success - refresh workout
+            if (result?.id || (typeof result === 'object' && !result.error)) {
+                const updatedWorkout = await getActiveWorkout();
+                setActiveWorkout(updatedWorkout);
+                // Refresh rest timer state from backend
+                fetchRestTimerState();
+            } else {
+                Alert.alert('Error', 'Failed to add set');
+            }
+        } catch (error: any) {
             console.error("Failed to add set:", error);
-            alert("Failed to add set");
+            Alert.alert("Error", error?.message || "Failed to add set");
         }
     };
 

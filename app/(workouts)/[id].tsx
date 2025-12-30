@@ -90,10 +90,56 @@ export default function WorkoutDetailScreen() {
         }
     };
 
+    const formatValidationErrors = (validationErrors: any): string => {
+        if (!validationErrors || typeof validationErrors !== 'object') {
+            return 'Validation failed';
+        }
+
+        const messages: string[] = [];
+        Object.keys(validationErrors).forEach(field => {
+            const fieldErrors = validationErrors[field];
+            if (Array.isArray(fieldErrors)) {
+                fieldErrors.forEach((error: string) => {
+                    // Convert backend messages to user-friendly ones
+                    let friendlyMessage = error;
+                    if (error.includes('less than or equal to 100')) {
+                        friendlyMessage = field === 'reps' ? 'Reps must be between 0 and 100' : 'RIR must be between 0 and 100';
+                    } else if (error.includes('less than or equal to 10800')) {
+                        friendlyMessage = 'Rest time cannot exceed 3 hours';
+                    } else if (error.includes('less than or equal to 600')) {
+                        friendlyMessage = 'Time under tension cannot exceed 10 minutes';
+                    } else if (error.includes('greater than or equal to 0')) {
+                        friendlyMessage = `${field} cannot be negative`;
+                    }
+                    messages.push(friendlyMessage);
+                });
+            } else {
+                messages.push(fieldErrors);
+            }
+        });
+
+        return messages.join('\n');
+    };
+
     const handleAddSet = async (exerciseId: number, data: any) => {
         try {
             const result = await addSetToExercise(exerciseId, data);
-            if (result?.id) {
+            
+            // Check if result has validation errors
+            if (result && typeof result === 'object' && result.error) {
+                if (result.validationErrors) {
+                    const errorMessage = formatValidationErrors(result.validationErrors);
+                    Alert.alert("Validation Error", errorMessage);
+                } else if (result.message) {
+                    Alert.alert("Error", result.message);
+                } else {
+                    Alert.alert("Error", "Failed to add set.");
+                }
+                return;
+            }
+            
+            // Success
+            if (result?.id || (typeof result === 'object' && !result.error)) {
                 fetchWorkout();
                 // Note: Recovery status will be recalculated on backend when workout is completed
                 // If this is a completed workout being edited, recovery may need backend recalculation

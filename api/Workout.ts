@@ -140,6 +140,15 @@ export const getRestTimerState = async (): Promise<{
     }
 }
 
+export const stopRestTimer = async (): Promise<any> => {
+    try {
+        const response = await apiClient.get('/workout/active/rest-timer/stop/');
+        return response.data;
+    } catch (error: any) {
+        return error.message || 'An unknown error occurred';
+    }
+}
+
 // Calendar API Functions
 export const getCalendar = async (year: number, month?: number, week?: number): Promise<CalendarResponse | any> => {
     try {

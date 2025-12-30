@@ -1,13 +1,99 @@
 import { updateSet } from '@/api/Exercises';
-import { getRestTimerState } from '@/api/Workout';
+import { getRestTimerState, stopRestTimer } from '@/api/Workout';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Alert, Dimensions, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, Dimensions, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IS_WEB_SMALL = Platform.OS === 'web' && SCREEN_WIDTH <= 750;
+
+// Validation functions (shared between AddSetRow and ExerciseCard)
+const validateSetData = (data: any): { isValid: boolean, errors: string[] } => {
+    const errors: string[] = [];
+
+    // Validate reps (0-100, required)
+    if (data.reps !== undefined && data.reps !== null) {
+        const reps = typeof data.reps === 'string' ? parseInt(data.reps) : data.reps;
+        if (isNaN(reps) || reps < 0 || reps > 100) {
+            errors.push('Reps must be between 0 and 100');
+        }
+    }
+
+    // Validate reps_in_reserve (0-100, required)
+    if (data.reps_in_reserve !== undefined && data.reps_in_reserve !== null) {
+        const rir = typeof data.reps_in_reserve === 'string' ? parseInt(data.reps_in_reserve) : data.reps_in_reserve;
+        if (isNaN(rir) || rir < 0 || rir > 100) {
+            errors.push('RIR must be between 0 and 100');
+        }
+    }
+
+    // Validate rest_time_before_set (0-10800 seconds = 3 hours, required)
+    if (data.rest_time_before_set !== undefined && data.rest_time_before_set !== null) {
+        const restTime = typeof data.rest_time_before_set === 'string' ? parseInt(data.rest_time_before_set) : data.rest_time_before_set;
+        if (isNaN(restTime) || restTime < 0 || restTime > 10800) {
+            errors.push('Rest time cannot exceed 3 hours');
+        }
+    }
+
+    // Validate total_tut (0-600 seconds = 10 minutes, optional)
+    if (data.total_tut !== undefined && data.total_tut !== null) {
+        const tut = typeof data.total_tut === 'string' ? parseInt(data.total_tut) : data.total_tut;
+        if (isNaN(tut) || tut < 0 || tut > 600) {
+            errors.push('Time under tension cannot exceed 10 minutes');
+        }
+    }
+
+    // Validate eccentric_time (0-600 seconds, optional)
+    if (data.eccentric_time !== undefined && data.eccentric_time !== null) {
+        const ecc = typeof data.eccentric_time === 'string' ? parseInt(data.eccentric_time) : data.eccentric_time;
+        if (isNaN(ecc) || ecc < 0 || ecc > 600) {
+            errors.push('Eccentric time cannot exceed 10 minutes');
+        }
+    }
+
+    // Validate concentric_time (0-600 seconds, optional)
+    if (data.concentric_time !== undefined && data.concentric_time !== null) {
+        const conc = typeof data.concentric_time === 'string' ? parseInt(data.concentric_time) : data.concentric_time;
+        if (isNaN(conc) || conc < 0 || conc > 600) {
+            errors.push('Concentric time cannot exceed 10 minutes');
+        }
+    }
+
+    return { isValid: errors.length === 0, errors };
+};
+
+const formatValidationErrors = (validationErrors: any): string => {
+    if (!validationErrors || typeof validationErrors !== 'object') {
+        return 'Validation failed';
+    }
+
+    const messages: string[] = [];
+    Object.keys(validationErrors).forEach(field => {
+        const fieldErrors = validationErrors[field];
+        if (Array.isArray(fieldErrors)) {
+            fieldErrors.forEach((error: string) => {
+                // Convert backend messages to user-friendly ones
+                let friendlyMessage = error;
+                if (error.includes('less than or equal to 100')) {
+                    friendlyMessage = field === 'reps' ? 'Reps must be between 0 and 100' : 'RIR must be between 0 and 100';
+                } else if (error.includes('less than or equal to 10800')) {
+                    friendlyMessage = 'Rest time cannot exceed 3 hours';
+                } else if (error.includes('less than or equal to 600')) {
+                    friendlyMessage = 'Time under tension cannot exceed 10 minutes';
+                } else if (error.includes('greater than or equal to 0')) {
+                    friendlyMessage = `${field} cannot be negative`;
+                }
+                messages.push(friendlyMessage);
+            });
+        } else {
+            messages.push(fieldErrors);
+        }
+    });
+
+    return messages.join('\n');
+};
 
 interface SwipeActionProps {
     progress: any;
@@ -120,10 +206,17 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
             }
         }
 
-        if (Object.keys(updateData).length > 0 && onUpdate) {
-            onUpdate(set.id, updateData);
-            // Update original values after successful update
-            originalValuesRef.current = { ...currentValuesRef.current };
+        if (Object.keys(updateData).length > 0) {
+            if (onUpdate) {
+                console.log('Calling onUpdate with setId:', set.id, 'updateData:', updateData);
+                onUpdate(set.id, updateData);
+                // Update original values after successful update
+                originalValuesRef.current = { ...currentValuesRef.current };
+            } else {
+                console.warn('onUpdate is not defined! Set updates will not be saved.');
+            }
+        } else {
+            console.log('No update data to send or values unchanged');
         }
     };
 
@@ -175,8 +268,20 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                         style={[styles.setInput]}
                         value={localValues.weight}
                         onChangeText={(value) => {
-                            setLocalValues(prev => ({ ...prev, weight: value }));
-                            currentValuesRef.current.weight = value;
+                            // Replace : and , with .
+                            let sanitized = value.replace(/[:,]/g, '.');
+                            
+                            // Only allow numbers and one decimal point
+                            const numericRegex = /^[0-9]*\.?[0-9]*$/;
+                            
+                            if (sanitized === '' || numericRegex.test(sanitized)) {
+                                setLocalValues(prev => ({ ...prev, weight: sanitized }));
+                                currentValuesRef.current.weight = sanitized;
+                            } else {
+                                // If invalid, clear the input
+                                setLocalValues(prev => ({ ...prev, weight: '' }));
+                                currentValuesRef.current.weight = '';
+                            }
                         }}
                         onBlur={() => handleBlur('weight')}
                         keyboardType="numeric"
@@ -240,8 +345,252 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
 };
 
 // AddSetRow Component
-const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode, isViewOnly, onFocus }: any) => {
-    const [inputs, setInputs] = useState({ weight: '', reps: '', rir: '', restTime: '', isWarmup: false });
+// Reps Picker Component
+const RepsPicker = ({ value, onValueChange, onFocus }: { value: number | null, onValueChange: (value: number) => void, onFocus: () => void }) => {
+    const [showPicker, setShowPicker] = useState(false);
+    const repsOptions = Array.from({ length: 100 }, (_, i) => i + 1); // 1-100
+
+    return (
+        <>
+            <TouchableOpacity
+                style={[styles.setInput, styles.addSetInput, styles.pickerInput]}
+                onPress={() => {
+                    setShowPicker(true);
+                    onFocus();
+                }}
+            >
+                <Text style={[styles.setText, { color: value !== null && value !== undefined ? '#FFFFFF' : '#8E8E93' }]}>
+                    {value !== null && value !== undefined ? value.toString() : 'reps'}
+                </Text>
+            </TouchableOpacity>
+            <Modal
+                visible={showPicker}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowPicker(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setShowPicker(false)}>
+                    <View style={styles.pickerModalOverlay}>
+                        <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                            <View style={styles.pickerModalContent}>
+                                <View style={styles.pickerHeader}>
+                                    <Text style={styles.pickerTitle}>Select Reps</Text>
+                                    <TouchableOpacity onPress={() => setShowPicker(false)}>
+                                        <Ionicons name="close" size={24} color="#FFFFFF" />
+                                    </TouchableOpacity>
+                                </View>
+                                <ScrollView style={styles.pickerScrollView}>
+                                    {repsOptions.map((option) => (
+                                        <TouchableOpacity
+                                            key={option}
+                                            style={[
+                                                styles.pickerOption,
+                                                value === option && styles.pickerOptionSelected
+                                            ]}
+                                            onPress={() => {
+                                                onValueChange(option);
+                                                setShowPicker(false);
+                                            }}
+                                        >
+                                            <Text style={[
+                                                styles.pickerOptionText,
+                                                value === option && styles.pickerOptionTextSelected
+                                            ]}>
+                                                {option}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
+        </>
+    );
+};
+
+// RIR Picker Component
+const RIRPicker = ({ value, onValueChange, onFocus }: { value: number | null, onValueChange: (value: number) => void, onFocus: () => void }) => {
+    const [showPicker, setShowPicker] = useState(false);
+    const rirOptions = Array.from({ length: 11 }, (_, i) => i); // 0-10
+
+    return (
+        <>
+            <TouchableOpacity
+                style={[styles.setInput, styles.addSetInput, styles.pickerInput]}
+                onPress={() => {
+                    setShowPicker(true);
+                    onFocus();
+                }}
+            >
+                <Text style={[styles.setText, { color: value !== null && value !== undefined ? '#FFFFFF' : '#8E8E93' }]}>
+                    {value !== null && value !== undefined ? value.toString() : 'RIR'}
+                </Text>
+            </TouchableOpacity>
+            <Modal
+                visible={showPicker}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowPicker(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setShowPicker(false)}>
+                    <View style={styles.pickerModalOverlay}>
+                        <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                            <View style={styles.pickerModalContent}>
+                                <View style={styles.pickerHeader}>
+                                    <Text style={styles.pickerTitle}>Select RIR</Text>
+                                    <TouchableOpacity onPress={() => setShowPicker(false)}>
+                                        <Ionicons name="close" size={24} color="#FFFFFF" />
+                                    </TouchableOpacity>
+                                </View>
+                                <ScrollView style={styles.pickerScrollView}>
+                                    {rirOptions.map((option) => (
+                                        <TouchableOpacity
+                                            key={option}
+                                            style={[
+                                                styles.pickerOption,
+                                                value === option && styles.pickerOptionSelected
+                                            ]}
+                                            onPress={() => {
+                                                onValueChange(option);
+                                                setShowPicker(false);
+                                            }}
+                                        >
+                                            <Text style={[
+                                                styles.pickerOptionText,
+                                                value === option && styles.pickerOptionTextSelected
+                                            ]}>
+                                                {option}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
+        </>
+    );
+};
+
+// Rest Time Picker Component
+const RestTimePicker = ({ value, onValueChange, onFocus }: { value: { minutes: number, seconds: number } | null, onValueChange: (value: { minutes: number, seconds: number }) => void, onFocus: () => void }) => {
+    const [showPicker, setShowPicker] = useState(false);
+    const [tempMinutes, setTempMinutes] = useState(value?.minutes || 0);
+    const [tempSeconds, setTempSeconds] = useState(value?.seconds || 0);
+    
+    const minuteOptions = Array.from({ length: 11 }, (_, i) => i); // 0-10
+    const secondOptions = Array.from({ length: 61 }, (_, i) => i); // 0-60
+
+    const formatRestTime = (mins: number, secs: number) => {
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    return (
+        <>
+            <TouchableOpacity
+                style={[styles.setInput, styles.addSetInput, styles.pickerInput]}
+                onPress={() => {
+                    setTempMinutes(value?.minutes || 0);
+                    setTempSeconds(value?.seconds || 0);
+                    setShowPicker(true);
+                    onFocus();
+                }}
+            >
+                <Text style={[styles.setText, { color: value ? '#FFFFFF' : '#8E8E93' }]}>
+                    {value ? formatRestTime(value.minutes, value.seconds) : 'Rest'}
+                </Text>
+            </TouchableOpacity>
+            <Modal
+                visible={showPicker}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowPicker(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setShowPicker(false)}>
+                    <View style={styles.pickerModalOverlay}>
+                        <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                            <View style={styles.pickerModalContent}>
+                                <View style={styles.pickerHeader}>
+                                    <Text style={styles.pickerTitle}>Select Rest Time</Text>
+                                    <TouchableOpacity onPress={() => setShowPicker(false)}>
+                                        <Ionicons name="close" size={24} color="#FFFFFF" />
+                                    </TouchableOpacity>
+                                </View>
+                                <View style={styles.restTimePickerContainer}>
+                                    <View style={styles.restTimePickerColumn}>
+                                        <Text style={styles.restTimePickerLabel}>Minutes</Text>
+                                        <ScrollView style={styles.pickerScrollView}>
+                                            {minuteOptions.map((option) => (
+                                                <TouchableOpacity
+                                                    key={option}
+                                                    style={[
+                                                        styles.pickerOption,
+                                                        tempMinutes === option && styles.pickerOptionSelected
+                                                    ]}
+                                                    onPress={() => setTempMinutes(option)}
+                                                >
+                                                    <Text style={[
+                                                        styles.pickerOptionText,
+                                                        tempMinutes === option && styles.pickerOptionTextSelected
+                                                    ]}>
+                                                        {option}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </ScrollView>
+                                    </View>
+                                    <View style={styles.restTimePickerSeparator}>
+                                        <Text style={styles.restTimePickerSeparatorText}>:</Text>
+                                    </View>
+                                    <View style={styles.restTimePickerColumn}>
+                                        <Text style={styles.restTimePickerLabel}>Seconds</Text>
+                                        <ScrollView style={styles.pickerScrollView}>
+                                            {secondOptions.map((option) => (
+                                                <TouchableOpacity
+                                                    key={option}
+                                                    style={[
+                                                        styles.pickerOption,
+                                                        tempSeconds === option && styles.pickerOptionSelected
+                                                    ]}
+                                                    onPress={() => setTempSeconds(option)}
+                                                >
+                                                    <Text style={[
+                                                        styles.pickerOptionText,
+                                                        tempSeconds === option && styles.pickerOptionTextSelected
+                                                    ]}>
+                                                        {option.toString().padStart(2, '0')}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </ScrollView>
+                                    </View>
+                                </View>
+                                <TouchableOpacity
+                                    style={styles.pickerConfirmButton}
+                                    onPress={() => {
+                                        onValueChange({ minutes: tempMinutes, seconds: tempSeconds });
+                                        setShowPicker(false);
+                                    }}
+                                >
+                                    <Text style={styles.pickerConfirmButtonText}>Confirm</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
+        </>
+    );
+};
+
+const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode, isViewOnly, onFocus, isActive, workoutExerciseId, hasSets }: any) => {
+    const [inputs, setInputs] = useState({ weight: '', reps: null as number | null, rir: null as number | null, restTime: null as { minutes: number, seconds: number } | null, isWarmup: false });
+    const [isTrackingTUT, setIsTrackingTUT] = useState(false);
+    const [tutStartTime, setTutStartTime] = useState<number | null>(null);
+    const [currentTUT, setCurrentTUT] = useState(0);
 
     const formatWeightForInput = (weight: number) => {
         if (!weight && weight !== 0) return '';
@@ -256,30 +605,147 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
             setInputs(prev => ({
                 ...prev,
                 weight: prev.weight || (lastSet.weight != null ? formatWeightForInput(lastSet.weight) : ''),
-                reps: prev.reps || (lastSet.reps != null ? lastSet.reps.toString() : '')
+                reps: prev.reps !== null ? prev.reps : (lastSet.reps != null ? lastSet.reps : null)
             }));
         }
     }, [lastSet]);
 
-    const handleAdd = async () => {
+    // TUT Timer effect
+    useEffect(() => {
+        let interval: ReturnType<typeof setInterval> | null = null;
+        if (isTrackingTUT && tutStartTime !== null) {
+            interval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - tutStartTime) / 1000);
+                setCurrentTUT(elapsed);
+            }, 100);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isTrackingTUT, tutStartTime]);
+
+    const formatTUT = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        if (mins > 0) {
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        return `${secs}s`;
+    };
+
+    const restTimeToSeconds = (restTime: { minutes: number, seconds: number } | null): number => {
+        if (!restTime) return 0;
+        return restTime.minutes * 60 + restTime.seconds;
+    };
+
+    const handleStartSet = async () => {
+        if (!isActive) {
+            // If not active workout, just add set normally
+            handleAdd();
+            return;
+        }
+
+        try {
+            // Stop rest timer
+            await stopRestTimer();
+            
+            // Start TUT tracking
+            setIsTrackingTUT(true);
+            setTutStartTime(Date.now());
+            setCurrentTUT(0);
+        } catch (error) {
+            console.error('Failed to stop rest timer:', error);
+        }
+    };
+
+    const handleStopSet = async () => {
+        if (!isTrackingTUT || tutStartTime === null) return;
+
+        // Stop TUT tracking
+        setIsTrackingTUT(false);
+        const finalTUT = Math.floor((Date.now() - tutStartTime) / 1000);
+        setTutStartTime(null);
+        // Update currentTUT with the calculated value (user can still edit it)
+        setCurrentTUT(finalTUT);
+
+        // Get rest time - use user input if provided, otherwise use global rest timer
         let restTimeSeconds = 0;
-        // if its the first set of first exercise, then rest time should be 0
         if (nextSetNumber === 1 && index === 0) {
             restTimeSeconds = 0;
+        } else if (inputs.restTime) {
+            // User has manually entered rest time, use that
+            restTimeSeconds = restTimeToSeconds(inputs.restTime);
         } else {
+            // Use global rest timer
             const restTime: any = await getRestTimerState();
-            restTimeSeconds = restTime.elapsed_seconds;
+            restTimeSeconds = restTime.elapsed_seconds || 0;
+        }
+
+        // Prepare set data - use currentTUT (which may have been manually edited)
+        const setData = {
+            weight: parseFloat(inputs.weight) || 0,
+            reps: inputs.reps !== null ? inputs.reps : 0,
+            reps_in_reserve: inputs.rir !== null ? inputs.rir : 0,
+            is_warmup: inputs.isWarmup,
+            rest_time_before_set: restTimeSeconds,
+            total_tut: currentTUT > 0 ? currentTUT : undefined
+        };
+
+        // Validate before sending
+        const validation = validateSetData(setData);
+        if (!validation.isValid) {
+            Alert.alert('Validation Error', validation.errors.join('\n'));
+            // Restart TUT tracking since validation failed
+            setIsTrackingTUT(true);
+            setTutStartTime(Date.now());
+            return;
+        }
+
+        // Add set with TUT data
+        onAdd(setData);
+
+        // Reset inputs but keep weight and reps
+        setInputs({ weight: inputs.weight, reps: inputs.reps, rir: null, restTime: null, isWarmup: false });
+        // Reset TUT after adding set
+        setCurrentTUT(0);
+    };
+
+    const handleAdd = async () => {
+        // Get rest time - use user input if provided, otherwise use global rest timer
+        let restTimeSeconds = 0;
+        if (nextSetNumber === 1 && index === 0) {
+            restTimeSeconds = 0;
+        } else if (inputs.restTime) {
+            // User has manually entered rest time, use that
+            restTimeSeconds = restTimeToSeconds(inputs.restTime);
+        } else {
+            // Use global rest timer
+            const restTime: any = await getRestTimerState();
+            restTimeSeconds = restTime.elapsed_seconds || 0;
         }
         
-        onAdd({
-            weight: parseFloat(inputs.weight),
-            reps: parseFloat(inputs.reps),
-            reps_in_reserve: inputs.rir ? parseFloat(inputs.rir) : 0,
+        // Prepare set data - include TUT if available (user may have manually edited it)
+        const setData = {
+            weight: parseFloat(inputs.weight) || 0,
+            reps: inputs.reps !== null ? inputs.reps : 0,
+            reps_in_reserve: inputs.rir !== null ? inputs.rir : 0,
             is_warmup: inputs.isWarmup,
-            rest_time_before_set: restTimeSeconds
-        });
+            rest_time_before_set: restTimeSeconds,
+            total_tut: currentTUT > 0 ? currentTUT : undefined
+        };
 
-        setInputs({ weight: inputs.weight, reps: inputs.reps, rir: '', restTime: '', isWarmup: false }); 
+        // Validate before sending
+        const validation = validateSetData(setData);
+        if (!validation.isValid) {
+            Alert.alert('Validation Error', validation.errors.join('\n'));
+            return;
+        }
+        
+        onAdd(setData);
+
+        setInputs({ weight: inputs.weight, reps: inputs.reps, rir: null, restTime: null, isWarmup: false });
+        // Reset TUT after adding set
+        setCurrentTUT(0);
     };
 
     if ((isLocked && !isEditMode ) || isViewOnly) return null;
@@ -299,49 +765,94 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
                 <TextInput
                     style={[styles.setInput, styles.addSetInput]}
                     value={inputs.weight}
-                    onChangeText={(t: string) => setInputs(p => ({ ...p, weight: t }))}
+                    onChangeText={(t: string) => {
+                        // Replace : and , with .
+                        let sanitized = t.replace(/[:,]/g, '.');
+                        
+                        // Only allow numbers and one decimal point
+                        const numericRegex = /^[0-9]*\.?[0-9]*$/;
+                        
+                        if (sanitized === '' || numericRegex.test(sanitized)) {
+                            setInputs(p => ({ ...p, weight: sanitized }));
+                        } else {
+                            // If invalid, clear the input
+                            setInputs(p => ({ ...p, weight: '' }));
+                        }
+                    }}
                     keyboardType="numeric"
                     placeholder={lastSet?.weight?.toString() || "kg"}
                     placeholderTextColor="#8E8E93"
                     onFocus={onFocus}
                 />
-                <TextInput
-                    style={[styles.setInput, styles.addSetInput]}
+                <RepsPicker
                     value={inputs.reps}
-                    onChangeText={(t: string) => setInputs(p => ({ ...p, reps: t }))}
-                    keyboardType="numeric"
-                    placeholder={lastSet?.reps?.toString() || "reps"}
-                    placeholderTextColor="#8E8E93"
+                    onValueChange={(value) => setInputs(p => ({ ...p, reps: value }))}
                     onFocus={onFocus}
                 />
-                <TextInput
-                    style={[styles.setInput, styles.addSetInput]}
+                <RIRPicker
                     value={inputs.rir}
-                    onChangeText={(t: string) => setInputs(p => ({ ...p, rir: t }))}
-                    keyboardType="numeric"
-                    placeholder="RIR"
-                    placeholderTextColor="#8E8E93"
+                    onValueChange={(value) => setInputs(p => ({ ...p, rir: value }))}
                     onFocus={onFocus}
                 />
-                <TextInput
-                    style={[styles.setInput, styles.addSetInput]}
+                <RestTimePicker
                     value={inputs.restTime}
-                    onChangeText={(t: string) => setInputs(p => ({ ...p, restTime: t }))}
-                    keyboardType="numbers-and-punctuation"
-                    placeholder="Rest"
-                    placeholderTextColor="#8E8E93"
+                    onValueChange={(value) => setInputs(p => ({ ...p, restTime: value }))}
                     onFocus={onFocus}
                 />
             </View>
 
-            {inputs.weight && inputs.reps && (
-                <TouchableOpacity
-                    style={[styles.addSetButton, (!inputs.weight || !inputs.reps) && { opacity: 0.5 }]}
-                    onPress={handleAdd}
-                    disabled={!inputs.weight || !inputs.reps}
-                >
-                    <Text style={styles.addSetButtonText}>Add Set</Text>
-                </TouchableOpacity>
+            {inputs.weight && inputs.reps !== null && (
+                <>
+                    {(isTrackingTUT || currentTUT > 0) && (
+                        <View style={styles.tutTimerContainer}>
+                            <Text style={styles.tutTimerLabel}>Time Under Tension:</Text>
+                            <View style={styles.tutInputContainer}>
+                                {isTrackingTUT ? (
+                                    <Text style={styles.tutDisplayText}>{formatTUT(currentTUT)}</Text>
+                                ) : (
+                                    <>
+                                        <TextInput
+                                            style={styles.tutInput}
+                                            value={currentTUT.toString()}
+                                            onChangeText={(text) => {
+                                                const num = parseInt(text) || 0;
+                                                if (num >= 0 && num <= 600) {
+                                                    setCurrentTUT(num);
+                                                }
+                                            }}
+                                            keyboardType="numeric"
+                                            placeholder="0"
+                                            placeholderTextColor="#8E8E93"
+                                        />
+                                        <Text style={styles.tutInputSuffix}>s</Text>
+                                    </>
+                                )}
+                            </View>
+                        </View>
+                    )}
+                    <TouchableOpacity
+                        style={[
+                            styles.addSetButton,
+                            (!inputs.weight || inputs.reps === null) && { opacity: 0.5 },
+                            isActive && hasSets && !isTrackingTUT && styles.startSetButton,
+                            isTrackingTUT && styles.stopSetButton
+                        ]}
+                        onPress={isTrackingTUT ? handleStopSet : (isActive && hasSets ? handleStartSet : handleAdd)}
+                        disabled={!inputs.weight || inputs.reps === null}
+                    >
+                        <Text style={[
+                            styles.addSetButtonText,
+                            isTrackingTUT && styles.stopSetButtonText,
+                            isActive && hasSets && !isTrackingTUT && styles.startSetButtonText
+                        ]}>
+                            {(() => {
+                                if (isTrackingTUT) return 'Stop Performing Set';
+                                if (isActive && hasSets) return 'Start Set';
+                                return 'Add Set';
+                            })()}
+                        </Text>
+                    </TouchableOpacity>
+                </>
             )}
         </>
     );
@@ -360,13 +871,54 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
     const [showMenu, setShowMenu] = useState(false);
 
     const handleUpdateSet = async (setId: number, data: any) => {
+        console.log('handleUpdateSet called with setId:', setId, 'data:', data);
+        
+        // Validate before sending (only validate fields that are being updated)
+        const validation = validateSetData(data);
+        if (!validation.isValid) {
+            Alert.alert('Validation Error', validation.errors.join('\n'));
+            return;
+        }
+
         try {
             const result = await updateSet(setId, data);
-            if (result && onUpdateSet) {
-                onUpdateSet(setId, result);
+            console.log('updateSet API response:', result, 'type:', typeof result);
+            
+            // Check if result has validation errors
+            if (result && typeof result === 'object' && result.error) {
+                if (result.validationErrors) {
+                    const errorMessage = formatValidationErrors(result.validationErrors);
+                    Alert.alert('Validation Error', errorMessage);
+                } else if (result.message) {
+                    Alert.alert('Update Failed', result.message);
+                } else {
+                    Alert.alert('Update Failed', 'An error occurred while updating the set');
+                }
+                return;
+            }
+            
+            // Success - result is an object with set data
+            if (result && typeof result === 'object' && !result.error) {
+                console.log('Update successful, calling onUpdateSet callback');
+                if (onUpdateSet) {
+                    onUpdateSet(setId, result);
+                }
+            } else if (result && typeof result === 'string') {
+                // Error - result is an error message string
+                console.error('Update failed with error message:', result);
+                Alert.alert('Update Failed', result);
+            } else if (result) {
+                // Unexpected format but might be valid - try to use it
+                console.log('Update result in unexpected format, but attempting callback');
+                if (onUpdateSet) {
+                    onUpdateSet(setId, result);
+                }
+            } else {
+                console.warn('Update returned null/undefined result');
             }
         } catch (error) {
-            console.error('Failed to update set:', error);
+            console.error('Failed to update set - exception:', error);
+            Alert.alert('Update Error', 'Failed to update set. Please try again.');
         }
     };
 
@@ -505,6 +1057,9 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                             isLocked={isLocked}
                             isEditMode={isEditMode}
                             isViewOnly={isViewOnly}
+                            isActive={isActive}
+                            workoutExerciseId={idToLock}
+                            hasSets={sets.length > 0}
                             onFocus={() => {
                                 swipeControl.closeAll();
                                 onInputFocus?.();
@@ -909,8 +1464,168 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         flexDirection: 'row',
     },
+    startSetButton: {
+        backgroundColor: '#8B5CF6',
+        borderColor: '#8B5CF6',
+    },
+    stopSetButton: {
+        backgroundColor: '#FF9500',
+        borderColor: '#FF9500',
+    },
     addSetButtonText: {
         color: '#6366F1',
+        fontSize: 17,
+        fontWeight: '400',
+    },
+    stopSetButtonText: {
+        color: '#FFFFFF',
+    },
+    tutTimerContainer: {
+        backgroundColor: '#1C1C1E',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        marginTop: 16,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#2C2C2E',
+    },
+    tutTimerLabel: {
+        color: '#8E8E93',
+        fontSize: 13,
+        fontWeight: '400',
+        marginBottom: 8,
+    },
+    tutInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    tutInput: {
+        color: '#0A84FF',
+        fontSize: 24,
+        fontWeight: '700',
+        fontVariant: ['tabular-nums'],
+        textAlign: 'center',
+        minWidth: 60,
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#2C2C2E',
+    },
+    tutDisplayText: {
+        color: '#0A84FF',
+        fontSize: 24,
+        fontWeight: '700',
+        fontVariant: ['tabular-nums'],
+        textAlign: 'center',
+    },
+    tutInputSuffix: {
+        color: '#8E8E93',
+        fontSize: 18,
+        fontWeight: '400',
+        marginLeft: 4,
+    },
+    startSetButtonText: {
+        color: '#FFFFFF',
+    },
+    pickerInput: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    pickerModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    pickerModalContent: {
+        backgroundColor: '#1C1C1E',
+        borderRadius: 22,
+        padding: 24,
+        width: '100%',
+        maxWidth: 400,
+        maxHeight: '80%',
+        borderWidth: 1,
+        borderColor: '#2C2C2E',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 4,
+    },
+    pickerHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    pickerTitle: {
+        color: '#FFFFFF',
+        fontSize: 24,
+        fontWeight: '700',
+    },
+    pickerScrollView: {
+        maxHeight: 300,
+    },
+    pickerOption: {
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        borderBottomWidth: 1,
+        borderBottomColor: '#2C2C2E',
+    },
+    pickerOptionSelected: {
+        backgroundColor: 'rgba(10, 132, 255, 0.1)',
+    },
+    pickerOptionText: {
+        color: '#FFFFFF',
+        fontSize: 17,
+        fontWeight: '400',
+    },
+    pickerOptionTextSelected: {
+        color: '#0A84FF',
+        fontWeight: '500',
+    },
+    restTimePickerContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginBottom: 24,
+    },
+    restTimePickerColumn: {
+        flex: 1,
+    },
+    restTimePickerLabel: {
+        color: '#8E8E93',
+        fontSize: 13,
+        fontWeight: '300',
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    restTimePickerSeparator: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 40,
+    },
+    restTimePickerSeparatorText: {
+        color: '#FFFFFF',
+        fontSize: 24,
+        fontWeight: '700',
+    },
+    pickerConfirmButton: {
+        backgroundColor: '#0A84FF',
+        borderRadius: 22,
+        paddingVertical: 16,
+        alignItems: 'center',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 16,
+        elevation: 2,
+    },
+    pickerConfirmButtonText: {
+        color: '#FFFFFF',
         fontSize: 17,
         fontWeight: '400',
     },

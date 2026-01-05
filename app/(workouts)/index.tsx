@@ -1,11 +1,11 @@
 import { createWorkout, getActiveWorkout } from "@/api/Workout";
-import UnifiedHeader from "@/components/UnifiedHeader";
 import { useWorkoutStore } from "@/state/userStore";
 import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Keyboard, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Workouts() {
@@ -229,83 +229,8 @@ export default function Workouts() {
     return (
         <KeyboardAvoidingView 
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-            style={[styles.container, { paddingTop: insets.top + 10}]}
+            style={[styles.container, { paddingTop: insets.top }]}
         >
-            {/* Header */}
-            <UnifiedHeader
-                title="Past Workouts"
-                rightButton={{
-                    icon: "add",
-                    onPress: () => setModalVisible(true),
-                }}
-                modalContent={
-                    <>
-                        <Text style={styles.modalInternalTitle}>Log Previous Workout</Text>
-                        
-                        <View style={styles.inputWrapper}>
-                            <TextInput 
-                                placeholder="Workout Name" 
-                                placeholderTextColor="#8E8E93"
-                                value={workoutTitle} 
-                                onChangeText={setWorkoutTitle} 
-                                style={styles.modalInput}
-                                autoFocus
-                            />
-                            {workoutTitle.length > 0 && (
-                                <TouchableOpacity onPress={() => setWorkoutTitle('')} style={styles.clearIcon}>
-                                    <Ionicons name="close-circle" size={20} color="#8E8E93" />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-
-                        <TouchableOpacity 
-                            style={styles.dateSelector} 
-                            onPress={() => { Keyboard.dismiss(); setShowDatePicker(true); }}
-                        >
-                            <Ionicons name="calendar-outline" size={20} color="#0A84FF" />
-                            <Text style={styles.dateText}>{date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.modalBtnStack}>
-                            <TouchableOpacity 
-                                style={[styles.primaryBtn, !workoutTitle.trim() && { opacity: 0.5 }]} 
-                                onPress={handleLogPastWorkout}
-                                disabled={!workoutTitle.trim()}
-                            >
-                                <Text style={styles.primaryBtnText}>Log Workout</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryBtn} onPress={closeModal}>
-                                <Text style={styles.secondaryBtnText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {showDatePicker && (
-                            <View style={styles.sheetOverlay}>
-                                <TouchableOpacity style={styles.sheetBackdrop} onPress={() => setShowDatePicker(false)} />
-                                <View style={[styles.bottomSheet, { height: keyboardHeight }]}>
-                                    <View style={styles.sheetHeader}>
-                                        <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                                            <Text style={styles.doneText}>Done</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                    <DateTimePicker
-                                        value={date}
-                                        mode="datetime"
-                                        display="spinner"
-                                        maximumDate={new Date()}
-                                        onChange={(event, selectedDate) => { if (selectedDate) setDate(selectedDate); }}
-                                        textColor="#FFFFFF"
-                                        themeVariant="dark"
-                                        style={{ flex: 1 }}
-                                    />
-                                </View>
-                            </View>
-                        )}
-                    </>
-                }
-                modalVisible={modalVisible}
-                onModalClose={closeModal}
-            />
 
             {isLoading && !refreshing ? (
                 <View style={styles.loadingContainer}>
@@ -319,7 +244,7 @@ export default function Workouts() {
                     contentContainerStyle={[
                         styles.listContent,
                         sortedWorkouts.length === 0 && !activeWorkout && styles.emptyListContent,
-                        { paddingTop: 60 }
+                        { paddingTop: 16 }
                     ]}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
@@ -426,6 +351,166 @@ export default function Workouts() {
                     }
                 />
             )}
+
+            {/* Floating Add Button */}
+            <View style={[styles.floatingButtonContainer, { bottom: insets.bottom + 80 }]}>
+                {Platform.OS === 'ios' ? (
+                    <BlurView intensity={80} tint="dark" style={styles.floatingButtonBlur}>
+                        <TouchableOpacity 
+                            style={styles.floatingButton}
+                            onPress={() => setModalVisible(true)}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="add" size={24} color="#0A84FF" />
+                        </TouchableOpacity>
+                    </BlurView>
+                ) : (
+                    <View style={[styles.floatingButtonBlur, styles.androidFloatingButton]}>
+                        <TouchableOpacity 
+                            style={styles.floatingButton}
+                            onPress={() => setModalVisible(true)}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="add" size={24} color="#0A84FF" />
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
+
+            {/* Modal */}
+            <Modal
+                visible={modalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={closeModal}
+            >
+                <TouchableOpacity 
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={closeModal}
+                >
+                    <KeyboardAvoidingView 
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                        style={styles.modalKeyboardView}
+                    >
+                        <TouchableOpacity 
+                            activeOpacity={1}
+                            onPress={(e) => e.stopPropagation()}
+                        >
+                            {Platform.OS === 'ios' ? (
+                                <BlurView intensity={80} tint="dark" style={styles.modalCard}>
+                                    <View style={styles.modalContent}>
+                                        <Text style={styles.modalInternalTitle}>Log Previous Workout</Text>
+                                        
+                                        <View style={styles.inputWrapper}>
+                                            <TextInput 
+                                                placeholder="Workout Name" 
+                                                placeholderTextColor="#8E8E93"
+                                                value={workoutTitle} 
+                                                onChangeText={setWorkoutTitle} 
+                                                style={styles.modalInput}
+                                                autoFocus
+                                            />
+                                            {workoutTitle.length > 0 && (
+                                                <TouchableOpacity onPress={() => setWorkoutTitle('')} style={styles.clearIcon}>
+                                                    <Ionicons name="close-circle" size={20} color="#8E8E93" />
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
+
+                                        <TouchableOpacity 
+                                            style={styles.dateSelector} 
+                                            onPress={() => { Keyboard.dismiss(); setShowDatePicker(true); }}
+                                        >
+                                            <Ionicons name="calendar-outline" size={20} color="#0A84FF" />
+                                            <Text style={styles.dateText}>{date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Text>
+                                        </TouchableOpacity>
+
+                                        <View style={styles.modalBtnStack}>
+                                            <TouchableOpacity 
+                                                style={[styles.primaryBtn, !workoutTitle.trim() && { opacity: 0.5 }]} 
+                                                onPress={handleLogPastWorkout}
+                                                disabled={!workoutTitle.trim()}
+                                            >
+                                                <Text style={styles.primaryBtnText}>Log Workout</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={styles.secondaryBtn} onPress={closeModal}>
+                                                <Text style={styles.secondaryBtnText}>Cancel</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </BlurView>
+                            ) : (
+                                <View style={[styles.modalCard, { backgroundColor: 'rgba(28, 28, 30, 0.95)' }]}>
+                                    <View style={styles.modalContent}>
+                                        <Text style={styles.modalInternalTitle}>Log Previous Workout</Text>
+                                        
+                                        <View style={styles.inputWrapper}>
+                                            <TextInput 
+                                                placeholder="Workout Name" 
+                                                placeholderTextColor="#8E8E93"
+                                                value={workoutTitle} 
+                                                onChangeText={setWorkoutTitle} 
+                                                style={styles.modalInput}
+                                                autoFocus
+                                            />
+                                            {workoutTitle.length > 0 && (
+                                                <TouchableOpacity onPress={() => setWorkoutTitle('')} style={styles.clearIcon}>
+                                                    <Ionicons name="close-circle" size={20} color="#8E8E93" />
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
+
+                                        <TouchableOpacity 
+                                            style={styles.dateSelector} 
+                                            onPress={() => { Keyboard.dismiss(); setShowDatePicker(true); }}
+                                        >
+                                            <Ionicons name="calendar-outline" size={20} color="#0A84FF" />
+                                            <Text style={styles.dateText}>{date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Text>
+                                        </TouchableOpacity>
+
+                                        <View style={styles.modalBtnStack}>
+                                            <TouchableOpacity 
+                                                style={[styles.primaryBtn, !workoutTitle.trim() && { opacity: 0.5 }]} 
+                                                onPress={handleLogPastWorkout}
+                                                disabled={!workoutTitle.trim()}
+                                            >
+                                                <Text style={styles.primaryBtnText}>Log Workout</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={styles.secondaryBtn} onPress={closeModal}>
+                                                <Text style={styles.secondaryBtnText}>Cancel</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    </KeyboardAvoidingView>
+                </TouchableOpacity>
+
+                {showDatePicker && (
+                    <View style={styles.sheetOverlay}>
+                        <TouchableOpacity style={styles.sheetBackdrop} onPress={() => setShowDatePicker(false)} />
+                        <View style={[styles.bottomSheet, { height: keyboardHeight }]}>
+                            <View style={styles.sheetHeader}>
+                                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                                    <Text style={styles.doneText}>Done</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <DateTimePicker
+                                value={date}
+                                mode="datetime"
+                                display="spinner"
+                                maximumDate={new Date()}
+                                onChange={(event, selectedDate) => { if (selectedDate) setDate(selectedDate); }}
+                                textColor="#FFFFFF"
+                                themeVariant="dark"
+                                style={{ flex: 1 }}
+                            />
+                        </View>
+                    </View>
+                )}
+            </Modal>
 
         </KeyboardAvoidingView>
     );
@@ -602,11 +687,42 @@ const styles = StyleSheet.create({
         paddingVertical: 24,
         alignItems: 'center',
     },
+    floatingButtonContainer: {
+        position: 'absolute',
+        right: 12,
+        zIndex: 1000,
+    },
+    floatingButtonBlur: {
+        borderRadius: 24,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        elevation: 10,
+    },
+    androidFloatingButton: {
+        backgroundColor: '#1C1C1E',
+    },
+    floatingButton: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'transparent',
+    },
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.85)',
         justifyContent: 'center',
         padding: 24,
+    },
+    modalKeyboardView: {
+        flex: 1,
+        justifyContent: 'center',
     },
     modalCard: {
         backgroundColor: '#1C1C1E',
@@ -619,6 +735,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 24,
         elevation: 4,
+    },
+    modalContent: {
+        // Content styles are already defined below
     },
     modalInternalTitle: {
         fontSize: 24,

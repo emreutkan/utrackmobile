@@ -1,13 +1,14 @@
-import { addSetToExercise, deleteSet, getExercises, removeExerciseFromWorkout } from '@/api/Exercises';
+import { addSetToExercise, deleteSet, removeExerciseFromWorkout } from '@/api/Exercises';
 import { Workout } from '@/api/types';
 import { addExerciseToPastWorkout, deleteWorkout, getWorkout } from '@/api/Workout';
+import ExerciseSearchModal from '@/components/ExerciseSearchModal';
 import UnifiedHeader from '@/components/UnifiedHeader';
 import WorkoutDetailView from '@/components/WorkoutDetailView';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function WorkoutDetailScreen() {
@@ -16,9 +17,6 @@ export default function WorkoutDetailScreen() {
     const [isEditMode, setIsEditMode] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isMenuModalVisible, setIsMenuModalVisible] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [exercises, setExercises] = useState<any[]>([]);
-    const [isLoadingExercises, setIsLoadingExercises] = useState(false);
     const insets = useSafeAreaInsets();
 
     const fetchWorkout = useCallback(async () => {
@@ -34,27 +32,6 @@ export default function WorkoutDetailScreen() {
         }, [fetchWorkout])
     );
 
-    useEffect(() => {
-        if (!isModalVisible) return;
-        const delayDebounceFn = setTimeout(() => {
-            loadExercises();
-        }, 300);
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, isModalVisible]);
-
-    const loadExercises = async () => {
-        setIsLoadingExercises(true);
-        try {
-            const data = await getExercises(searchQuery);
-            if (Array.isArray(data)) {
-                setExercises(data);
-            }
-        } catch (error) {
-            console.error("Failed to load exercises:", error);
-        } finally {
-            setIsLoadingExercises(false);
-        }
-    };
 
     const formatDuration = (seconds: number) => {
         if (!seconds) return '00:00:00';
@@ -70,7 +47,6 @@ export default function WorkoutDetailScreen() {
             const result = await addExerciseToPastWorkout(workout.id, { exercise_id: exerciseId });
             if (result?.id) {
                 setIsModalVisible(false);
-                setSearchQuery('');
                 fetchWorkout();
             }
         } catch (error) {
@@ -200,64 +176,6 @@ export default function WorkoutDetailScreen() {
         setIsEditMode(false);
     };
 
-    const renderAddExerciseModal = () => {
-        return (
-            <Modal
-                visible={isModalVisible}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setIsModalVisible(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Add Exercise</Text>
-                            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                                <Ionicons name="close-circle" size={28} color="#48484A" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.searchContainer}>
-                            <Ionicons name="search" size={18} color="#8E8E93" style={styles.searchIcon} />
-                            <TextInput
-                                placeholder="Search exercises..."
-                                placeholderTextColor="#8E8E93"
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                                style={styles.searchInput}
-                            />
-                        </View>
-
-                        {isLoadingExercises ? (
-                            <View style={styles.loadingContainer}>
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                            </View>
-                        ) : (
-                            <FlatList
-                                data={exercises}
-                                keyExtractor={(item) => item.id.toString()}
-                                renderItem={({ item }) => (
-                                    <TouchableOpacity
-                                        style={styles.exerciseCard}
-                                        onPress={() => handleAddExercise(item.id)}
-                                    >
-                                        <View style={styles.exerciseInfo}>
-                                            <Text style={styles.exerciseName}>{item.name}</Text>
-                                            <Text style={styles.exerciseDetail}>
-                                                {item.primary_muscle} {item.equipment_type ? `• ${item.equipment_type}` : ''}
-                                            </Text>
-                                        </View>
-                                        <Ionicons name="add-circle" size={24} color="#FFFFFF" />
-                                    </TouchableOpacity>
-                                )}
-                                ItemSeparatorComponent={() => <View style={styles.separator} />}
-                            />
-                        )}
-                    </View>
-                </View>
-            </Modal>
-        );
-    };
 
     return (
         <View style={[styles.container, { paddingTop: insets.top + 70 }]}>
@@ -310,7 +228,12 @@ export default function WorkoutDetailScreen() {
                 onShowStatistics={(exerciseId: number) => router.push(`/(exercise-statistics)/${exerciseId}`)}
             />
 
-            {renderAddExerciseModal()}
+            <ExerciseSearchModal
+                visible={isModalVisible}
+                onClose={() => setIsModalVisible(false)}
+                onSelectExercise={handleAddExercise}
+                title="Add Exercise"
+            />
             {isEditMode && (
                 Platform.OS === 'ios' ? (
                     <BlurView intensity={80} tint="dark" style={styles.WorkoutFooter}>
@@ -392,81 +315,5 @@ const styles = StyleSheet.create({
     },
     deleteText: {
         color: '#FF3B30',
-    },
-    modalContainer: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        backgroundColor: '#1C1C1E', // Dark gray card
-        borderTopLeftRadius: 22,
-        borderTopRightRadius: 22,
-        height: '85%',
-        paddingTop: 16,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-        marginBottom: 16,
-    },
-    modalTitle: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: '500',
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#2C2C2E',
-        borderRadius: 22,
-        marginHorizontal: 24,
-        paddingHorizontal: 16,
-        marginBottom: 16,
-    },
-    searchIcon: {
-        marginRight: 8,
-    },
-    searchInput: {
-        flex: 1,
-        paddingVertical: 16,
-        color: '#FFFFFF',
-        fontSize: 17,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    listContent: {
-        paddingHorizontal: 24,
-        paddingBottom: 40,
-    },
-    exerciseCard: {
-        paddingVertical: 16,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    separator: {
-        height: StyleSheet.hairlineWidth,
-        backgroundColor: '#38383A',
-        width: '100%',
-    },
-    exerciseInfo: {
-        flex: 1,
-    },
-    exerciseName: {
-        color: '#FFFFFF',
-        fontSize: 17,
-        fontWeight: '400',
-        marginBottom: 8,
-    },
-    exerciseDetail: {
-        color: '#8E8E93',
-        fontSize: 13,
-        fontWeight: '300',
     },
 });

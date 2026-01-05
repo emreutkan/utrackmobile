@@ -1,29 +1,31 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Animated, { 
-    useSharedValue, 
-    useAnimatedStyle, 
-    withRepeat, 
-    withTiming, 
-    withSequence,
-    Easing,
-    interpolate,
-    Extrapolation
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { checkToday, getRecoveryStatus } from '@/api/Workout';
 import { useHomeLoadingStore } from '@/state/userStore';
-import { RecoveryStatusResponse } from '@/api/types';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Animated, {
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LOADING_DURATION = 2000; // 2 seconds
 
 export default function LoadingHome() {
     const insets = useSafeAreaInsets();
     const progress = useSharedValue(0);
-    const ballY = useSharedValue(0);
-    const ballScale = useSharedValue(1);
-    const textOpacity = useSharedValue(0);
+    const { fromDebug } = useLocalSearchParams<{ fromDebug?: string }>();
+    
+    // Animation for hero subtitle text rotation
+    const subtitleIndex = useSharedValue(0);
+    const subtitleOpacity = useSharedValue(1);
+    const subtitleTranslateY = useSharedValue(0);
+    const [currentSubtitleIndex, setCurrentSubtitleIndex] = useState(0);
+    
+    const subtitlePhrases = ['by Discipline', 'with Science', 'for Excellence', 'for You'];
+    
     const { setTodayStatus, setRecoveryStatus, setInitialLoadComplete } = useHomeLoadingStore();
 
     useEffect(() => {
@@ -56,85 +58,70 @@ export default function LoadingHome() {
             easing: Easing.linear,
         });
 
-        // Start ball bouncing animation
-        ballY.value = withRepeat(
-            withSequence(
-                withTiming(-60, { duration: 400, easing: Easing.out(Easing.quad) }),
-                withTiming(0, { duration: 400, easing: Easing.in(Easing.quad) })
-            ),
-            -1,
-            false
-        );
-
-        // Start ball scale animation (squash and stretch)
-        ballScale.value = withRepeat(
-            withSequence(
-                withTiming(1.2, { duration: 200, easing: Easing.out(Easing.quad) }),
-                withTiming(0.9, { duration: 200, easing: Easing.in(Easing.quad) }),
-                withTiming(1, { duration: 200, easing: Easing.out(Easing.quad) })
-            ),
-            -1,
-            false
-        );
-
-        // Fade in text
-        textOpacity.value = withTiming(1, {
-            duration: 500,
-            easing: Easing.out(Easing.ease),
-        });
-
-        // Navigate to home after loading completes
+        // Navigate to home or back to debug after loading completes
         const timer = setTimeout(() => {
-            setInitialLoadComplete(true);
-            router.replace('/(home)');
+            if (fromDebug === 'true') {
+                router.back();
+            } else {
+                setInitialLoadComplete(true);
+                router.replace('/(home)');
+            }
         }, LOADING_DURATION);
 
         return () => clearTimeout(timer);
     }, []);
 
+    // Animate subtitle text rotation
+    useEffect(() => {
+        const interval = setInterval(() => {
+            // Fade out and move up
+            subtitleOpacity.value = withTiming(0, { duration: 300 });
+            subtitleTranslateY.value = withTiming(-10, { duration: 300 });
+            
+            setTimeout(() => {
+                // Change text index
+                const nextIndex = (currentSubtitleIndex + 1) % subtitlePhrases.length;
+                setCurrentSubtitleIndex(nextIndex);
+                subtitleIndex.value = nextIndex;
+                // Reset position
+                subtitleTranslateY.value = 10;
+                // Fade in and move to center
+                subtitleOpacity.value = withTiming(1, { duration: 300 });
+                subtitleTranslateY.value = withTiming(0, { duration: 300 });
+            }, 300);
+        }, 2000); // Change every 2 seconds
+        
+        return () => clearInterval(interval);
+    }, [currentSubtitleIndex]);
+
     const progressBarStyle = useAnimatedStyle(() => ({
         width: `${progress.value}%`,
     }));
 
-    const ballStyle = useAnimatedStyle(() => {
-        const rotation = interpolate(
-            ballY.value,
-            [-60, 0],
-            [0, 360],
-            Extrapolation.CLAMP
-        );
-        
-        return {
-            transform: [
-                { translateY: ballY.value },
-                { scale: ballScale.value },
-                { rotate: `${rotation}deg` },
-            ],
-        };
-    });
-
-    const textStyle = useAnimatedStyle(() => ({
-        opacity: textOpacity.value,
+    const animatedSubtitleStyle = useAnimatedStyle(() => ({
+        opacity: subtitleOpacity.value,
+        transform: [{ translateY: subtitleTranslateY.value }],
     }));
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-            {/* Progress Bar */}
-            <View style={styles.progressBarContainer}>
-                <Animated.View style={[styles.progressBar, progressBarStyle]} />
+        <View style={styles.container}>
+            <View style={[styles.content, { paddingTop: insets.top }]}>
+                <View style={styles.heroSection}>
+                    <Text style={styles.heroTitle}>utrack</Text>
+                    <View style={styles.heroSubtitleContainer}>
+                        <Text style={styles.heroSubtitleStatic}>Built </Text>
+                        <Animated.View style={[styles.heroSubtitleAnimated, animatedSubtitleStyle]}>
+                            <Text style={styles.heroSubtitleDynamic}>
+                                {subtitlePhrases[currentSubtitleIndex]}
+                            </Text>
+                        </Animated.View>
+                    </View>
+                </View>
             </View>
 
-            {/* Content */}
-            <View style={styles.content}>
-                {/* Bouncing Ball */}
-                <View style={styles.ballContainer}>
-                    <Animated.View style={[styles.ball, ballStyle]} />
-                </View>
-
-                {/* Text */}
-                <Animated.Text style={[styles.text, textStyle]}>
-                    utrack
-                </Animated.Text>
+            {/* Progress Bar at bottom */}
+            <View style={styles.progressBarContainer}>
+                <Animated.View style={[styles.progressBar, progressBarStyle]} />
             </View>
         </View>
     );
@@ -143,44 +130,54 @@ export default function LoadingHome() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000000',
+        backgroundColor: "black",
+        padding: 20,
+        paddingBottom: 40,
+    },
+    content: {
+        flex: 1,
+        padding: 1,
+    },
+    heroSection: {
+        paddingTop: "20%",
+        paddingBottom: "25%",
+        alignItems: 'flex-start',
+    },
+    heroTitle: {
+        fontWeight: '200',
+        fontSize: 72,
+        color: 'white',
+        letterSpacing: 5,
+    },
+    heroSubtitleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    heroSubtitleStatic: {
+        fontSize: 16,
+        fontWeight: '400',
+        color: '#8E8E93',
+    },
+    heroSubtitleAnimated: {
+        overflow: 'hidden',
+    },
+    heroSubtitleDynamic: {
+        fontSize: 16,
+        fontWeight: '400',
+        color: '#8E8E93',
     },
     progressBarContainer: {
-        width: '100%',
+        position: 'absolute',
+        bottom: 60,
+        left: 20,
+        right: 20,
         height: 4,
         backgroundColor: '#1C1C1E',
     },
     progressBar: {
         height: '100%',
         backgroundColor: '#0A84FF',
-    },
-    content: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    ballContainer: {
-        height: 100,
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        marginBottom: 40,
-    },
-    ball: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#0A84FF',
-        shadowColor: '#0A84FF',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5,
-        shadowRadius: 12,
-        elevation: 8,
-    },
-    text: {
-        fontSize: 48,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        letterSpacing: 2,
     },
 });
 

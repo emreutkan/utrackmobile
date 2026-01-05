@@ -840,86 +840,6 @@ export default function Home() {
             </View>
             </RNScrollView>
 
-            {/* Bottom Navigation Bar */}
-            {Platform.OS === 'ios' ? (
-                <BlurView intensity={80} tint="dark" style={[styles.bottomNavContainer, { bottom: insets.bottom}]}>
-                    <TouchableOpacity 
-                        onPress={() => router.push('/(workouts)')} 
-                        style={styles.bottomNavButton}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="reader-outline" size={24} color={pathname.startsWith('/(workouts)') ? "#0A84FF" : "#8E8E93"} />
-                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(workouts)') ? "#0A84FF" : "#8E8E93" }]}>Workouts</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        onPress={() => router.push('/(supplements)')} 
-                        style={styles.bottomNavButton}
-                        activeOpacity={0.7}
-                    >
-                        <MaterialIcons name="medication" size={24} color={pathname.startsWith('/(supplements)') ? "#0A84FF" : "#8E8E93"} />
-                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(supplements)') ? "#0A84FF" : "#8E8E93" }]}>Supplements</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        onPress={() => router.push('/(calculations)')} 
-                        style={styles.bottomNavButton}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="body-outline" size={24} color={pathname.startsWith('/(calculations)') ? "#0A84FF" : "#8E8E93"} />
-                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(calculations)') ? "#0A84FF" : "#8E8E93" }]}>Measurements</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        onPress={() => router.push('/(account)')} 
-                        style={styles.bottomNavButton}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="person-circle-outline" size={24} color={pathname.startsWith('/(account)') ? "#0A84FF" : "#8E8E93"} />
-                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(account)') ? "#0A84FF" : "#8E8E93" }]}>Account</Text>
-                    </TouchableOpacity>
-                </BlurView>
-            ) : (
-                <View style={[styles.bottomNavContainer, { bottom: insets.bottom + 12, backgroundColor: 'rgba(28, 28, 30, 0.95)' }]}>
-                    <TouchableOpacity 
-                        onPress={() => router.push('/(workouts)')} 
-                        style={styles.bottomNavButton}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="reader-outline" size={24} color={pathname.startsWith('/(workouts)') ? "#0A84FF" : "#8E8E93"} />
-                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(workouts)') ? "#0A84FF" : "#8E8E93" }]}>Workouts</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        onPress={() => router.push('/(supplements)')} 
-                        style={styles.bottomNavButton}
-                        activeOpacity={0.7}
-                    >
-                        <MaterialIcons name="medication" size={24} color={pathname.startsWith('/(supplements)') ? "#0A84FF" : "#8E8E93"} />
-                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(supplements)') ? "#0A84FF" : "#8E8E93" }]}>Supplements</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        onPress={() => router.push('/(calculations)')} 
-                        style={styles.bottomNavButton}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="body-outline" size={24} color={pathname.startsWith('/(calculations)') ? "#0A84FF" : "#8E8E93"} />
-                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(calculations)') ? "#0A84FF" : "#8E8E93" }]}>Measurements</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        onPress={() => router.push('/(account)')} 
-                        style={styles.bottomNavButton}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="person-circle-outline" size={24} color={pathname.startsWith('/(account)') ? "#0A84FF" : "#8E8E93"} />
-                        <Text style={[styles.bottomNavLabel, { color: pathname.startsWith('/(account)') ? "#0A84FF" : "#8E8E93" }]}>Account</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-
             {/* Start Workout Menu Modal */}
             {showStartWorkoutMenu && (
                 <>
@@ -1312,33 +1232,6 @@ const styles = StyleSheet.create({
         height: StyleSheet.hairlineWidth,
         backgroundColor: '#2C2C2E',
         marginHorizontal: 16,
-    },
-    bottomNavContainer: {
-        position: 'absolute',
-
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        alignItems: 'center',
-        padding: 4,
-        borderRadius: 22,
-        overflow: 'hidden',
-        zIndex: 10,
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    bottomNavButton: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 8,
-    },
-    bottomNavLabel: {
-        fontSize: 13,
-        fontWeight: '300',
-        marginTop: 8,
     },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: 24 },
     modalCard: { backgroundColor: '#1C1C1E', borderRadius: 22, padding: 24, borderWidth: 1, borderColor: '#2C2C2E', shadowColor: '#000000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 4 },

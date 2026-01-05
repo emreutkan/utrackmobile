@@ -202,7 +202,7 @@ export default function AuthScreen() {
         setValidating(false);
 
         if (!result.is_valid) {
-            showAlert("Invalid Email", result.errors.join('\n') || 'Please enter a valid email address.');
+            showAlert("Invalid Email", result.errors?.join('\n') || 'Please enter a valid email address.');
             return;
         }
 
@@ -225,7 +225,7 @@ export default function AuthScreen() {
         setValidating(false);
 
         if (!result.is_valid) {
-            showAlert("Invalid Email", result.errors.join('\n') || 'Please enter a valid email address.');
+            showAlert("Invalid Email", result.errors?.join('\n') || 'Please enter a valid email address.');
             return;
         }
 
@@ -250,7 +250,7 @@ export default function AuthScreen() {
         setValidating(false);
 
         if (!result.is_valid) {
-            showAlert("Invalid Name", result.errors.join('\n') || 'Please enter a valid name.');
+            showAlert("Invalid Name", result.errors?.join('\n') || 'Please enter a valid name.');
             return;
         }
 
@@ -384,7 +384,7 @@ export default function AuthScreen() {
         setValidating(false);
 
         if (!passwordResult.is_valid) {
-            showAlert("Invalid Password", passwordResult.errors.join('\n') || 'Please enter a valid password.');
+            showAlert("Invalid Password", passwordResult.errors?.join('\n') || 'Please enter a valid password.');
             return;
         }
 

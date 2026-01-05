@@ -1,30 +1,48 @@
-import { addSetToExercise, deleteSet, getExercises, removeExerciseFromWorkout } from '@/api/Exercises';
+import { addSetToExercise, deleteSet, removeExerciseFromWorkout } from '@/api/Exercises';
 import { Workout } from '@/api/types';
 import { addExerciseToPastWorkout, deleteWorkout, getWorkout } from '@/api/Workout';
+import ExerciseSearchModal from '@/components/ExerciseSearchModal';
 import UnifiedHeader from '@/components/UnifiedHeader';
 import WorkoutDetailView from '@/components/WorkoutDetailView';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Platform,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function WorkoutDetailScreen() {
     const { id } = useLocalSearchParams();
-    const [workout, setWorkout] = useState<Workout | null>(null);
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const [isMenuModalVisible, setIsMenuModalVisible] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [exercises, setExercises] = useState<any[]>([]);
-    const [isLoadingExercises, setIsLoadingExercises] = useState(false);
     const insets = useSafeAreaInsets();
+    
+    // --- State ---
+    const [workout, setWorkout] = useState<Workout | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isEditMode, setIsEditMode] = useState(false);
+    
+    // Modals
+    const [isSearchVisible, setIsSearchVisible] = useState(false);
+    const [isMenuVisible, setIsMenuVisible] = useState(false);
 
+    // --- Data Fetching ---
     const fetchWorkout = useCallback(async () => {
         if (id) {
-            const data = await getWorkout(Number(id));
-            setWorkout(data);
+            try {
+                const data = await getWorkout(Number(id));
+                setWorkout(data);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsLoading(false);
+            }
         }
     }, [id]);
 
@@ -34,28 +52,7 @@ export default function WorkoutDetailScreen() {
         }, [fetchWorkout])
     );
 
-    useEffect(() => {
-        if (!isModalVisible) return;
-        const delayDebounceFn = setTimeout(() => {
-            loadExercises();
-        }, 300);
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, isModalVisible]);
-
-    const loadExercises = async () => {
-        setIsLoadingExercises(true);
-        try {
-            const data = await getExercises(searchQuery);
-            if (Array.isArray(data)) {
-                setExercises(data);
-            }
-        } catch (error) {
-            console.error("Failed to load exercises:", error);
-        } finally {
-            setIsLoadingExercises(false);
-        }
-    };
-
+    // --- Helpers ---
     const formatDuration = (seconds: number) => {
         if (!seconds) return '00:00:00';
         const h = Math.floor(seconds / 3600);
@@ -64,118 +61,79 @@ export default function WorkoutDetailScreen() {
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
-    const handleAddExercise = async (exerciseId: number) => {
-        if (!workout?.id) return;
-        try {
-            const result = await addExerciseToPastWorkout(workout.id, { exercise_id: exerciseId });
-            if (result?.id) {
-                setIsModalVisible(false);
-                setSearchQuery('');
-                fetchWorkout();
-            }
-        } catch (error) {
-            Alert.alert("Error", "Failed to add exercise.");
-        }
-    };
-
-    const handleRemoveExercise = async (exerciseId: number) => {
-        if (!workout?.id) return;
-        try {
-            const success = await removeExerciseFromWorkout(workout.id, exerciseId);
-            if (success) {
-                fetchWorkout();
-            }
-        } catch (error) {
-            Alert.alert("Error", "Failed to remove exercise.");
-        }
-    };
-
     const formatValidationErrors = (validationErrors: any): string => {
-        if (!validationErrors || typeof validationErrors !== 'object') {
-            return 'Validation failed';
-        }
-
+        if (!validationErrors || typeof validationErrors !== 'object') return 'Validation failed';
         const messages: string[] = [];
         Object.keys(validationErrors).forEach(field => {
             const fieldErrors = validationErrors[field];
             if (Array.isArray(fieldErrors)) {
                 fieldErrors.forEach((error: string) => {
-                    // Convert backend messages to user-friendly ones
                     let friendlyMessage = error;
-                    if (error.includes('less than or equal to 100')) {
-                        friendlyMessage = field === 'reps' ? 'Reps must be between 0 and 100' : 'RIR must be between 0 and 100';
-                    } else if (error.includes('less than or equal to 10800')) {
-                        friendlyMessage = 'Rest time cannot exceed 3 hours';
-                    } else if (error.includes('less than or equal to 600')) {
-                        friendlyMessage = 'Time under tension cannot exceed 10 minutes';
-                    } else if (error.includes('greater than or equal to 0')) {
-                        friendlyMessage = `${field} cannot be negative`;
-                    }
+                    if (error.includes('less than or equal to 100')) friendlyMessage = field === 'reps' ? 'Max 100 reps' : 'Max 100 RIR';
+                    else if (error.includes('less than or equal to 10800')) friendlyMessage = 'Max 3 hours rest';
+                    else if (error.includes('less than or equal to 600')) friendlyMessage = 'Max 10 min TUT';
+                    else if (error.includes('greater than or equal to 0')) friendlyMessage = `${field} cannot be negative`;
                     messages.push(friendlyMessage);
                 });
             } else {
                 messages.push(fieldErrors);
             }
         });
-
         return messages.join('\n');
     };
 
+    // --- Handlers: Workout Structure ---
+    const handleAddExercise = async (exerciseId: number) => {
+        if (!workout?.id) return;
+        const result = await addExerciseToPastWorkout(workout.id, { exercise_id: exerciseId });
+        if (result?.id) {
+            setIsSearchVisible(false);
+            fetchWorkout();
+        } else {
+            Alert.alert("Error", "Failed to add exercise.");
+        }
+    };
+
+    const handleRemoveExercise = async (exerciseId: number) => {
+        if (!workout?.id) return;
+        const success = await removeExerciseFromWorkout(workout.id, exerciseId);
+        if (success) fetchWorkout();
+        else Alert.alert("Error", "Failed to remove exercise.");
+    };
+
+    // --- Handlers: Sets ---
     const handleAddSet = async (exerciseId: number, data: any) => {
         try {
             const result = await addSetToExercise(exerciseId, data);
             
-            // Check if result has validation errors
             if (result && typeof result === 'object' && result.error) {
-                if (result.validationErrors) {
-                    const errorMessage = formatValidationErrors(result.validationErrors);
-                    Alert.alert("Validation Error", errorMessage);
-                } else if (result.message) {
-                    Alert.alert("Error", result.message);
-                } else {
-                    Alert.alert("Error", "Failed to add set.");
-                }
+                const msg = result.validationErrors ? formatValidationErrors(result.validationErrors) : result.message;
+                Alert.alert("Invalid Input", msg || "Failed to add set");
                 return;
             }
             
-            // Success
             if (result?.id || (typeof result === 'object' && !result.error)) {
                 fetchWorkout();
-                // Note: Recovery status will be recalculated on backend when workout is completed
-                // If this is a completed workout being edited, recovery may need backend recalculation
-            } else if (typeof result === 'string') {
-                Alert.alert("Error", result);
             } else {
-                Alert.alert("Error", "Failed to add set.");
+                Alert.alert("Error", typeof result === 'string' ? result : "Failed to add set.");
             }
         } catch (error: any) {
-            console.error("Add set error:", error);
             Alert.alert("Error", error?.message || "Failed to add set.");
         }
     };
 
     const handleDeleteSet = async (setId: number) => {
-        try {
-            const success = await deleteSet(setId);
-            if (success) {
-                fetchWorkout();
-                // Note: Recovery status will be recalculated on backend when workout is completed
-            }
-        } catch (error) {
-            Alert.alert("Error", "Failed to delete set.");
-        }
+        const success = await deleteSet(setId);
+        if (success) fetchWorkout();
+        else Alert.alert("Error", "Failed to delete set.");
     };
 
-    const handleEditPress = () => {
-        setIsMenuModalVisible(false);
-        setIsEditMode(true);
-    };
-
-    const handleDeletePress = () => {
-        setIsMenuModalVisible(false);
+    // --- Handlers: Menu Actions ---
+    const handleDeleteWorkout = () => {
+        setIsMenuVisible(false);
         Alert.alert(
             "Delete Workout",
-            "This action cannot be undone.",
+            "Are you sure? This cannot be undone.",
             [
                 { text: "Cancel", style: "cancel" },
                 { 
@@ -183,12 +141,8 @@ export default function WorkoutDetailScreen() {
                     style: "destructive", 
                     onPress: async () => {
                         if (workout?.id) {
-                            try {
-                                await deleteWorkout(workout.id);
-                                router.back();
-                            } catch (error) {
-                                Alert.alert("Error", "Failed to delete workout.");
-                            }
+                            await deleteWorkout(workout.id);
+                            router.back();
                         }
                     }
                 }
@@ -196,149 +150,101 @@ export default function WorkoutDetailScreen() {
         );
     };
 
-    const handleDonePress = () => {
-        setIsEditMode(false);
-    };
-
-    const renderAddExerciseModal = () => {
-        return (
-            <Modal
-                visible={isModalVisible}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setIsModalVisible(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Add Exercise</Text>
-                            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                                <Ionicons name="close-circle" size={28} color="#48484A" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.searchContainer}>
-                            <Ionicons name="search" size={18} color="#8E8E93" style={styles.searchIcon} />
-                            <TextInput
-                                placeholder="Search exercises..."
-                                placeholderTextColor="#8E8E93"
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                                style={styles.searchInput}
-                            />
-                        </View>
-
-                        {isLoadingExercises ? (
-                            <View style={styles.loadingContainer}>
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                            </View>
-                        ) : (
-                            <FlatList
-                                data={exercises}
-                                keyExtractor={(item) => item.id.toString()}
-                                renderItem={({ item }) => (
-                                    <TouchableOpacity
-                                        style={styles.exerciseCard}
-                                        onPress={() => handleAddExercise(item.id)}
-                                    >
-                                        <View style={styles.exerciseInfo}>
-                                            <Text style={styles.exerciseName}>{item.name}</Text>
-                                            <Text style={styles.exerciseDetail}>
-                                                {item.primary_muscle} {item.equipment_type ? `• ${item.equipment_type}` : ''}
-                                            </Text>
-                                        </View>
-                                        <Ionicons name="add-circle" size={24} color="#FFFFFF" />
-                                    </TouchableOpacity>
-                                )}
-                                ItemSeparatorComponent={() => <View style={styles.separator} />}
-                            />
-                        )}
-                    </View>
-                </View>
-            </Modal>
-        );
-    };
-
     return (
-        <View style={[styles.container, { paddingTop: insets.top + 70 }]}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+            
             <UnifiedHeader
-                title={workout?.title || 'Workout'}
-                rightButton={
-                    isEditMode
-                        ? undefined
-                        : {
-                              icon: 'ellipsis-horizontal' as keyof typeof Ionicons.glyphMap,
-                              onPress: () => setIsMenuModalVisible(true),
-                          }
-                }
-                rightButtonText={isEditMode ? 'Done' : undefined}
-                onRightButtonPress={isEditMode ? handleDonePress : undefined}
+                title={workout?.title || 'Workout Details'}
+                // Dynamic Right Button based on Mode
+                rightButton={!isEditMode ? {
+                    icon: 'ellipsis-horizontal',
+                    onPress: () => setIsMenuVisible(true)
+                } : undefined}
+                // Text Button for "Done" state
+                rightButtonText={isEditMode ? "Done" : undefined}
+                onRightButtonPress={() => setIsEditMode(false)}
+                
+                // Menu Modal Content
+                modalVisible={isMenuVisible}
+                onModalClose={() => setIsMenuVisible(false)}
                 modalContent={
-                    <>
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={handleEditPress}
+                    <View style={styles.menuContainer}>
+                        <Text style={styles.menuHeader}>Options</Text>
+                        <TouchableOpacity 
+                            style={styles.menuItem} 
+                            onPress={() => { setIsMenuVisible(false); setIsEditMode(true); }}
                         >
-                            <Ionicons name="create-outline" size={24} color="#FFFFFF" />
-                            <Text style={styles.menuItemText}>Edit</Text>
-                            <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
+                            <Ionicons name="create-outline" size={22} color="#FFF" />
+                            <Text style={styles.menuText}>Edit Workout</Text>
+                            <Ionicons name="chevron-forward" size={16} color="#545458" />
                         </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.menuItem}
-                            onPress={handleDeletePress}
+                        <View style={styles.menuDivider} />
+                        <TouchableOpacity 
+                            style={styles.menuItem} 
+                            onPress={handleDeleteWorkout}
                         >
-                            <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-                            <Text style={[styles.menuItemText, styles.deleteText]}>Delete</Text>
-                            <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
+                            <Ionicons name="trash-outline" size={22} color="#FF3B30" />
+                            <Text style={[styles.menuText, { color: '#FF3B30' }]}>Delete Workout</Text>
                         </TouchableOpacity>
-                    </>
+                    </View>
                 }
-                modalVisible={isMenuModalVisible}
-                onModalClose={() => setIsMenuModalVisible(false)}
             />
             
-            <WorkoutDetailView 
-                workout={workout} 
-                elapsedTime={formatDuration(workout?.duration || 0)} 
-                isActive={false}
-                isEditMode={isEditMode}
-                isViewOnly={!isEditMode}
-                onAddExercise={isEditMode ? () => setIsModalVisible(true) : undefined}
-                onRemoveExercise={isEditMode ? handleRemoveExercise : undefined}
-                onAddSet={isEditMode ? handleAddSet : undefined}
-                onDeleteSet={isEditMode ? handleDeleteSet : undefined}
-                onShowStatistics={(exerciseId: number) => router.push(`/(exercise-statistics)/${exerciseId}`)}
+            {isLoading ? (
+                <View style={[styles.loadingContainer, { marginTop: 58 }]}>
+                    <ActivityIndicator size="large" color="#0A84FF" />
+                </View>
+            ) : (
+                <View style={{ marginTop: 58, flex: 1 }}>
+                    <WorkoutDetailView 
+                        workout={workout} 
+                        elapsedTime={formatDuration(workout?.duration || 0)} 
+                        isActive={false}
+                        isEditMode={isEditMode}
+                        isViewOnly={!isEditMode}
+                        onAddExercise={isEditMode ? () => setIsSearchVisible(true) : undefined}
+                        onRemoveExercise={isEditMode ? handleRemoveExercise : undefined}
+                        onAddSet={isEditMode ? handleAddSet : undefined}
+                        onDeleteSet={isEditMode ? handleDeleteSet : undefined}
+                        onShowStatistics={(exerciseId: number) => router.push(`/(exercise-statistics)/${exerciseId}`)}
+                    />
+                </View>
+            )}
+
+            <ExerciseSearchModal
+                visible={isSearchVisible}
+                onClose={() => setIsSearchVisible(false)}
+                onSelectExercise={handleAddExercise}
+                title="Add Exercise"
             />
 
-            {renderAddExerciseModal()}
+            {/* Floating "Add Exercise" Pill (Only in Edit Mode) */}
             {isEditMode && (
-                Platform.OS === 'ios' ? (
-                    <BlurView intensity={80} tint="dark" style={styles.WorkoutFooter}>
-                        <View style={styles.footerContent}>
-                            <TouchableOpacity
-                                onPress={() => {
-                                    setIsModalVisible(true);
-                                }}
-                                style={styles.fabButton}
+                <View style={[styles.floatingBarContainer, { bottom: insets.bottom + 20 }]}>
+                    {Platform.OS === 'ios' ? (
+                        <BlurView intensity={80} tint="dark" style={styles.blurPill}>
+                            <TouchableOpacity 
+                                style={styles.addButton}
+                                onPress={() => setIsSearchVisible(true)}
+                                activeOpacity={0.7}
                             >
-                                <Ionicons name="add" size={28} color="white" />
+                                <Ionicons name="add-circle-outline" size={24} color="#FFF" />
+                                <Text style={styles.addButtonText}>Add Exercise</Text>
+                            </TouchableOpacity>
+                        </BlurView>
+                    ) : (
+                        <View style={[styles.blurPill, { backgroundColor: '#1C1C1E' }]}>
+                            <TouchableOpacity 
+                                style={styles.addButton}
+                                onPress={() => setIsSearchVisible(true)}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="add-circle-outline" size={24} color="#FFF" />
+                                <Text style={styles.addButtonText}>Add Exercise</Text>
                             </TouchableOpacity>
                         </View>
-                    </BlurView>
-                ) : (
-                    <View style={[styles.WorkoutFooter, { backgroundColor: 'rgba(28, 28, 30, 0.95)' }]}>
-                        <View style={styles.footerContent}>
-                            <TouchableOpacity
-                                onPress={() => {
-                                    setIsModalVisible(true);
-                                }}
-                                style={styles.fabButton}
-                            >
-                                <Ionicons name="add" size={28} color="white" />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )
+                    )}
+                </View>
             )}
         </View>
     );
@@ -349,124 +255,74 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#000000',
     },
-    WorkoutFooter: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-        borderRadius: 50,
-        marginHorizontal: 16,
-        overflow: 'hidden',
-    },
-    footerContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-
-    fabButton: {
-        backgroundColor: '#0A84FF',
-        padding: 16,
-        borderRadius: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 16,
-        gap: 16,
-    },
-    menuItemText: {
-        flex: 1,
-        color: '#FFFFFF',
-        fontSize: 17,
-        fontWeight: '400',
-    },
-    deleteText: {
-        color: '#FF3B30',
-    },
-    modalContainer: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        backgroundColor: '#1C1C1E', // Dark gray card
-        borderTopLeftRadius: 22,
-        borderTopRightRadius: 22,
-        height: '85%',
-        paddingTop: 16,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-        marginBottom: 16,
-    },
-    modalTitle: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: '500',
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#2C2C2E',
-        borderRadius: 22,
-        marginHorizontal: 24,
-        paddingHorizontal: 16,
-        marginBottom: 16,
-    },
-    searchIcon: {
-        marginRight: 8,
-    },
-    searchInput: {
-        flex: 1,
-        paddingVertical: 16,
-        color: '#FFFFFF',
-        fontSize: 17,
-    },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    listContent: {
-        paddingHorizontal: 24,
-        paddingBottom: 40,
+    
+    // Menu Modal Styles
+    menuContainer: {
+        paddingVertical: 8,
     },
-    exerciseCard: {
-        paddingVertical: 16,
+    menuHeader: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#8E8E93',
+        textTransform: 'uppercase',
+        marginBottom: 16,
+        marginLeft: 4,
+    },
+    menuItem: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 4,
+        gap: 12,
     },
-    separator: {
-        height: StyleSheet.hairlineWidth,
-        backgroundColor: '#38383A',
-        width: '100%',
-    },
-    exerciseInfo: {
+    menuText: {
         flex: 1,
-    },
-    exerciseName: {
-        color: '#FFFFFF',
         fontSize: 17,
         fontWeight: '400',
-        marginBottom: 8,
+        color: '#FFFFFF',
     },
-    exerciseDetail: {
-        color: '#8E8E93',
-        fontSize: 13,
-        fontWeight: '300',
+    menuDivider: {
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: '#3A3A3C',
+        marginLeft: 38, // Align with text
+    },
+
+    // Floating Bar Styles
+    floatingBarContainer: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100,
+    },
+    blurPill: {
+        borderRadius: 30,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    addButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        backgroundColor: '#0A84FF', // Premium Blue
+        gap: 8,
+    },
+    addButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

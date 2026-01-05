@@ -95,6 +95,14 @@ export default function DebugView() {
                     >
                         <Text style={styles.buttonText}>Debug Login</Text>
                     </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                        style={[styles.button, { marginTop: 12, backgroundColor: '#32D74B' }]}
+                        onPress={() => router.push('/(home)/loadingHome?fromDebug=true')}
+                    >
+                        <Ionicons name="refresh-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                        <Text style={styles.buttonText}>Test Loading Screen</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <View style={styles.section}>

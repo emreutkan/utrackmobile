@@ -1,25 +1,77 @@
 import { createWorkout, getActiveWorkout } from "@/api/Workout";
-import UnifiedHeader from "@/components/UnifiedHeader";
 import { useWorkoutStore } from "@/state/userStore";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { BlurView } from "expo-blur";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Keyboard, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+// ============================================================================
+// 1. HELPER COMPONENTS
+// ============================================================================
+
+const StatBadge = ({ icon, value, label, color = "#8E8E93" }: any) => (
+    <View style={styles.statBadge}>
+        <Ionicons name={icon} size={14} color={color} />
+        <Text style={[styles.statValue, { color }]}>
+            {value} <Text style={styles.statLabel}>{label}</Text>
+        </Text>
+    </View>
+);
+
+const IntensityBadge = ({ intensity }: { intensity: string }) => {
+    if (!intensity) return null;
+    let bg = 'rgba(142, 142, 147, 0.15)';
+    let color = '#8E8E93';
+
+    if (intensity === 'high') { bg = 'rgba(255, 59, 48, 0.15)'; color = '#FF3B30'; }
+    else if (intensity === 'medium') { bg = 'rgba(255, 159, 10, 0.15)'; color = '#FF9F0A'; }
+    else if (intensity === 'low') { bg = 'rgba(48, 209, 88, 0.15)'; color = '#30D158'; }
+
+    return (
+        <View style={[styles.intensityBadge, { backgroundColor: bg }]}>
+            <Text style={[styles.intensityText, { color }]}>{intensity}</Text>
+        </View>
+    );
+};
+
+// ============================================================================
+// 2. MAIN SCREEN
+// ============================================================================
 
 export default function Workouts() {
     const { workouts, isLoading, isLoadingMore, hasMore, fetchWorkouts, loadMoreWorkouts } = useWorkoutStore();
     const insets = useSafeAreaInsets();
+    
+    // State
     const [refreshing, setRefreshing] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
+    const [activeWorkout, setActiveWorkout] = useState<any>(null);
+    
+    // Modal Form State
     const [workoutTitle, setWorkoutTitle] = useState('');
     const [date, setDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
-    const [keyboardHeight, setKeyboardHeight] = useState(300);
-    const [activeWorkout, setActiveWorkout] = useState<any>(null);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-    const fetchActiveWorkout = async () => {
+    // --- Data Loading ---
+    const fetchActive = async () => {
         try {
             const workout = await getActiveWorkout();
             if (workout && typeof workout === 'object' && 'id' in workout) {
@@ -27,103 +79,57 @@ export default function Workouts() {
             } else {
                 setActiveWorkout(null);
             }
-        } catch (error) {
-            setActiveWorkout(null);
-        }
+        } catch (error) { setActiveWorkout(null); }
     };
 
     useFocusEffect(
         useCallback(() => {
-            const loadData = async () => {
-                await fetchActiveWorkout();
+            const load = async () => {
+                await fetchActive();
                 await fetchWorkouts(true);
             };
-            loadData();
+            load();
         }, [fetchWorkouts])
     );
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await fetchActiveWorkout();
-        await fetchWorkouts(true);
+        await Promise.all([fetchActive(), fetchWorkouts(true)]);
         setRefreshing(false);
     }, [fetchWorkouts]);
 
-    const handleLoadMore = useCallback(() => {
-        if (hasMore && !isLoadingMore && !isLoading) {
-            loadMoreWorkouts();
-        }
-    }, [hasMore, isLoadingMore, isLoading, loadMoreWorkouts]);
-
-    // Sort workouts by datetime (most recent first), excluding active workout
+    // --- Formatters & Sorters ---
     const sortedWorkouts = useMemo(() => {
-        const activeWorkoutId = activeWorkout?.id;
+        const activeId = activeWorkout?.id;
         return [...workouts]
-            .filter(workout => workout.id !== activeWorkoutId)
-            .sort((a, b) => {
-                const dateA = a.datetime || a.created_at;
-                const dateB = b.datetime || b.created_at;
-                // Sort descending (newest first)
-                return new Date(dateB).getTime() - new Date(dateA).getTime();
-            });
+            .filter(w => w.id !== activeId)
+            .sort((a, b) => new Date(b.datetime || b.created_at).getTime() - new Date(a.datetime || a.created_at).getTime());
     }, [workouts, activeWorkout]);
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const workoutDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        const diffTime = today.getTime() - workoutDate.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const formatDuration = (s: number) => {
+        if (!s) return null;
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    };
 
+    const formatDate = (dateString: string) => {
+        const d = new Date(dateString);
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
         if (diffDays === 0) return 'Today';
         if (diffDays === 1) return 'Yesterday';
-        if (diffDays < 7) return `${diffDays} days ago`;
-        
-        // Show formatted date for older workouts
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric',
-            year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-        });
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    const formatDuration = (seconds: number) => {
-        if (!seconds) return null;
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        if (h > 0) return `${h}h ${m}m`;
-        return `${m}m`;
-    };
-
-    const getExerciseCount = (workout: any) => {
-        return workout.exercises?.length || 0;
-    };
-
+    // --- Modal Handlers ---
     useEffect(() => {
-        const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
-            setKeyboardHeight(e.endCoordinates.height);
-        });
-        return () => showSubscription.remove();
+        const sub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+        return () => sub.remove();
     }, []);
-
-    useEffect(() => {
-        if (modalVisible) {
-            setWorkoutTitle('');
-            setDate(new Date());
-        }
-    }, [modalVisible]);
-
-    const closeModal = () => {
-        setModalVisible(false);
-        setWorkoutTitle('');
-        setDate(new Date());
-        setShowDatePicker(false);
-    };
 
     const handleLogPastWorkout = async () => {
         if (!workoutTitle.trim()) return;
-
         try {
             const result = await createWorkout({ 
                 title: workoutTitle, 
@@ -132,93 +138,71 @@ export default function Workouts() {
             });
 
             if (result && typeof result === 'object' && result.error === "ACTIVE_WORKOUT_EXISTS") {
-                Alert.alert("Cannot Log Workout", "This date is after your current active workout. Please select an earlier date or finish your active workout first.", [
-                    { text: "Cancel", style: "cancel", onPress: closeModal },
-                    { text: "View Active", onPress: () => { closeModal(); router.push('/(active-workout)'); }}
-                ]);
+                Alert.alert("Active Workout Exists", "Please finish your current active workout first.");
                 return;
             }
 
             if (result?.id) {
-                closeModal();
+                setModalVisible(false);
+                setWorkoutTitle('');
                 await fetchWorkouts(true);
                 router.push(`/(workouts)/${result.id}/edit`);
             }
-        } catch (e) {
-            Alert.alert("Error", "Failed to communicate with server.");
-        }
+        } catch (e) { Alert.alert("Error", "Failed to log workout."); }
     };
 
-    const renderItem = ({ item }: { item: any }) => {
-        const workoutDate = item.datetime || item.created_at;
-        const dateText = workoutDate ? formatDate(workoutDate) : `Workout #${item.id}`;
+    // --- RENDER ITEMS ---
+
+    const renderWorkoutCard = ({ item, isActive = false }: { item: any, isActive?: boolean }) => {
         const duration = formatDuration(item.duration);
-        const exerciseCount = getExerciseCount(item);
-        const caloriesBurned = item.calories_burned ? parseFloat(String(item.calories_burned)) : null;
-        const hasStats = duration || item.total_volume || exerciseCount > 0 || caloriesBurned;
+        const exerciseCount = item.exercises?.length || 0;
+        const volume = item.total_volume;
+        const dateStr = item.datetime || item.created_at;
 
         return (
             <TouchableOpacity 
-                style={styles.card} 
+                style={[styles.card, isActive && styles.activeCard]} 
                 onPress={() => router.push(`/(workouts)/${item.id}`)}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
             >
+                {/* Header */}
                 <View style={styles.cardHeader}>
-                    <View style={styles.cardHeaderLeft}>
-                        <Text style={styles.cardDate}>{dateText}</Text>
-                        {item.intensity && item.intensity !== '' && (
-                            <View style={[styles.intensityBadge, styles[`intensity${item.intensity.charAt(0).toUpperCase() + item.intensity.slice(1)}`]]}>
-                                <Text style={styles.intensityText}>{item.intensity}</Text>
+                    <View style={styles.headerLeft}>
+                        {isActive ? (
+                            <View style={styles.activeBadge}>
+                                <View style={styles.pulseDot} />
+                                <Text style={styles.activeText}>IN PROGRESS</Text>
                             </View>
+                        ) : (
+                            <Text style={styles.dateText}>{formatDate(dateStr)}</Text>
                         )}
+                        {!isActive && <IntensityBadge intensity={item.intensity} />}
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
+                    <Ionicons name="chevron-forward" size={16} color="#545458" />
                 </View>
-                
+
+                {/* Title */}
                 <Text style={styles.cardTitle} numberOfLines={1}>
                     {item.title || 'Untitled Workout'}
                 </Text>
 
-                {hasStats && (
-                    <View style={styles.cardStats}>
-                        {duration && (
-                            <View style={styles.statItem}>
-                                <Ionicons name="time-outline" size={14} color="#8E8E93" />
-                                <Text style={styles.statText}>{duration}</Text>
-                            </View>
-                        )}
-                        {exerciseCount > 0 && (
-                            <View style={styles.statItem}>
-                                <Ionicons name="barbell-outline" size={14} color="#8E8E93" />
-                                <Text style={styles.statText}>
-                                    {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
-                                </Text>
-                            </View>
-                        )}
-                        {item.total_volume && item.total_volume > 0 && (
-                            <View style={styles.statItem}>
-                                <Ionicons name="fitness-outline" size={14} color="#8E8E93" />
-                                <Text style={styles.statText}>{item.total_volume.toFixed(0)} kg</Text>
-                            </View>
-                        )}
-                        {caloriesBurned && caloriesBurned > 0 && (
-                            <View style={styles.statItem}>
-                                <Ionicons name="flame-outline" size={14} color="#FF9500" />
-                                <Text style={styles.statText}>{caloriesBurned.toFixed(0)} kcal</Text>
-                            </View>
-                        )}
-                    </View>
-                )}
+                {/* Stats Grid */}
+                <View style={styles.statsRow}>
+                    {duration && <StatBadge icon="time" value={duration} label="" />}
+                    {exerciseCount > 0 && <StatBadge icon="barbell" value={exerciseCount} label="Exercises" />}
+                    {volume > 0 && <StatBadge icon="fitness" value={(volume/1000).toFixed(1)} label="tons" />}
+                </View>
 
-                {item.primary_muscles_worked && item.primary_muscles_worked.length > 0 && (
-                    <View style={styles.muscleTagsContainer}>
-                        {item.primary_muscles_worked.slice(0, 3).map((muscle: string, idx: number) => (
-                            <View key={idx} style={styles.muscleTag}>
-                                <Text style={styles.muscleTagText}>{muscle}</Text>
+                {/* Muscle Tags */}
+                {item.primary_muscles_worked?.length > 0 && (
+                    <View style={styles.tagContainer}>
+                        {item.primary_muscles_worked.slice(0, 3).map((m: string, i: number) => (
+                            <View key={i} style={styles.muscleTag}>
+                                <Text style={styles.tagText}>{m}</Text>
                             </View>
                         ))}
                         {item.primary_muscles_worked.length > 3 && (
-                            <Text style={styles.moreMusclesText}>+{item.primary_muscles_worked.length - 3}</Text>
+                            <Text style={styles.moreTags}>+{item.primary_muscles_worked.length - 3}</Text>
                         )}
                     </View>
                 )}
@@ -227,493 +211,236 @@ export default function Workouts() {
     };
 
     return (
-        <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-            style={[styles.container, { paddingTop: insets.top + 10}]}
-        >
-            {/* Header */}
-            <UnifiedHeader
-                title="Past Workouts"
-                rightButton={{
-                    icon: "add",
-                    onPress: () => setModalVisible(true),
-                }}
-                modalContent={
-                    <>
-                        <Text style={styles.modalInternalTitle}>Log Previous Workout</Text>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+            
+            {/* --- LIST --- */}
+            <FlatList
+                data={sortedWorkouts}
+                renderItem={(props) => renderWorkoutCard(props)}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0A84FF" />
+                }
+                ListHeaderComponent={
+                    <View>
+                        {activeWorkout && (
+                            <View style={styles.activeSection}>
+                                <Text style={styles.sectionTitle}>CURRENTLY ACTIVE</Text>
+                                {renderWorkoutCard({ item: activeWorkout, isActive: true })}
+                            </View>
+                        )}
+                        <Text style={[styles.sectionTitle, { marginTop: activeWorkout ? 24 : 0 }]}>HISTORY</Text>
+                    </View>
+                }
+                ListEmptyComponent={!activeWorkout && !isLoading ? (
+                    <View style={styles.emptyContainer}>
+                        <View style={styles.emptyIcon}>
+                            <Ionicons name="barbell" size={40} color="#8E8E93" />
+                        </View>
+                        <Text style={styles.emptyTitle}>No Workouts Yet</Text>
+                        <Text style={styles.emptyText}>Start a new workout to track your progress.</Text>
+                    </View>
+                ) : null}
+                onEndReached={() => { if(hasMore && !isLoadingMore) loadMoreWorkouts(); }}
+                onEndReachedThreshold={0.5}
+                ListFooterComponent={isLoadingMore ? <ActivityIndicator style={{padding: 20}} /> : null}
+            />
+
+            {/* --- FAB --- */}
+            <View style={[styles.fabContainer, { bottom: insets.bottom + 20 }]}>
+                 {Platform.OS === 'ios' ? (
+                    <BlurView intensity={80} tint="dark" style={styles.fabBlur}>
+                        <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+                            <Ionicons name="add" size={32} color="#0A84FF" />
+                        </TouchableOpacity>
+                    </BlurView>
+                 ) : (
+                    <View style={[styles.fabBlur, { backgroundColor: '#1C1C1E' }]}>
+                        <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+                            <Ionicons name="add" size={32} color="#0A84FF" />
+                        </TouchableOpacity>
+                    </View>
+                 )}
+            </View>
+
+            {/* --- LOG PAST WORKOUT MODAL --- */}
+            <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+                    style={styles.modalOverlay}
+                >
+                    <TouchableOpacity 
+                        style={styles.modalBackdrop} 
+                        activeOpacity={1} 
+                        onPress={() => setModalVisible(false)}
+                    />
+                    
+                    <View style={styles.modalCard}>
+                        <Text style={styles.modalTitle}>Log Past Workout</Text>
                         
-                        <View style={styles.inputWrapper}>
-                            <TextInput 
-                                placeholder="Workout Name" 
-                                placeholderTextColor="#8E8E93"
-                                value={workoutTitle} 
-                                onChangeText={setWorkoutTitle} 
-                                style={styles.modalInput}
+                        <View style={styles.inputGroup}>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Workout Name (e.g. Leg Day)"
+                                placeholderTextColor="#545458"
+                                value={workoutTitle}
+                                onChangeText={setWorkoutTitle}
                                 autoFocus
                             />
                             {workoutTitle.length > 0 && (
-                                <TouchableOpacity onPress={() => setWorkoutTitle('')} style={styles.clearIcon}>
-                                    <Ionicons name="close-circle" size={20} color="#8E8E93" />
+                                <TouchableOpacity onPress={() => setWorkoutTitle('')} style={styles.clearBtn}>
+                                    <Ionicons name="close-circle" size={18} color="#8E8E93" />
                                 </TouchableOpacity>
                             )}
                         </View>
 
                         <TouchableOpacity 
-                            style={styles.dateSelector} 
+                            style={styles.dateButton}
                             onPress={() => { Keyboard.dismiss(); setShowDatePicker(true); }}
                         >
-                            <Ionicons name="calendar-outline" size={20} color="#0A84FF" />
-                            <Text style={styles.dateText}>{date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Text>
+                            <Ionicons name="calendar" size={20} color="#0A84FF" />
+                            <Text style={styles.dateButtonText}>
+                                {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                            </Text>
+                            <Ionicons name="time-outline" size={20} color="#8E8E93" style={{marginLeft: 'auto'}} />
+                            <Text style={styles.timeButtonText}>
+                                {date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                            </Text>
                         </TouchableOpacity>
 
-                        <View style={styles.modalBtnStack}>
-                            <TouchableOpacity 
-                                style={[styles.primaryBtn, !workoutTitle.trim() && { opacity: 0.5 }]} 
-                                onPress={handleLogPastWorkout}
-                                disabled={!workoutTitle.trim()}
-                            >
-                                <Text style={styles.primaryBtnText}>Log Workout</Text>
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity style={styles.btnCancel} onPress={() => setModalVisible(false)}>
+                                <Text style={styles.btnCancelText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryBtn} onPress={closeModal}>
-                                <Text style={styles.secondaryBtnText}>Cancel</Text>
+                            <TouchableOpacity 
+                                style={[styles.btnSave, !workoutTitle && { opacity: 0.5 }]} 
+                                onPress={handleLogPastWorkout}
+                                disabled={!workoutTitle}
+                            >
+                                <Text style={styles.btnSaveText}>Save</Text>
                             </TouchableOpacity>
                         </View>
+                    </View>
 
-                        {showDatePicker && (
-                            <View style={styles.sheetOverlay}>
-                                <TouchableOpacity style={styles.sheetBackdrop} onPress={() => setShowDatePicker(false)} />
-                                <View style={[styles.bottomSheet, { height: keyboardHeight }]}>
-                                    <View style={styles.sheetHeader}>
-                                        <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                                            <Text style={styles.doneText}>Done</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                    <DateTimePicker
-                                        value={date}
-                                        mode="datetime"
-                                        display="spinner"
-                                        maximumDate={new Date()}
-                                        onChange={(event, selectedDate) => { if (selectedDate) setDate(selectedDate); }}
-                                        textColor="#FFFFFF"
-                                        themeVariant="dark"
-                                        style={{ flex: 1 }}
-                                    />
-                                </View>
+                    {/* Date Picker Sheet (Overlaid) */}
+                    {showDatePicker && (
+                        <View style={styles.pickerOverlay}>
+                            <View style={styles.pickerToolbar}>
+                                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                                    <Text style={styles.pickerDone}>Done</Text>
+                                </TouchableOpacity>
                             </View>
-                        )}
-                    </>
-                }
-                modalVisible={modalVisible}
-                onModalClose={closeModal}
-            />
-
-            {isLoading && !refreshing ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#0A84FF" />
-                </View>
-            ) : (
-                <FlatList
-                    data={sortedWorkouts}
-                    renderItem={renderItem}
-                    keyExtractor={(item) => item.id.toString()}
-                    contentContainerStyle={[
-                        styles.listContent,
-                        sortedWorkouts.length === 0 && !activeWorkout && styles.emptyListContent,
-                        { paddingTop: 60 }
-                    ]}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={onRefresh}
-                            tintColor="#0A84FF"
-                            colors={["#0A84FF"]}
-                        />
-                    }
-                    onEndReached={handleLoadMore}
-                    onEndReachedThreshold={0.5}
-                    ListHeaderComponent={
-                        activeWorkout ? (
-                            <TouchableOpacity 
-                                style={styles.activeWorkoutCard} 
-                                onPress={() => router.push(`/(workouts)/${activeWorkout.id}`)}
-                                activeOpacity={0.7}
-                            >
-                                <View style={styles.cardHeader}>
-                                    <View style={styles.cardHeaderLeft}>
-                                        <View style={styles.activeBadge}>
-                                            <View style={styles.activeDot} />
-                                            <Text style={styles.activeText}>ACTIVE</Text>
-                                        </View>
-                                    </View>
-                                    <Ionicons name="chevron-forward" size={20} color="#8E8E93" />
-                                </View>
-                                
-                                <Text style={styles.cardTitle} numberOfLines={1}>
-                                    {activeWorkout.title || 'Untitled Workout'}
-                                </Text>
-
-                                {(() => {
-                                    const duration = formatDuration(activeWorkout.duration);
-                                    const exerciseCount = getExerciseCount(activeWorkout);
-                                    const caloriesBurned = activeWorkout.calories_burned ? parseFloat(String(activeWorkout.calories_burned)) : null;
-                                    const hasStats = duration || activeWorkout.total_volume || exerciseCount > 0 || caloriesBurned;
-
-                                    return hasStats ? (
-                                        <View style={styles.cardStats}>
-                                            {duration && (
-                                                <View style={styles.statItem}>
-                                                    <Ionicons name="time-outline" size={14} color="#8E8E93" />
-                                                    <Text style={styles.statText}>{duration}</Text>
-                                                </View>
-                                            )}
-                                            {exerciseCount > 0 && (
-                                                <View style={styles.statItem}>
-                                                    <Ionicons name="barbell-outline" size={14} color="#8E8E93" />
-                                                    <Text style={styles.statText}>
-                                                        {exerciseCount} {exerciseCount === 1 ? 'exercise' : 'exercises'}
-                                                    </Text>
-                                                </View>
-                                            )}
-                                            {activeWorkout.total_volume && activeWorkout.total_volume > 0 && (
-                                                <View style={styles.statItem}>
-                                                    <Ionicons name="fitness-outline" size={14} color="#8E8E93" />
-                                                    <Text style={styles.statText}>{activeWorkout.total_volume.toFixed(0)} kg</Text>
-                                                </View>
-                                            )}
-                                            {caloriesBurned && caloriesBurned > 0 && (
-                                                <View style={styles.statItem}>
-                                                    <Ionicons name="flame-outline" size={14} color="#FF9500" />
-                                                    <Text style={styles.statText}>{caloriesBurned.toFixed(0)} kcal</Text>
-                                                </View>
-                                            )}
-                                        </View>
-                                    ) : null;
-                                })()}
-
-                                {activeWorkout.primary_muscles_worked && activeWorkout.primary_muscles_worked.length > 0 && (
-                                    <View style={styles.muscleTagsContainer}>
-                                        {activeWorkout.primary_muscles_worked.slice(0, 3).map((muscle: string, idx: number) => (
-                                            <View key={idx} style={styles.muscleTag}>
-                                                <Text style={styles.muscleTagText}>{muscle}</Text>
-                                            </View>
-                                        ))}
-                                        {activeWorkout.primary_muscles_worked.length > 3 && (
-                                            <Text style={styles.moreMusclesText}>+{activeWorkout.primary_muscles_worked.length - 3}</Text>
-                                        )}
-                                    </View>
-                                )}
-                            </TouchableOpacity>
-                        ) : null
-                    }
-                    ListFooterComponent={
-                        isLoadingMore ? (
-                            <View style={styles.footerLoader}>
-                                <ActivityIndicator size="small" color="#0A84FF" />
-                            </View>
-                        ) : null
-                    }
-                    ListEmptyComponent={
-                        !activeWorkout ? (
-                            <View style={styles.emptyContainer}>
-                                <Ionicons name="barbell-outline" size={64} color="#2C2C2E" />
-                                <Text style={styles.emptyTitle}>No workouts yet</Text>
-                                <Text style={styles.emptyText}>
-                                    Complete your first workout to see it here
-                                </Text>
-                            </View>
-                        ) : null
-                    }
-                />
-            )}
-
-        </KeyboardAvoidingView>
+                            <DateTimePicker
+                                value={date}
+                                mode="datetime"
+                                display="spinner"
+                                themeVariant="dark"
+                                maximumDate={new Date()}
+                                onChange={(e, d) => d && setDate(d)}
+                                style={styles.picker}
+                            />
+                        </View>
+                    )}
+                </KeyboardAvoidingView>
+            </Modal>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#000000',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    listContent: {
-        padding: 24,
-        paddingTop: 0,
-        paddingBottom: 24,
-    },
-    emptyListContent: {
-        flexGrow: 1,
-        justifyContent: 'center',
-    },
+    container: { flex: 1, backgroundColor: '#000000' },
+    listContent: { padding: 16 },
+
+    // Sections
+    activeSection: { marginBottom: 8 },
+    sectionTitle: { fontSize: 13, fontWeight: '600', color: '#636366', marginBottom: 8, marginLeft: 4, textTransform: 'uppercase' },
+
+    // Cards
     card: {
         backgroundColor: '#1C1C1E',
-        borderRadius: 22,
+        borderRadius: 20,
         padding: 16,
-        marginBottom: 16,
+        marginBottom: 12,
         borderWidth: 1,
         borderColor: '#2C2C2E',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
     },
-    activeWorkoutCard: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 22,
-        padding: 16,
-        marginBottom: 16,
-        borderWidth: 2,
-        borderColor: '#32D74B',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    activeBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(50, 215, 75, 0.1)',
-        paddingHorizontal: 8,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    activeDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#32D74B',
-        marginRight: 8,
-    },
-    activeText: {
-        color: '#32D74B',
-        fontSize: 13,
-        fontWeight: '300',
-        textTransform: 'uppercase',
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    cardHeaderLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        flex: 1,
-    },
-    cardDate: {
-        color: '#8E8E93',
-        fontSize: 13,
-        fontWeight: '300',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    intensityBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    intensityLow: {
-        backgroundColor: 'rgba(50, 215, 75, 0.15)',
-    },
-    intensityMedium: {
-        backgroundColor: 'rgba(255, 159, 10, 0.15)',
-    },
-    intensityHigh: {
-        backgroundColor: 'rgba(255, 59, 48, 0.15)',
-    },
-    intensityText: {
-        color: '#FFFFFF',
-        fontSize: 13,
-        fontWeight: '300',
-        textTransform: 'uppercase',
-    },
-    cardTitle: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: '500',
-        marginBottom: 16,
-    },
-    cardStats: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 16,
-        marginBottom: 16,
-    },
-    statItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    statText: {
-        color: '#8E8E93',
-        fontSize: 13,
-        fontWeight: '300',
-    },
-    muscleTagsContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        alignItems: 'center',
-    },
-    muscleTag: {
-        backgroundColor: '#2C2C2E',
-        paddingHorizontal: 8,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    muscleTagText: {
-        color: '#A1A1A6',
-        fontSize: 13,
-        fontWeight: '300',
-    },
-    moreMusclesText: {
-        color: '#8E8E93',
-        fontSize: 13,
-        fontWeight: '300',
-    },
-    emptyContainer: {
-        padding: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    emptyTitle: {
-        color: '#FFFFFF',
-        fontSize: 24,
-        fontWeight: '700',
-        marginTop: 16,
-        marginBottom: 16,
-    },
-    emptyText: {
-        color: '#8E8E93',
-        fontSize: 17,
-        textAlign: 'center',
-        lineHeight: 24,
-    },
-    footerLoader: {
-        paddingVertical: 24,
-        alignItems: 'center',
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.85)',
-        justifyContent: 'center',
-        padding: 24,
-    },
-    modalCard: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 22,
-        padding: 24,
+    activeCard: {
+        borderColor: '#30D158',
         borderWidth: 1,
-        borderColor: '#2C2C2E',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24,
-        elevation: 4,
+        backgroundColor: '#1C1C1E', // Keep dark, let border do the work
+        shadowColor: '#30D158',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
     },
-    modalInternalTitle: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        marginBottom: 24,
-        textAlign: 'center',
+    
+    // Header
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    dateText: { color: '#8E8E93', fontSize: 13, fontWeight: '500' },
+    
+    // Active Badge
+    activeBadge: { 
+        flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(48,209,88,0.1)', 
+        paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, gap: 6 
     },
-    inputWrapper: {
-        position: 'relative',
-        marginBottom: 16,
-    },
-    modalInput: {
-        backgroundColor: '#2C2C2E',
-        borderRadius: 22,
-        padding: 16,
-        color: '#FFFFFF',
-        fontSize: 17,
-        fontWeight: '400',
-    },
-    clearIcon: {
-        position: 'absolute',
-        right: 16,
-        top: 16,
-    },
-    dateSelector: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#2C2C2E',
-        padding: 16,
-        borderRadius: 22,
-        marginBottom: 24,
-        gap: 16,
-    },
-    dateText: {
-        color: '#0A84FF',
-        fontSize: 17,
-        fontWeight: '400',
-    },
-    modalBtnStack: {
-        gap: 16,
-    },
-    primaryBtn: {
-        backgroundColor: '#0A84FF',
-        borderRadius: 22,
-        paddingVertical: 16,
-        alignItems: 'center',
-    },
-    primaryBtnText: {
-        color: '#FFFFFF',
-        fontSize: 17,
-        fontWeight: '400',
-    },
-    secondaryBtn: {
-        paddingVertical: 16,
-        alignItems: 'center',
-    },
-    secondaryBtnText: {
-        color: '#FF3B30',
-        fontSize: 17,
-        fontWeight: '400',
-    },
-    sheetOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        justifyContent: 'flex-end',
-        zIndex: 9999,
-    },
-    sheetBackdrop: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-    },
-    bottomSheet: {
-        backgroundColor: '#1C1C1E',
-        borderTopLeftRadius: 22,
-        borderTopRightRadius: 22,
-        width: '100%',
-        overflow: 'hidden',
-    },
-    sheetHeader: {
-        height: 56,
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-        borderBottomWidth: 1,
-        borderBottomColor: '#2C2C2E',
-    },
-    doneText: {
-        color: '#0A84FF',
-        fontSize: 17,
-        fontWeight: '400',
-    },
+    pulseDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#30D158' },
+    activeText: { color: '#30D158', fontSize: 11, fontWeight: '700' },
+
+    // Intensity
+    intensityBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+    intensityText: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
+
+    // Main Content
+    cardTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', marginBottom: 12 },
+    
+    // Stats
+    statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
+    statBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#2C2C2E', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    statValue: { color: '#FFF', fontSize: 13, fontWeight: '600' },
+    statLabel: { color: '#8E8E93', fontSize: 13, fontWeight: '400' },
+
+    // Tags
+    tagContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    muscleTag: { backgroundColor: '#2C2C2E', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#3A3A3C' },
+    tagText: { color: '#A1A1A6', fontSize: 11, fontWeight: '500' },
+    moreTags: { color: '#545458', fontSize: 11 },
+
+    // Empty State
+    emptyContainer: { alignItems: 'center', paddingVertical: 60 },
+    emptyIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#1C1C1E', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    emptyTitle: { fontSize: 20, fontWeight: '700', color: '#FFF', marginBottom: 8 },
+    emptyText: { fontSize: 15, color: '#8E8E93' },
+
+    // FAB
+    fabContainer: { position: 'absolute', right: 20 },
+    fabBlur: { borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    fab: { width: 60, height: 60, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(28,28,30,0.6)' },
+
+    // Modal
+    modalOverlay: { flex: 1, justifyContent: 'center', padding: 20 },
+    modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)' },
+    modalCard: { backgroundColor: '#1C1C1E', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#2C2C2E' },
+    modalTitle: { fontSize: 22, fontWeight: '700', color: '#FFF', textAlign: 'center', marginBottom: 24 },
+    
+    inputGroup: { position: 'relative', marginBottom: 16 },
+    input: { backgroundColor: '#2C2C2E', borderRadius: 16, padding: 16, color: '#FFF', fontSize: 17 },
+    clearBtn: { position: 'absolute', right: 12, top: 16 },
+    
+    dateButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#2C2C2E', padding: 16, borderRadius: 16, marginBottom: 24, gap: 10 },
+    dateButtonText: { color: '#FFF', fontSize: 16, fontWeight: '500' },
+    timeButtonText: { color: '#8E8E93', fontSize: 16 },
+
+    modalActions: { flexDirection: 'row', gap: 12 },
+    btnCancel: { flex: 1, padding: 16, backgroundColor: '#2C2C2E', borderRadius: 14, alignItems: 'center' },
+    btnCancelText: { color: '#FF3B30', fontSize: 17, fontWeight: '600' },
+    btnSave: { flex: 1, padding: 16, backgroundColor: '#0A84FF', borderRadius: 14, alignItems: 'center' },
+    btnSaveText: { color: '#FFF', fontSize: 17, fontWeight: '600' },
+
+    // Picker
+    pickerOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#1C1C1E', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+    pickerToolbar: { flexDirection: 'row', justifyContent: 'flex-end', padding: 16, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
+    pickerDone: { color: '#0A84FF', fontSize: 17, fontWeight: '600' },
+    picker: { height: 200 },
 });

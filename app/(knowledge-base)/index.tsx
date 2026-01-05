@@ -2,61 +2,108 @@ import { getResearch } from '@/api/KnowledgeBase';
 import { ResearchFilters, TrainingResearch } from '@/api/types';
 import UnifiedHeader from '@/components/UnifiedHeader';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    FlatList,
+    LayoutAnimation,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// --- Constants ---
 const CATEGORIES = [
-    { value: '', label: 'All Categories' },
-    { value: 'INTENSITY_GUIDELINES', label: 'Intensity Guidelines' },
-    { value: 'PROTEIN_SYNTHESIS', label: 'Protein Synthesis' },
-    { value: 'MUSCLE_GROUPS', label: 'Muscle Groups' },
-    { value: 'MUSCLE_RECOVERY', label: 'Muscle Recovery' },
-    { value: 'REST_PERIODS', label: 'Rest Periods' },
-    { value: 'TRAINING_FREQUENCY', label: 'Training Frequency' },
-    { value: 'BODY_MEASUREMENTS', label: 'Body Measurements' },
+    { value: '', label: 'All' },
+    { value: 'INTENSITY_GUIDELINES', label: 'Intensity' },
+    { value: 'PROTEIN_SYNTHESIS', label: 'Synthesis' },
+    { value: 'MUSCLE_GROUPS', label: 'Anatomy' },
+    { value: 'MUSCLE_RECOVERY', label: 'Recovery' },
+    { value: 'REST_PERIODS', label: 'Rest' },
+    { value: 'TRAINING_FREQUENCY', label: 'Frequency' },
 ];
 
 const MUSCLE_GROUPS = [
-    { value: '', label: 'All Muscle Groups' },
+    { value: '', label: 'All Muscles' },
     { value: 'chest', label: 'Chest' },
-    { value: 'shoulders', label: 'Shoulders' },
-    { value: 'biceps', label: 'Biceps' },
-    { value: 'triceps', label: 'Triceps' },
-    { value: 'lats', label: 'Lats' },
-    { value: 'traps', label: 'Traps' },
-    { value: 'quads', label: 'Quads' },
-    { value: 'hamstrings', label: 'Hamstrings' },
-    { value: 'glutes', label: 'Glutes' },
-    { value: 'calves', label: 'Calves' },
-    { value: 'abs', label: 'Abs' },
+    { value: 'shoulders', label: 'Delts' },
+    { value: 'lats', label: 'Back' },
+    { value: 'quads', label: 'Legs' },
+    { value: 'abs', label: 'Core' },
 ];
 
-const EXERCISE_TYPES = [
-    { value: '', label: 'All Exercise Types' },
-    { value: 'compound', label: 'Compound' },
-    { value: 'isolation', label: 'Isolation' },
-];
+// --- Helper Components ---
+
+const FilterRow = ({ label, options, selected, onSelect }: any) => (
+    <View style={styles.filterRowContainer}>
+        <Text style={styles.filterRowLabel}>{label}</Text>
+        <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.filterRowContent}
+        >
+            {options.map((opt: any) => {
+                const isActive = selected === opt.value;
+                return (
+                    <TouchableOpacity
+                        key={opt.label}
+                        onPress={() => onSelect(opt.value)}
+                        style={[styles.chip, isActive && styles.chipActive]}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                            {opt.label}
+                        </Text>
+                    </TouchableOpacity>
+                );
+            })}
+        </ScrollView>
+    </View>
+);
+
+const DiagramPlaceholder = ({ category }: { category: string }) => {
+    // Strategic Diagram Injection based on context
+    switch (category) {
+        case 'PROTEIN_SYNTHESIS':
+            return <Text style={styles.diagramTag}></Text>;
+        case 'MUSCLE_GROUPS':
+            return <Text style={styles.diagramTag}>
+
+[Image of human muscle anatomy]
+</Text>;
+        case 'INTENSITY_GUIDELINES':
+            return <Text style={styles.diagramTag}></Text>;
+        case 'MUSCLE_RECOVERY':
+            return <Text style={styles.diagramTag}></Text>;
+        default:
+            return null;
+    }
+};
 
 export default function KnowledgeBaseScreen() {
     const insets = useSafeAreaInsets();
     const [research, setResearch] = useState<TrainingResearch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [filters, setFilters] = useState<ResearchFilters>({});
     const [searchQuery, setSearchQuery] = useState('');
+    const [filters, setFilters] = useState<ResearchFilters>({
+        category: '',
+        muscle_group: '',
+        exercise_type: ''
+    });
 
     useEffect(() => {
         loadResearch();
-    }, [filters]);
+    }, []); // Load once, filter locally for speed unless API requires params
 
     const loadResearch = async () => {
         setIsLoading(true);
         try {
-            const data = await getResearch(filters);
-            if (Array.isArray(data)) {
-                setResearch(data);
-            }
+            const data = await getResearch({}); // Fetch all, filter locally for instant UI
+            if (Array.isArray(data)) setResearch(data);
         } catch (error) {
             console.error('Failed to load research:', error);
         } finally {
@@ -64,179 +111,117 @@ export default function KnowledgeBaseScreen() {
         }
     };
 
-    const filteredResearch = research.filter(item => {
-        if (!searchQuery) return true;
-        const query = searchQuery.toLowerCase();
+    // Memoized Filtering for Performance
+    const filteredData = useMemo(() => {
+        return research.filter(item => {
+            const matchesSearch = !searchQuery || 
+                item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                item.summary.toLowerCase().includes(searchQuery.toLowerCase());
+            
+            const matchesCategory = !filters.category || item.category === filters.category;
+            const matchesMuscle = !filters.muscle_group || item.tags.includes(filters.muscle_group);
+
+            return matchesSearch && matchesCategory && matchesMuscle;
+        });
+    }, [research, searchQuery, filters]);
+
+    const renderCard = ({ item }: { item: TrainingResearch }) => {
+        const confidencePercent = Math.round(item.confidence_score * 100);
+        const confidenceColor = confidencePercent > 80 ? '#32D74B' : confidencePercent > 50 ? '#FF9F0A' : '#FF453A';
+
         return (
-            item.title.toLowerCase().includes(query) ||
-            item.summary.toLowerCase().includes(query) ||
-            item.content.toLowerCase().includes(query) ||
-            item.tags.some(tag => tag.toLowerCase().includes(query))
-        );
-    });
-
-    const formatCategory = (category: string) => {
-        return category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    };
-
-    const renderResearchCard = ({ item }: { item: TrainingResearch }) => (
-        <View style={styles.card}>
-            <View style={styles.cardHeader}>
-                <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>{formatCategory(item.category)}</Text>
+            <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                    <View style={styles.badgeContainer}>
+                        <View style={[styles.dot, { backgroundColor: confidenceColor }]} />
+                        <Text style={[styles.confidenceText, { color: confidenceColor }]}>
+                            {confidencePercent}% Confidence
+                        </Text>
+                    </View>
+                    <Text style={styles.categoryLabel}>{item.category.replace(/_/g, ' ')}</Text>
                 </View>
-                <View style={styles.confidenceBadge}>
-                    <Text style={styles.confidenceText}>
-                        {(item.confidence_score * 100).toFixed(0)}%
-                    </Text>
+
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <Text style={styles.cardSummary}>{item.summary}</Text>
+
+                {/* Dynamic Diagram Insertion */}
+                <DiagramPlaceholder category={item.category} />
+
+                <View style={styles.cardFooter}>
+                    <View style={styles.tagsRow}>
+                        {item.tags.slice(0, 3).map(tag => (
+                            <View key={tag} style={styles.miniTag}>
+                                <Text style={styles.miniTagText}>{tag}</Text>
+                            </View>
+                        ))}
+                    </View>
+                    {item.evidence_level && (
+                        <Text style={styles.evidenceLevel}>{item.evidence_level} Evidence</Text>
+                    )}
                 </View>
             </View>
-            
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.cardSummary}>{item.summary}</Text>
-            
-            {item.evidence_level && (
-                <View style={styles.evidenceBadge}>
-                    <Text style={styles.evidenceText}>{item.evidence_level} evidence</Text>
-                </View>
-            )}
-            
-            {item.tags.length > 0 && (
-                <View style={styles.tagsContainer}>
-                    {item.tags.slice(0, 3).map((tag, idx) => (
-                        <View key={idx} style={styles.tag}>
-                            <Text style={styles.tagText}>{tag}</Text>
-                        </View>
-                    ))}
-                </View>
-            )}
-            
-            {item.source_url && (
-                <TouchableOpacity 
-                    style={styles.sourceButton}
-                    onPress={() => {
-                        // You can use Linking.openURL(item.source_url!) here if needed
-                    }}
-                >
-                    <Ionicons name="link-outline" size={16} color="#0A84FF" />
-                    <Text style={styles.sourceText}>View Source</Text>
-                </TouchableOpacity>
-            )}
-        </View>
-    );
+        );
+    };
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            <UnifiedHeader title="Knowledge Base" />
+            <UnifiedHeader title="Research Hub" />
 
-            <View style={styles.filtersContainer}>
-                <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.filtersContent}
-                >
-                    <View style={styles.filterGroup}>
-                        <Text style={styles.filterLabel}>Category</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-                            {CATEGORIES.map((cat) => (
-                                <TouchableOpacity
-                                    key={cat.value}
-                                    style={[
-                                        styles.filterPill,
-                                        filters.category === cat.value && styles.filterPillActive
-                                    ]}
-                                    onPress={() => setFilters({ ...filters, category: cat.value || undefined })}
-                                >
-                                    <Text style={[
-                                        styles.filterPillText,
-                                        filters.category === cat.value && styles.filterPillTextActive
-                                    ]}>
-                                        {cat.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
+            {/* Sticky Controls Area */}
+            <View style={[styles.controlsContainer, { marginTop: 58 }]}>
+                <View style={styles.searchBar}>
+                    <Ionicons name="search" size={18} color="#8E8E93" />
+                    <TextInput 
+                        style={styles.searchInput}
+                        placeholder="Search topics, muscles, mechanics..."
+                        placeholderTextColor="#8E8E93"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        returnKeyType="search"
+                    />
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')}>
+                            <Ionicons name="close-circle-sharp" size={18} color="#8E8E93" />
+                        </TouchableOpacity>
+                    )}
+                </View>
 
-                    <View style={styles.filterGroup}>
-                        <Text style={styles.filterLabel}>Muscle Group</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-                            {MUSCLE_GROUPS.map((mg) => (
-                                <TouchableOpacity
-                                    key={mg.value}
-                                    style={[
-                                        styles.filterPill,
-                                        filters.muscle_group === mg.value && styles.filterPillActive
-                                    ]}
-                                    onPress={() => setFilters({ ...filters, muscle_group: mg.value || undefined })}
-                                >
-                                    <Text style={[
-                                        styles.filterPillText,
-                                        filters.muscle_group === mg.value && styles.filterPillTextActive
-                                    ]}>
-                                        {mg.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-
-                    <View style={styles.filterGroup}>
-                        <Text style={styles.filterLabel}>Exercise Type</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-                            {EXERCISE_TYPES.map((et) => (
-                                <TouchableOpacity
-                                    key={et.value}
-                                    style={[
-                                        styles.filterPill,
-                                        filters.exercise_type === et.value && styles.filterPillActive
-                                    ]}
-                                    onPress={() => setFilters({ ...filters, exercise_type: et.value || undefined })}
-                                >
-                                    <Text style={[
-                                        styles.filterPillText,
-                                        filters.exercise_type === et.value && styles.filterPillTextActive
-                                    ]}>
-                                        {et.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </View>
-                </ScrollView>
-            </View>
-
-            <View style={styles.searchContainer}>
-                <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search research..."
-                    placeholderTextColor="#8E8E93"
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                />
-                {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchQuery('')}>
-                        <Ionicons name="close-circle" size={20} color="#8E8E93" />
-                    </TouchableOpacity>
-                )}
+                {/* Compact Filters */}
+                <View style={styles.filterStack}>
+                    <FilterRow 
+                        label="TOPIC"
+                        options={CATEGORIES}
+                        selected={filters.category}
+                        onSelect={(val: string) => {
+                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                            setFilters(prev => ({ ...prev, category: val }));
+                        }}
+                    />
+                    {/* Only show muscle filter if generic category or muscle specific */}
+                    <FilterRow 
+                        label="ANATOMY"
+                        options={MUSCLE_GROUPS}
+                        selected={filters.muscle_group}
+                        onSelect={(val: string) => setFilters(prev => ({ ...prev, muscle_group: val }))}
+                    />
+                </View>
             </View>
 
             {isLoading ? (
-                <View style={styles.loadingContainer}>
+                <View style={styles.center}>
                     <ActivityIndicator size="large" color="#0A84FF" />
                 </View>
             ) : (
                 <FlatList
-                    data={filteredResearch}
-                    renderItem={renderResearchCard}
-                    keyExtractor={(item) => item.id.toString()}
-                    contentContainerStyle={[styles.listContent, { paddingTop: 60 }]}
+                    data={filteredData}
+                    renderItem={renderCard}
+                    keyExtractor={item => item.id.toString()}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <Ionicons name="library-outline" size={64} color="#8E8E93" />
-                            <Text style={styles.emptyText}>No research found</Text>
-                            <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
+                            <Ionicons name="book-outline" size={48} color="#2C2C2E" />
+                            <Text style={styles.emptyText}>No research found matching your criteria.</Text>
                         </View>
                     }
                 />
@@ -246,194 +231,63 @@ export default function KnowledgeBaseScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#000000',
+    container: { flex: 1, backgroundColor: '#000000' },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    
+    // Controls
+    controlsContainer: { backgroundColor: '#000000', paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#1C1C1E' },
+    searchBar: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: '#1C1C1E', marginHorizontal: 16, marginTop: 4, marginBottom: 12,
+        paddingHorizontal: 12, height: 40, borderRadius: 10,
     },
-    filtersContainer: {
-        backgroundColor: '#1C1C1E',
-        borderBottomWidth: 1,
-        borderBottomColor: '#2C2C2E',
-        marginTop: 60,
+    searchInput: { flex: 1, color: '#FFFFFF', fontSize: 16, marginLeft: 8 },
+    
+    // Filters
+    filterStack: { gap: 12 },
+    filterRowContainer: { flexDirection: 'row', alignItems: 'center', paddingLeft: 16 },
+    filterRowLabel: { fontSize: 11, fontWeight: '700', color: '#545458', width: 60, letterSpacing: 0.5 },
+    filterRowContent: { paddingRight: 16, gap: 8 },
+    chip: {
+        paddingHorizontal: 14, paddingVertical: 6,
+        backgroundColor: '#1C1C1E', borderRadius: 16,
+        borderWidth: 1, borderColor: '#2C2C2E'
     },
-    filtersContent: {
-        paddingVertical: 16,
-    },
-    filterGroup: {
-        marginRight: 24,
-        minWidth: 200,
-    },
-    filterLabel: {
-        fontSize: 13,
-        fontWeight: '300',
-        color: '#8E8E93',
-        marginBottom: 16,
-        marginLeft: 16,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    filterScroll: {
-        flexGrow: 0,
-    },
-    filterPill: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#2C2C2E',
-        marginRight: 8,
-        marginLeft: 16,
-    },
-    filterPillActive: {
-        backgroundColor: '#0A84FF',
-    },
-    filterPillText: {
-        fontSize: 17,
-        fontWeight: '400',
-        color: '#8E8E93',
-    },
-    filterPillTextActive: {
-        color: '#FFFFFF',
-        fontWeight: '400',
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#1C1C1E',
-        marginHorizontal: 16,
-        marginVertical: 16,
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-        borderRadius: 22,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-    },
-    searchIcon: {
-        marginRight: 8,
-    },
-    searchInput: {
-        flex: 1,
-        color: '#FFFFFF',
-        fontSize: 17,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    listContent: {
-        padding: 16,
-        paddingBottom: 40,
-    },
-    card: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 22,
-        padding: 16,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    categoryBadge: {
-        backgroundColor: 'rgba(10, 132, 255, 0.1)',
-        paddingHorizontal: 8,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    categoryText: {
-        fontSize: 13,
-        fontWeight: '300',
-        color: '#0A84FF',
-        textTransform: 'uppercase',
-    },
-    confidenceBadge: {
-        backgroundColor: 'rgba(50, 215, 75, 0.1)',
-        paddingHorizontal: 8,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    confidenceText: {
-        fontSize: 13,
-        fontWeight: '300',
-        color: '#32D74B',
-    },
-    cardTitle: {
-        fontSize: 18,
-        fontWeight: '500',
-        color: '#FFFFFF',
-        marginBottom: 16,
-    },
-    cardSummary: {
-        fontSize: 17,
-        color: '#8E8E93',
-        lineHeight: 24,
-        marginBottom: 16,
-        fontWeight: '400',
-    },
-    evidenceBadge: {
-        alignSelf: 'flex-start',
-        backgroundColor: '#2C2C2E',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-        marginBottom: 12,
-    },
-    evidenceText: {
-        fontSize: 12,
-        color: '#8E8E93',
-        textTransform: 'capitalize',
-    },
-    tagsContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 6,
-        marginBottom: 12,
-    },
-    tag: {
-        backgroundColor: '#2C2C2E',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-    },
-    tagText: {
-        fontSize: 12,
-        color: '#A1A1A6',
-    },
-    sourceButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginTop: 8,
-    },
-    sourceText: {
-        fontSize: 14,
-        color: '#0A84FF',
-        fontWeight: '500',
-    },
-    emptyState: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 100,
-    },
-    emptyText: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#FFFFFF',
-        marginTop: 16,
-    },
-    emptySubtext: {
-        fontSize: 14,
-        color: '#8E8E93',
-        marginTop: 4,
-    },
-});
+    chipActive: { backgroundColor: '#0A84FF', borderColor: '#0A84FF' },
+    chipText: { fontSize: 13, color: '#8E8E93', fontWeight: '500' },
+    chipTextActive: { color: '#FFFFFF', fontWeight: '600' },
 
+    // Content
+    listContent: { padding: 16, gap: 16, paddingBottom: 40 },
+    
+    // Card
+    card: {
+        backgroundColor: '#1C1C1E', borderRadius: 20, padding: 20,
+        borderWidth: 1, borderColor: '#2C2C2E',
+    },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+    badgeContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    dot: { width: 6, height: 6, borderRadius: 3 },
+    confidenceText: { fontSize: 12, fontWeight: '600' },
+    categoryLabel: { fontSize: 11, color: '#8E8E93', fontWeight: '700', textTransform: 'uppercase' },
+    
+    cardTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF', marginBottom: 8, lineHeight: 26 },
+    cardSummary: { fontSize: 16, color: '#C7C7CC', lineHeight: 24, marginBottom: 16 },
+    
+    // Diagram Tag Styling (Simulated visually distinct area)
+    diagramTag: {
+        fontSize: 13, color: '#0A84FF', fontStyle: 'italic',
+        backgroundColor: 'rgba(10, 132, 255, 0.1)', padding: 12,
+        borderRadius: 8, marginBottom: 16, textAlign: 'center', overflow: 'hidden'
+    },
+
+    // Footer
+    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTopWidth: 1, borderTopColor: '#2C2C2E' },
+    tagsRow: { flexDirection: 'row', gap: 6 },
+    miniTag: { backgroundColor: '#2C2C2E', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    miniTagText: { fontSize: 11, color: '#A1A1A6' },
+    evidenceLevel: { fontSize: 12, color: '#8E8E93', fontStyle: 'italic', textTransform: 'capitalize' },
+
+    emptyState: { alignItems: 'center', marginTop: 60, opacity: 0.5 },
+    emptyText: { color: '#8E8E93', marginTop: 16, fontSize: 16 },
+});

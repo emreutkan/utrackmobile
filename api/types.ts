@@ -38,6 +38,24 @@ export interface Workout {
     primary_muscles_worked?: string[]; // Array of primary muscles targeted
     secondary_muscles_worked?: string[]; // Array of secondary muscles targeted
     calories_burned?: string | number; // Calories burned during the workout
+    muscle_recovery_pre_workout?: Record<string, number>; // {muscle_group: recovery_percentage}
+}
+
+// Exercise Set Insights Types (defined early for use in WorkoutExerciseSet)
+export interface SetInsight {
+    reason: string;
+    current_reps?: number;
+    optimal_range?: string;
+    current_tut?: number;
+    seconds_per_rep?: number;
+    set_position?: number;
+    total_sets?: number;
+    optimal_sets?: string;
+}
+
+export interface ExerciseSetInsights {
+    good: Record<string, SetInsight>;
+    bad: Record<string, SetInsight>;
 }
 
 export interface WorkoutExercise {
@@ -61,6 +79,7 @@ export interface WorkoutExerciseSet {
     eccentric_time?: number | null; // Time under tension - eccentric phase (seconds)
     concentric_time?: number | null; // Time under tension - concentric phase (seconds)
     total_tut?: number | null; // Total time under tension (seconds)
+    insights?: ExerciseSetInsights | null;
 }
 
 export interface GetWorkoutsResponse {
@@ -482,4 +501,226 @@ export interface WeightHistoryResponse {
     next: string | null;
     previous: string | null;
     results: WeightHistoryEntry[];
+}
+
+
+// ============================================
+// SUPPLEMENTS TYPES
+// ============================================
+
+export interface Supplement {
+    id: number;
+    name: string;
+    description?: string | null;
+    dosage_unit: "mg" | "g" | "mcg" | "IU" | "ml" | "tablet" | "capsule" | "scoop" | "other";
+    default_dosage?: number | null;
+    bioavailability_score?: string | null;
+}
+
+export interface UserSupplement {
+    id: number;
+    supplement_id: number; // For write operations
+    supplement_details: Supplement; // For read operations
+    dosage: number;
+    frequency: "daily" | "weekly" | "custom";
+    time_of_day?: string | null;
+    is_active: boolean;
+}
+
+export interface UserSupplementLog {
+    id: number;
+    user_supplement_id: number; // For write operations
+    user_supplement?: UserSupplement; // For read operations
+    date: string; // ISO date string
+    time: string; // ISO time string
+    dosage: number;
+}
+
+export interface UserSupplementLogTodayResponse {
+    date: string; // ISO date string
+    logs: UserSupplementLog[];
+    count: number;
+}
+
+// ============================================
+// REST TIMER TYPES
+// ============================================
+
+export interface RestStatus {
+    text: string;
+    color: string;
+    goal: number;
+    max_goal: number;
+}
+
+export interface RestTimerState {
+    last_set_timestamp: string | null; // ISO datetime string
+    last_exercise_category: string | null; // "compound" | "isolation"
+    elapsed_seconds: number;
+    rest_status: RestStatus;
+    is_paused: boolean;
+}
+
+export interface StopRestTimerResponse {
+    message: string;
+    last_set_timestamp: string | null;
+    last_exercise_category: string | null;
+    elapsed_seconds: number;
+    rest_status: RestStatus;
+    is_paused: boolean;
+}
+
+export interface ResumeRestTimerResponse {
+    message: string;
+    last_set_timestamp: string | null;
+    last_exercise_category: string | null;
+    elapsed_seconds: number;
+    rest_status: RestStatus;
+    is_paused: boolean;
+}
+
+// ============================================
+// WORKOUT SUMMARY TYPES
+// ============================================
+
+export interface WorkoutSummaryInsight {
+    type: "recovery" | "1rm";
+    message: string;
+    pre_recovery?: number; // For recovery type
+    current_1rm?: number; // For 1rm type
+    previous_1rm?: number | null; // For 1rm type
+    difference?: number | null; // For 1rm type
+    percent_change?: number | null; // For 1rm type
+}
+
+export interface WorkoutSummaryResponse {
+    workout_id: number;
+    score: number; // 0-10
+    positives: Record<string, WorkoutSummaryInsight>;
+    negatives: Record<string, WorkoutSummaryInsight>;
+    neutrals: Record<string, WorkoutSummaryInsight>;
+    summary: {
+        total_positives: number;
+        total_negatives: number;
+        total_neutrals: number;
+        muscles_worked: string[];
+        exercises_performed: number;
+    };
+}
+
+// ============================================
+// RECOVERY RECOMMENDATIONS TYPES
+// ============================================
+
+export interface RecoveryRecommendation {
+    title: string;
+    summary: string;
+    category: string;
+    confidence_score: number;
+    parameters: Record<string, any>;
+    source_url?: string | null;
+}
+
+export interface RecoveryRecommendationsResponse {
+    last_workout_id: number;
+    last_workout_date: string; // ISO datetime string
+    hours_since_workout: number;
+    muscle_groups_worked: string[];
+    recommended_recovery_hours: number;
+    is_recovered: boolean;
+    recommendations: RecoveryRecommendation[];
+}
+
+// ============================================
+// REST PERIOD RECOMMENDATIONS TYPES
+// ============================================
+
+export interface RestPeriodRecommendationsResponse {
+    exercise_id: number;
+    exercise_name: string;
+    exercise_type: string; // "compound" | "isolation"
+    recommended_rest_seconds: {
+        min: number;
+        max: number;
+        optimal: number;
+    };
+    research_source?: string | null;
+}
+
+// ============================================
+// TRAINING FREQUENCY RECOMMENDATIONS TYPES
+// ============================================
+
+export interface TrainingFrequencyRecommendationsResponse {
+    optimal_frequency_per_week: {
+        min: number;
+        max: number;
+    };
+    max_days_between_sessions: number;
+    protein_synthesis_window_hours: number;
+    research_title?: string | null;
+    research_summary?: string | null;
+    source_url?: string | null;
+}
+
+// ============================================
+// UPDATE EXERCISE ORDER TYPES
+// ============================================
+
+export interface UpdateExerciseOrderRequest {
+    exercise_orders: Array<{
+        id: number; // WorkoutExercise ID
+        order: number;
+    }>;
+}
+
+// ============================================
+// COMPLETE WORKOUT TYPES
+// ============================================
+
+export interface CompleteWorkoutRequest {
+    duration?: number; // seconds
+    intensity?: "low" | "medium" | "high";
+    notes?: string;
+}
+
+// Response is same as GetWorkoutSerializer (Workout type)
+
+// ============================================
+// ADD/UPDATE EXERCISE SET TYPES
+// ============================================
+
+export interface AddExerciseSetRequest {
+    reps: number;
+    weight: number; // DecimalField
+    reps_in_reserve: number;
+    rest_time_before_set: number; // seconds
+    is_warmup: boolean;
+    eccentric_time?: number | null; // seconds
+    concentric_time?: number | null; // seconds
+    total_tut?: number | null; // seconds
+}
+
+export interface UpdateExerciseSetRequest {
+    reps?: number;
+    weight?: number;
+    reps_in_reserve?: number;
+    rest_time_before_set?: number;
+    is_warmup?: boolean;
+    eccentric_time?: number | null;
+    concentric_time?: number | null;
+    total_tut?: number | null;
+}
+
+// Response is ExerciseSetSerializer (WorkoutExerciseSet type)
+
+// ============================================
+// TOTAL WORKOUTS PERFORMED TYPES
+// ============================================
+
+export interface TotalWorkoutsPerformedResponse {
+    total_workouts: number;
+    average_workouts_per_week: number;
+    workouts_this_year: number;
+    projected_workouts_this_year: number;
 }

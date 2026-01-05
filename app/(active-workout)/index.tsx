@@ -1,26 +1,19 @@
-import { addExerciseToWorkout, addSetToExercise, deleteSet, getExercises, removeExerciseFromWorkout } from '@/api/Exercises';
+import { addExerciseToWorkout, addSetToExercise, deleteSet, removeExerciseFromWorkout } from '@/api/Exercises';
 import { completeWorkout, getActiveWorkout, getRestTimerState } from '@/api/Workout';
+import ExerciseSearchModal from '@/components/ExerciseSearchModal';
 import WorkoutDetailView from '@/components/WorkoutDetailView';
 import { useActiveWorkoutStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ActiveWorkoutScreen() {
     const [activeWorkout, setActiveWorkout] = useState<any>(null);
     const [elapsedTime, setElapsedTime] = useState('00:00:00');
     const [isModalVisible, setIsModalVisible] = useState(false);
-    
-    // Search state
-    const [searchQuery, setSearchQuery] = useState('');
-    const [exercises, setExercises] = useState<any[]>([]);
-    const [isLoadingExercises, setIsLoadingExercises] = useState(false);
-    const [isLoadingMoreExercises, setIsLoadingMoreExercises] = useState(false);
-    const [hasMoreExercises, setHasMoreExercises] = useState(false);
-    const [exercisePage, setExercisePage] = useState(1);
 
     // Rest timer state from Zustand
     const { setLastSetTimestamp, setLastExerciseCategory } = useActiveWorkoutStore();
@@ -65,64 +58,6 @@ export default function ActiveWorkoutScreen() {
         }, [fetchActiveWorkout, fetchRestTimerState])
     );
 
-    // Load exercises when modal opens or search query changes
-    useEffect(() => {
-        if (!isModalVisible) {
-            setExercises([]);
-            setExercisePage(1);
-            setHasMoreExercises(false);
-            return;
-        }
-
-        const delayDebounceFn = setTimeout(() => {
-            loadExercises(true);
-        }, 300);
-
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, isModalVisible]);
-
-    const loadExercises = async (reset = false) => {
-        if (reset) {
-            setIsLoadingExercises(true);
-            setExercisePage(1);
-        } else {
-            setIsLoadingMoreExercises(true);
-        }
-        try {
-            const page = reset ? 1 : exercisePage + 1;
-            const data = await getExercises(searchQuery, page);
-            if (data?.results) {
-                // Paginated response
-                if (reset) {
-                    setExercises(data.results);
-                } else {
-                    setExercises(prev => [...prev, ...data.results]);
-                }
-                setHasMoreExercises(!!data.next);
-                setExercisePage(page);
-            } else if (Array.isArray(data)) {
-                // Fallback for non-paginated response
-                if (reset) {
-                    setExercises(data);
-                } else {
-                    setExercises(prev => [...prev, ...data]);
-                }
-                setHasMoreExercises(false);
-            }
-        } catch (error) {
-            console.error("Failed to load exercises:", error);
-        } finally {
-            setIsLoadingExercises(false);
-            setIsLoadingMoreExercises(false);
-        }
-    };
-
-    const loadMoreExercises = () => {
-        if (hasMoreExercises && !isLoadingMoreExercises && !isLoadingExercises) {
-            loadExercises(false);
-        }
-    };
-
     const handleAddExercise = async (exerciseId: number) => {
         if (!activeWorkout?.id) return;
         
@@ -132,7 +67,6 @@ export default function ActiveWorkoutScreen() {
             // Refresh active workout to show new exercise
             const updatedWorkout = await getActiveWorkout();
             setActiveWorkout(updatedWorkout);
-            setSearchQuery(''); // Reset search
         } catch (error) {
             console.error("Failed to add exercise:", error);
             alert("Failed to add exercise");
@@ -307,96 +241,6 @@ export default function ActiveWorkoutScreen() {
     }, [activeWorkout]);
 
 
-    const renderAddExerciseModal = () => {
-        return (
-            <Modal
-                visible={isModalVisible}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={() => setIsModalVisible(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Add Exercise</Text>
-                        <TouchableOpacity onPress={() => setIsModalVisible(false)} style={styles.closeButtonContainer}>
-                            <Ionicons name="close-circle" size={28} color="#2C2C2E" />
-                        </TouchableOpacity>
-                    </View>
-                    
-                    <View style={styles.searchSection}>
-                        <View style={styles.searchBar}>
-                            <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
-                            <TextInput
-                                style={styles.searchInput}
-                                placeholder="Search exercises..."
-                                placeholderTextColor="#8E8E93"
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                                autoCorrect={false}
-                                autoCapitalize="none"
-                            />
-                            {searchQuery.length > 0 && (
-                                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                                    <Ionicons name="close-circle" size={18} color="#8E8E93" />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    </View>
-
-                    {isLoadingExercises ? (
-                        <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color="#0A84FF" />
-                        </View>
-                    ) : (
-                        <FlatList
-                            data={exercises}
-                            keyExtractor={(item) => item.id.toString()}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity 
-                                    style={styles.exerciseCard}
-                                    onPress={() => handleAddExercise(item.id)}
-                                >
-                                    <View style={styles.exerciseInfoContainer}>
-                                        <View style={styles.exerciseIconPlaceholder}>
-                                            <Text style={styles.exerciseInitial}>
-                                                {item.name.charAt(0).toUpperCase()}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.exerciseTextContent}>
-                                            <Text style={styles.exerciseName}>{item.name}</Text>
-                                            <Text style={styles.exerciseDetail}>
-                                                {item.primary_muscle} {item.equipment_type ? `• ${item.equipment_type}` : ''}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.addButton}>
-                                        <Ionicons name="add" size={24} color="#0A84FF" />
-                                    </View>
-                                </TouchableOpacity>
-                            )}
-                            ItemSeparatorComponent={() => <View style={{height: 12}} />}
-                            contentContainerStyle={styles.listContent}
-                            onEndReached={loadMoreExercises}
-                            onEndReachedThreshold={0.5}
-                            ListFooterComponent={
-                                isLoadingMoreExercises ? (
-                                    <View style={styles.footerLoader}>
-                                        <ActivityIndicator size="small" color="#0A84FF" />
-                                    </View>
-                                ) : null
-                            }
-                            ListEmptyComponent={
-                                <View style={styles.emptyContainer}>
-                                    <Ionicons name="barbell-outline" size={48} color="#FFFFFF" />
-                                    <Text style={styles.emptyText}>No exercises found</Text>
-                                </View>
-                            }
-                        />
-                    )}
-                </View>
-            </Modal>
-        );
-    }
 
     const insets = useSafeAreaInsets();
     return (
@@ -413,7 +257,12 @@ export default function ActiveWorkoutScreen() {
                 onCompleteWorkout={handleFinishWorkout}
                 onShowStatistics={(exerciseId: number) => router.push(`/(exercise-statistics)/${exerciseId}`)}
             />
-            {renderAddExerciseModal()}
+            <ExerciseSearchModal
+                visible={isModalVisible}
+                onClose={() => setIsModalVisible(false)}
+                onSelectExercise={handleAddExercise}
+                title="Add Exercise"
+            />
             {Platform.OS === 'ios' ? (
                 <BlurView intensity={80} tint="dark" style={[styles.WorkoutFooter, {marginBottom: insets.bottom}]}>
                     <View style={styles.footerContent}>

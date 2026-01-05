@@ -1,268 +1,170 @@
 import { getRecoveryStatus } from '@/api/Workout';
-import UnifiedHeader from '@/components/UnifiedHeader';
 import { MuscleRecovery, RecoveryStatusResponse } from '@/api/types';
+import UnifiedHeader from '@/components/UnifiedHeader';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View, ScrollView } from 'react-native';
+import {
+    ActivityIndicator,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// ============================================================================
+// 1. HELPERS & CONFIG
+// ============================================================================
+
+const formatTimeRemaining = (hours: number): string => {
+    if (hours <= 0) return 'Ready';
+    if (hours < 1) return `${Math.ceil(hours * 60)}m`;
+    if (hours < 24) return `${Math.ceil(hours)}h`;
+    const days = Math.floor(hours / 24);
+    const h = Math.ceil(hours % 24);
+    return h > 0 ? `${days}d ${h}h` : `${days}d`;
+};
+
+const getStatusColor = (pct: number) => {
+    if (pct >= 90) return '#30D158'; // Green (Ready)
+    if (pct >= 50) return '#FF9F0A'; // Orange (Recovering)
+    return '#FF453A'; // Red (Fatigued)
+};
+
+const MUSCLE_CATEGORIES = {
+    Upper: ['chest', 'shoulders', 'biceps', 'triceps', 'forearms', 'lats', 'traps', 'lower_back', 'neck'],
+    Lower: ['quads', 'hamstrings', 'glutes', 'calves', 'abductors', 'adductors'],
+    Core: ['abs', 'obliques']
+};
+
+const getCategory = (muscle: string) => {
+    if (MUSCLE_CATEGORIES.Upper.includes(muscle)) return 'Upper Body';
+    if (MUSCLE_CATEGORIES.Lower.includes(muscle)) return 'Lower Body';
+    return 'Core';
+};
+
+// ============================================================================
+// 2. MAIN COMPONENT
+// ============================================================================
 
 export default function RecoveryStatusScreen() {
     const insets = useSafeAreaInsets();
-    const [recoveryStatus, setRecoveryStatus] = useState<Record<string, MuscleRecovery>>({});
+    
+    // --- State ---
+    const [statusMap, setStatusMap] = useState<Record<string, MuscleRecovery>>({});
     const [isLoading, setIsLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const fetchRecoveryStatus = async () => {
-        setIsLoading(true);
+    // --- Data ---
+    const loadData = async () => {
         try {
-            const result: RecoveryStatusResponse = await getRecoveryStatus();
-            if (result?.recovery_status) {
-                setRecoveryStatus(result.recovery_status);
+            const res: RecoveryStatusResponse = await getRecoveryStatus();
+            if (res?.recovery_status) {
+                setStatusMap(res.recovery_status);
             }
-        } catch (error) {
-            setRecoveryStatus({});
+        } catch (e) {
+            console.error(e);
         } finally {
             setIsLoading(false);
+            setRefreshing(false);
         }
     };
 
     useFocusEffect(
         useCallback(() => {
-            fetchRecoveryStatus();
+            loadData();
         }, [])
     );
 
-    const formatRecoveryTime = (hours: number): string => {
-        if (hours === 0) return 'Now';
-        if (hours < 1) return `${Math.round(hours * 60)}m`;
-        if (hours < 24) return `${Math.round(hours)}h`;
-        const days = Math.floor(hours / 24);
-        const remainingHours = Math.round(hours % 24);
-        return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
-    };
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        loadData();
+    }, []);
 
-    const muscleCategories = {
-        upper: ['chest', 'shoulders', 'biceps', 'triceps', 'forearms', 'lats', 'traps', 'lower_back'],
-        lower: ['quads', 'hamstrings', 'glutes', 'calves', 'abductors', 'adductors'],
-        core: ['abs', 'obliques']
-    };
-
-    const getMuscleCategory = (muscle: string): 'upper' | 'lower' | 'core' => {
-        if (muscleCategories.upper.includes(muscle)) return 'upper';
-        if (muscleCategories.lower.includes(muscle)) return 'lower';
-        return 'core';
-    };
-
-    const { groupedMuscles, stats } = useMemo(() => {
-        const all = Object.entries(recoveryStatus);
+    // --- Stats Calculation ---
+    const { stats, groupedData } = useMemo(() => {
+        const entries = Object.entries(statusMap);
+        const total = entries.length;
         
-        const grouped: Record<'upper' | 'lower' | 'core', {
-            recovering: [string, MuscleRecovery][];
-            recovered: [string, MuscleRecovery][];
-        }> = {
-            upper: { recovering: [], recovered: [] },
-            lower: { recovering: [], recovered: [] },
-            core: { recovering: [], recovered: [] }
+        // Initialize groups with proper type structure
+        const groups: Record<string, typeof entries> = {
+            'Upper Body': [], 'Lower Body': [], 'Core': []
         };
+        
+        if (total === 0) return { stats: null, groupedData: groups };
 
-        all.forEach(([muscle, status]) => {
-            const category = getMuscleCategory(muscle);
-            if (!status.is_recovered && Number(status.fatigue_score) > 0) {
-                grouped[category].recovering.push([muscle, status]);
-            } else {
-                grouped[category].recovered.push([muscle, status]);
-            }
+        let recovered = 0;
+        let recovering = 0;
+        let totalPct = 0;
+
+        entries.forEach(([m, s]) => {
+            if (s.is_recovered) recovered++; else recovering++;
+            totalPct += Number(s.recovery_percentage);
+            
+            const cat = getCategory(m);
+            groups[cat].push([m, s]);
         });
 
-        // Sort recovering by hours until recovery, recovered alphabetically
-        Object.keys(grouped).forEach((cat) => {
-            const category = cat as 'upper' | 'lower' | 'core';
-            grouped[category].recovering.sort(([_, a], [__, b]) => Number(a.hours_until_recovery) - Number(b.hours_until_recovery));
-            grouped[category].recovered.sort(([a], [b]) => a.localeCompare(b));
+        // Sort groups: Recovering first (lowest %), then alphabetical
+        Object.keys(groups).forEach(key => {
+            groups[key].sort(([, a], [, b]) => {
+                const pctA = Number(a.recovery_percentage);
+                const pctB = Number(b.recovery_percentage);
+                if (Math.abs(pctA - pctB) > 5) return pctA - pctB; // Low % first
+                return 0;
+            });
         });
-
-        const totalMuscles = all.length;
-        const recoveredCount = all.filter(([_, s]) => s.is_recovered).length;
-        const recoveringCount = all.filter(([_, s]) => !s.is_recovered && Number(s.fatigue_score) > 0).length;
-        const avgRecovery = all.length > 0 
-            ? all.reduce((sum, [_, s]) => sum + Number(s.recovery_percentage), 0) / all.length 
-            : 100;
 
         return {
-            groupedMuscles: grouped,
             stats: {
-                total: totalMuscles,
-                recovered: recoveredCount,
-                recovering: recoveringCount,
-                avgRecovery: Math.round(avgRecovery)
-            }
+                recovered,
+                recovering,
+                avg: Math.round(totalPct / total)
+            },
+            groupedData: groups
         };
-    }, [recoveryStatus]);
+    }, [statusMap]);
 
-    const getRecoveryColor = (status: MuscleRecovery): string => {
-        if (status.is_recovered) return '#32D74B';
-        const percentage = Number(status.recovery_percentage);
-        if (percentage >= 80) return '#32D74B';
-        if (percentage >= 50) return '#FF9F0A';
-        return '#FF3B30';
-    };
+    // --- Renderers ---
 
-    const getRecoveryStatusText = (status: MuscleRecovery): string => {
-        if (status.is_recovered) return 'Ready';
-        const percentage = Number(status.recovery_percentage);
-        if (percentage >= 80) return 'Almost Ready';
-        if (percentage >= 50) return 'Recovering';
-        return 'Needs Rest';
-    };
-
-    const renderSummaryCard = () => {
-        const hasRecovering = stats.recovering > 0;
-        const allRecovered = stats.recovered === stats.total && stats.total > 0;
+    const renderMuscleCard = (muscle: string, data: MuscleRecovery) => {
+        const pct = Number(data.recovery_percentage);
+        const color = getStatusColor(pct);
+        const hoursLeft = Number(data.hours_until_recovery);
+        const isReady = data.is_recovered || pct >= 90;
 
         return (
-            <View style={styles.summaryCard}>
-                <View style={styles.summaryHeader}>
-                    <Ionicons 
-                        name={allRecovered ? "checkmark-circle" : hasRecovering ? "time-outline" : "body-outline"} 
-                        size={24} 
-                        color={allRecovered ? "#32D74B" : hasRecovering ? "#FF9F0A" : "#8E8E93"} 
-                    />
-                    <Text style={styles.summaryTitle}>
-                        {allRecovered ? "All Muscles Recovered" : hasRecovering ? `${stats.recovering} Muscle${stats.recovering > 1 ? 's' : ''} Recovering` : "No Recent Activity"}
-                    </Text>
-                </View>
-                <View style={styles.summaryStats}>
-                    <View style={styles.statItem}>
-                        <Text style={styles.statValue}>{stats.recovered}</Text>
-                        <Text style={styles.statLabel}>Recovered</Text>
+            <View style={[styles.card, !isReady && styles.cardActive]} key={muscle}>
+                <View style={styles.cardHeader}>
+                    <View style={styles.nameContainer}>
+                        <View style={[styles.indicatorDot, { backgroundColor: color }]} />
+                        <Text style={styles.muscleName}>{muscle.replace(/_/g, ' ')}</Text>
                     </View>
-                    <View style={styles.statDivider} />
-                    <View style={styles.statItem}>
-                        <Text style={[styles.statValue, { color: hasRecovering ? '#FF9F0A' : '#8E8E93' }]}>
-                            {stats.recovering}
+                    <View style={[styles.badge, { backgroundColor: isReady ? 'rgba(48,209,88,0.1)' : 'rgba(255,159,10,0.1)' }]}>
+                        <Text style={[styles.badgeText, { color: isReady ? '#30D158' : '#FF9F0A' }]}>
+                            {isReady ? 'Ready' : formatTimeRemaining(hoursLeft)}
                         </Text>
-                        <Text style={styles.statLabel}>Recovering</Text>
-                    </View>
-                    <View style={styles.statDivider} />
-                    <View style={styles.statItem}>
-                        <Text style={styles.statValue}>{stats.avgRecovery}%</Text>
-                        <Text style={styles.statLabel}>Avg Recovery</Text>
                     </View>
                 </View>
-            </View>
-        );
-    };
 
-    const renderMuscle = (item: [string, MuscleRecovery], isRecovering: boolean) => {
-        const [muscle, status] = item;
-        const color = getRecoveryColor(status);
-        const statusText = getRecoveryStatusText(status);
-
-        return (
-            <View style={[styles.muscleItem, isRecovering && styles.muscleItemRecovering]}>
-                <View style={styles.muscleItemLeft}>
-                    <View style={styles.muscleHeader}>
-                        <Text style={styles.muscleName}>
-                            {muscle.charAt(0).toUpperCase() + muscle.slice(1).replace(/_/g, ' ')}
-                        </Text>
-                        {isRecovering && (
-                            <View style={[styles.statusBadge, { backgroundColor: `${color}15` }]}>
-                                <View style={[styles.statusDot, { backgroundColor: color }]} />
-                                <Text style={[styles.statusText, { color }]}>{statusText}</Text>
-                            </View>
-                        )}
+                {/* Progress Bar */}
+                <View style={styles.progressContainer}>
+                    <View style={styles.track}>
+                        <View style={[styles.fill, { width: `${pct}%`, backgroundColor: color }]} />
                     </View>
-                    
-                    <View style={styles.barContainer}>
-                        <View style={styles.barBackground}>
-                            <View 
-                                style={[
-                                    styles.barFill,
-                                    { 
-                                        width: `${Number(status.recovery_percentage)}%`,
-                                        backgroundColor: color
-                                    }
-                                ]}
-                            />
-                        </View>
-                        <Text style={styles.barPercentage}>{Number(status.recovery_percentage).toFixed(0)}%</Text>
-                    </View>
+                </View>
 
-                    {isRecovering && (
-                        <View style={styles.muscleDetails}>
-                            {status.total_sets > 0 && (
-                                <View style={styles.detailRow}>
-                                    <Ionicons name="barbell-outline" size={14} color="#8E8E93" />
-                                    <Text style={styles.detailText}>{status.total_sets} sets</Text>
-                                </View>
-                            )}
-                            {Number(status.fatigue_score) > 0 && (
-                                <View style={styles.detailRow}>
-                                    <Ionicons name="flash-outline" size={14} color="#8E8E93" />
-                                    <Text style={styles.detailText}>Fatigue: {Number(status.fatigue_score).toFixed(1)}</Text>
-                                </View>
-                            )}
+                <View style={styles.cardFooter}>
+                    <Text style={styles.pctText}>{pct.toFixed(0)}% Recovered</Text>
+                    {!isReady && Number(data.fatigue_score) > 0 && (
+                        <View style={styles.fatigueRow}>
+                            <Ionicons name="flash" size={12} color="#8E8E93" />
+                            <Text style={styles.fatigueText}>Fatigue: {Number(data.fatigue_score).toFixed(1)}</Text>
                         </View>
                     )}
                 </View>
-                {!status.is_recovered && (
-                    <View style={styles.muscleItemRight}>
-                        <View style={styles.recoveryInfo}>
-                            <Ionicons name="time" size={18} color={color} />
-                            <Text style={[styles.recoveryTime, { color }]}>
-                                {formatRecoveryTime(Number(status.hours_until_recovery))}
-                            </Text>
-                        </View>
-                    </View>
-                )}
-            </View>
-        );
-    };
-
-    const renderCategorySection = (
-        category: 'upper' | 'lower' | 'core',
-        title: string,
-        icon: string,
-        color: string
-    ) => {
-        const { recovering, recovered } = groupedMuscles[category];
-        const hasAny = recovering.length > 0 || recovered.length > 0;
-
-        if (!hasAny) return null;
-
-        return (
-            <View style={styles.categorySection}>
-                <View style={styles.categoryHeader}>
-                    <Ionicons name={icon as any} size={22} color={color} />
-                    <Text style={[styles.categoryTitle, { color }]}>{title}</Text>
-                </View>
-
-                {recovering.length > 0 && (
-                    <View style={styles.statusGroup}>
-                        <View style={styles.statusGroupHeader}>
-                            <Ionicons name="time-outline" size={16} color="#FF9F0A" />
-                            <Text style={styles.statusGroupTitle}>Recovering ({recovering.length})</Text>
-                        </View>
-                        {recovering.map((item) => (
-                            <View key={item[0]}>
-                                {renderMuscle(item, true)}
-                            </View>
-                        ))}
-                    </View>
-                )}
-
-                {recovered.length > 0 && (
-                    <View style={styles.statusGroup}>
-                        <View style={styles.statusGroupHeader}>
-                            <Text style={styles.statusGroupTitle}>Recovered ({recovered.length})</Text>
-                        </View>
-                        {recovered.map((item) => (
-                            <View key={item[0]}>
-                                {renderMuscle(item, false)}
-                            </View>
-                        ))}
-                    </View>
-                )}
             </View>
         );
     };
@@ -272,26 +174,54 @@ export default function RecoveryStatusScreen() {
             <UnifiedHeader title="Recovery Status" />
 
             {isLoading ? (
-                <View style={styles.loadingContainer}>
+                <View style={[styles.center, { marginTop: 58 }]}>
                     <ActivityIndicator size="large" color="#0A84FF" />
                 </View>
             ) : (
                 <ScrollView 
-                    style={styles.scrollView}
-                    contentContainerStyle={[styles.content, { paddingTop: 60 }]}
-                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20, marginTop: 58 }]}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0A84FF" />}
                 >
-                    {renderSummaryCard()}
-                    
-                    {renderCategorySection('upper', 'Upper Body', 'body-outline', '#0A84FF')}
-                    {renderCategorySection('lower', 'Lower Body', 'walk-outline', '#32D74B')}
-                    {renderCategorySection('core', 'Core', 'diamond-outline', '#FF9F0A')}
+                    {/* Summary Dashboard */}
+                    {stats && (
+                        <View style={styles.dashboard}>
+                            <View style={styles.statBox}>
+                                <Text style={[styles.statValue, { color: '#30D158' }]}>{stats.recovered}</Text>
+                                <Text style={styles.statLabel}>READY</Text>
+                            </View>
+                            <View style={styles.statDivider} />
+                            <View style={styles.statBox}>
+                                <Text style={[styles.statValue, { color: '#FF9F0A' }]}>{stats.recovering}</Text>
+                                <Text style={styles.statLabel}>RECOVERING</Text>
+                            </View>
+                            <View style={styles.statDivider} />
+                            <View style={styles.statBox}>
+                                <Text style={styles.statValue}>{stats.avg}%</Text>
+                                <Text style={styles.statLabel}>AVG LEVEL</Text>
+                            </View>
+                        </View>
+                    )}
 
-                    {stats.total === 0 && (
+                    {/* Muscle Groups */}
+                    {(['Upper Body', 'Lower Body', 'Core'] as const).map(category => {
+                        const items = groupedData[category];
+                        if (!items || items.length === 0) return null;
+
+                        return (
+                            <View key={category} style={styles.section}>
+                                <Text style={styles.sectionTitle}>{category}</Text>
+                                <View style={styles.grid}>
+                                    {items.map(([m, data]) => renderMuscleCard(m, data))}
+                                </View>
+                            </View>
+                        );
+                    })}
+
+                    {(!stats || stats.avg === 0 && stats.recovered === 0) && (
                         <View style={styles.emptyState}>
-                            <Ionicons name="body-outline" size={64} color="#8E8E93" />
-                            <Text style={styles.emptyText}>No recovery data available</Text>
-                            <Text style={styles.emptySubtext}>Complete a workout to see recovery status</Text>
+                            <Ionicons name="fitness-outline" size={64} color="#2C2C2E" />
+                            <Text style={styles.emptyText}>No recovery data available.</Text>
+                            <Text style={styles.emptySub}>Complete workouts to track muscle fatigue.</Text>
                         </View>
                     )}
                 </ScrollView>
@@ -301,227 +231,65 @@ export default function RecoveryStatusScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#000000',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    scrollView: {
-        flex: 1,
-    },
-    content: {
-        padding: 16,
-        paddingBottom: 40,
-    },
-    summaryCard: {
+    container: { flex: 1, backgroundColor: '#000000' },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    content: { padding: 16 },
+
+    // Dashboard
+    dashboard: {
+        flexDirection: 'row',
         backgroundColor: '#1C1C1E',
         borderRadius: 16,
         padding: 20,
-        marginBottom: 24,
+        marginBottom: 32,
         borderWidth: 1,
         borderColor: '#2C2C2E',
     },
-    summaryHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
-        gap: 12,
-    },
-    summaryTitle: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: '700',
-        flex: 1,
-    },
-    summaryStats: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-around',
-    },
-    statItem: {
-        alignItems: 'center',
-        flex: 1,
-    },
-    statValue: {
-        color: '#FFFFFF',
-        fontSize: 24,
-        fontWeight: '700',
-        marginBottom: 4,
-    },
-    statLabel: {
-        color: '#8E8E93',
-        fontSize: 12,
-        fontWeight: '500',
-    },
-    statDivider: {
-        width: 1,
-        height: 40,
-        backgroundColor: '#2C2C2E',
-    },
-    categorySection: {
-        marginBottom: 28,
-    },
-    categoryHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
-        gap: 10,
-    },
-    categoryTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-    },
-    statusGroup: {
-        marginBottom: 16,
-    },
-    statusGroupHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 10,
-        marginLeft: 4,
-        gap: 6,
-    },
-    statusGroupTitle: {
-        color: '#8E8E93',
-        fontSize: 13,
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    muscleItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+    statBox: { flex: 1, alignItems: 'center' },
+    statValue: { fontSize: 24, fontWeight: '700', color: '#FFF', marginBottom: 4 },
+    statLabel: { fontSize: 11, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.5 },
+    statDivider: { width: 1, backgroundColor: '#2C2C2E', height: '80%', alignSelf: 'center' },
+
+    // Section
+    section: { marginBottom: 24 },
+    sectionTitle: { fontSize: 13, fontWeight: '600', color: '#636366', marginBottom: 12, marginLeft: 4, textTransform: 'uppercase' },
+    
+    // Grid/List
+    grid: { gap: 12 },
+
+    // Card
+    card: {
         backgroundColor: '#1C1C1E',
-        borderRadius: 12,
+        borderRadius: 16,
         padding: 16,
-        marginBottom: 8,
         borderWidth: 1,
         borderColor: '#2C2C2E',
     },
-    muscleItemRecovering: {
-        borderLeftWidth: 3,
-        borderLeftColor: '#FF9F0A',
+    cardActive: {
+        borderColor: '#3A3A3C', // Slightly lighter border for active items
+        backgroundColor: '#232325', // Slightly lighter bg
     },
-    muscleItemLeft: {
-        flex: 1,
-        marginRight: 12,
-    },
-    muscleHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    muscleName: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-        textTransform: 'capitalize',
-        flex: 1,
-    },
-    statusBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-        gap: 6,
-    },
-    statusDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-    },
-    statusText: {
-        fontSize: 11,
-        fontWeight: '600',
-    },
-    barContainer: {
-        width: '100%',
-        marginBottom: 8,
-    },
-    barBackground: {
-        height: 8,
-        backgroundColor: '#2C2C2E',
-        borderRadius: 4,
-        overflow: 'hidden',
-        marginBottom: 4,
-    },
-    barFill: {
-        height: '100%',
-        borderRadius: 4,
-    },
-    barPercentage: {
-        color: '#8E8E93',
-        fontSize: 11,
-        fontWeight: '500',
-    },
-    muscleDetails: {
-        flexDirection: 'row',
-        gap: 16,
-        marginTop: 8,
-    },
-    detailRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    detailText: {
-        color: '#8E8E93',
-        fontSize: 12,
-        fontWeight: '500',
-    },
-    muscleItemRight: {
-        alignItems: 'flex-end',
-        justifyContent: 'center',
-    },
-    recoveryInfo: {
-        alignItems: 'center',
-        gap: 4,
-    },
-    recoveryTime: {
-        fontSize: 13,
-        fontWeight: '700',
-        marginTop: 2,
-    },
-    recoveredBadge: {
-        alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 8,
-        gap: 4,
-    },
-    recoveredText: {
-        fontSize: 11,
-        fontWeight: '700',
-    },
-    emptyState: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 60,
-        paddingBottom: 40,
-    },
-    emptyText: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#FFFFFF',
-        marginTop: 16,
-    },
-    emptySubtext: {
-        fontSize: 14,
-        fontWeight: '400',
-        color: '#8E8E93',
-        marginTop: 8,
-    },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    nameContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    indicatorDot: { width: 8, height: 8, borderRadius: 4 },
+    muscleName: { fontSize: 17, fontWeight: '600', color: '#FFF', textTransform: 'capitalize' },
+    
+    badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    badgeText: { fontSize: 12, fontWeight: '600' },
+
+    // Progress Bar
+    progressContainer: { marginBottom: 10 },
+    track: { height: 6, backgroundColor: '#2C2C2E', borderRadius: 3, overflow: 'hidden' },
+    fill: { height: '100%', borderRadius: 3 },
+
+    // Footer
+    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    pctText: { color: '#8E8E93', fontSize: 13, fontWeight: '500' },
+    fatigueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    fatigueText: { color: '#8E8E93', fontSize: 12 },
+
+    // Empty
+    emptyState: { alignItems: 'center', marginTop: 60 },
+    emptyText: { color: '#FFF', fontSize: 18, fontWeight: '600', marginTop: 16 },
+    emptySub: { color: '#8E8E93', fontSize: 14, marginTop: 4 },
 });
-
-
-
-
-
-

@@ -2,6 +2,7 @@ import { updateSet } from '@/api/Exercises';
 import { getRestTimerState, stopRestTimer } from '@/api/Workout';
 import { useActiveWorkoutStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { Alert, Dimensions, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -132,6 +133,10 @@ const SwipeAction = ({ progress, dragX, onPress, drag, iconSize = 24, style, ico
 
 // SetRow Component
 const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMode, swipeRef, onOpen, onClose, onUpdate, onInputFocus, onShowStatistics, exerciseId }: any) => {
+    const [showInsights, setShowInsights] = useState(false);
+    
+    // Check if set has bad insights
+    const hasBadInsights = set.insights?.bad && Object.keys(set.insights.bad).length > 0;
     const formatRestTimeForInput = (seconds: number) => {
         if (!seconds) return '';
         if (seconds < 60) return `${seconds}`;
@@ -155,7 +160,9 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
     // Match AddSetRow visibility condition, but also allow editing when workout is active
     // AddSetRow is visible when: !isViewOnly && (!isLocked || isEditMode)
     // But we also want sets editable when workout is active (isActive = true)
-    const isEditable = !isViewOnly && (!isLocked || isEditMode || isActive);
+    // In active workouts, sets should always be editable regardless of lock status
+    
+    const isEditable = !isViewOnly && (isActive || !isLocked || isEditMode);
 
     // Track the set ID to detect when we're looking at a different set
     const previousSetIdRef = React.useRef(set.id);
@@ -301,17 +308,33 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
     );
 
     const renderLeftActions = (progress: any, dragX: any) => {
-        if (!onShowStatistics || !exerciseId) return null;
-        return (
-            <SwipeAction
-                progress={progress}
-                dragX={dragX}
-                onPress={() => onShowStatistics(exerciseId)}
-                iconSize={20}
-                style={styles.analysisSetAction}
-                iconName="stats-chart-outline"
-            />
-        );
+        // Show insights if available, otherwise show statistics
+        if (set.insights && (set.insights.good || set.insights.bad)) {
+            return (
+                <SwipeAction
+                    progress={progress}
+                    dragX={dragX}
+                    onPress={() => setShowInsights(true)}
+                    iconSize={20}
+                    style={styles.insightsSetAction}
+                    iconName="bulb-outline"
+                />
+            );
+        }
+        // Fallback to statistics if no insights
+        if (onShowStatistics && exerciseId) {
+            return (
+                <SwipeAction
+                    progress={progress}
+                    dragX={dragX}
+                    onPress={() => onShowStatistics(exerciseId)}
+                    iconSize={20}
+                    style={styles.analysisSetAction}
+                    iconName="stats-chart-outline"
+                />
+            );
+        }
+        return null;
     };
 
     const formatRestTime = (seconds: number) => {
@@ -345,9 +368,9 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
             leftThreshold={40}
             rightThreshold={40}
         >
-            <View style={styles.setRow}>
+            <View style={[styles.setRow, hasBadInsights && styles.setRowWithBadInsights]}>
                 <Text style={[styles.setText, {maxWidth: 30}, set.is_warmup && { color: '#FF9F0A', fontWeight: 'bold' }]}>
-                    {set.is_warmup ? 'W' : index + 1}
+                    {set.is_warmup ? 'W' : String(index + 1)}
                 </Text>
                 {isEditable ? (
                     <TextInput
@@ -366,6 +389,7 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                         keyboardType="numbers-and-punctuation"
                         placeholder="Rest"
                         placeholderTextColor="#8E8E93"
+                        editable={true}
                     />
                 ) : (
                     <Text style={[styles.setText, {}]}>{formatRestTime(set.rest_time_before_set)}</Text>
@@ -399,6 +423,7 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                         keyboardType="numeric"
                         placeholder="kg"
                         placeholderTextColor="#8E8E93"
+                        editable={true}
                     />
                 ) : (
                     <Text style={[styles.setText, {}]}>{formatWeight(set.weight)}</Text>
@@ -420,9 +445,10 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                         keyboardType="numeric"
                         placeholder="reps"
                         placeholderTextColor="#8E8E93"
+                        editable={true}
                     />
                 ) : (
-                    <Text style={[styles.setText, {}]}>{set.reps}</Text>
+                    <Text style={[styles.setText, {}]}>{String(set.reps)}</Text>
                 )}
                 {isEditable ? (
                     <TextInput
@@ -441,11 +467,106 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                         keyboardType="numeric"
                         placeholder="RIR"
                         placeholderTextColor="#8E8E93"
+                        editable={true}
                     />
                 ) : (
                     <Text style={[styles.setText, {}]}>{set.reps_in_reserve != null ? set.reps_in_reserve.toString() : '-'}</Text>
                 )}
             </View>
+            
+            {/* Insights Modal */}
+            <Modal
+                visible={showInsights}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowInsights(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setShowInsights(false)}>
+                    <View style={styles.insightsModalOverlay}>
+                        <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                            <View style={styles.insightsModalContent}>
+                                <View style={styles.insightsModalHeader}>
+                                    <Text style={styles.insightsModalTitle}>Set {set.set_number} Insights</Text>
+                                    <TouchableOpacity onPress={() => setShowInsights(false)}>
+                                        <Ionicons name="close" size={24} color="#FFFFFF" />
+                                    </TouchableOpacity>
+                                </View>
+                                
+                                <ScrollView style={styles.insightsModalBody}>
+                                    {set.insights?.good && Object.keys(set.insights.good).length > 0 && (
+                                        <View style={styles.insightsSection}>
+                                            <View style={styles.insightsSectionHeader}>
+                                                <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+                                                <Text style={styles.insightsSectionTitle}>Good</Text>
+                                            </View>
+                                            {Object.entries(set.insights.good).map(([key, insight]: [string, any]) => (
+                                                <View key={key} style={styles.insightItem}>
+                                                    <Text style={styles.insightReason}>{insight.reason}</Text>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    )}
+                                    
+                                    {set.insights?.bad && Object.keys(set.insights.bad).length > 0 && (
+                                        <View style={styles.insightsSection}>
+                                            <View style={styles.insightsSectionHeader}>
+                                                <Ionicons name="alert-circle" size={20} color="#FF3B30" />
+                                                <Text style={styles.insightsSectionTitle}>Areas to Improve</Text>
+                                            </View>
+                                            {Object.entries(set.insights.bad).map(([key, insight]: [string, any]) => (
+                                                <View key={key} style={styles.insightItem}>
+                                                    <Text style={styles.insightReason}>{insight.reason}</Text>
+                                                    {insight.current_reps && (
+                                                        <Text style={styles.insightDetail}>
+                                                            Current: {insight.current_reps} reps
+                                                        </Text>
+                                                    )}
+                                                    {insight.optimal_range && (
+                                                        <Text style={styles.insightDetail}>
+                                                            Optimal: {insight.optimal_range}
+                                                        </Text>
+                                                    )}
+                                                    {insight.current_tut && (
+                                                        <Text style={styles.insightDetail}>
+                                                            Current TUT: {insight.current_tut}s
+                                                        </Text>
+                                                    )}
+                                                    {insight.seconds_per_rep && (
+                                                        <Text style={styles.insightDetail}>
+                                                            {insight.seconds_per_rep}s per rep
+                                                        </Text>
+                                                    )}
+                                                    {insight.set_position && (
+                                                        <Text style={styles.insightDetail}>
+                                                            Set Position: {insight.set_position}
+                                                        </Text>
+                                                    )}
+                                                    {insight.total_sets && (
+                                                        <Text style={styles.insightDetail}>
+                                                            Total Sets: {insight.total_sets}
+                                                        </Text>
+                                                    )}
+                                                    {insight.optimal_sets && (
+                                                        <Text style={styles.insightDetail}>
+                                                            Optimal: {insight.optimal_sets}
+                                                        </Text>
+                                                    )}
+                                                </View>
+                                            ))}
+                                        </View>
+                                    )}
+                                    
+                                    {(!set.insights || (Object.keys(set.insights.good || {}).length === 0 && Object.keys(set.insights.bad || {}).length === 0)) && (
+                                        <View style={styles.insightsSection}>
+                                            <Text style={styles.noInsightsText}>No insights available for this set.</Text>
+                                        </View>
+                                    )}
+                                </ScrollView>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
         </ReanimatedSwipeable>
     );
 };
@@ -624,7 +745,7 @@ const RestTimePicker = ({ value, onValueChange, onFocus, editable = true }: { va
         return (
             <View style={[styles.setInput, styles.addSetInput, styles.pickerInput, { opacity: 0.6 }]}>
                 <Text style={[styles.setText, { color: value ? '#FFFFFF' : '#8E8E93' }]}>
-                    {value ? formatRestTime(value.minutes, value.seconds) : timerText}
+                    {value ? formatRestTime(value.minutes, value.seconds) : (timerText || 'Rest')}
                 </Text>
             </View>
         );
@@ -645,7 +766,7 @@ const RestTimePicker = ({ value, onValueChange, onFocus, editable = true }: { va
                 }}
             >
                 <Text style={[styles.setText, { color: value ? '#FFFFFF' : '#8E8E93' }]}>
-                    {value ? formatRestTime(value.minutes, value.seconds) : timerText}
+                    {value ? formatRestTime(value.minutes, value.seconds) : (timerText || 'Rest')}
                 </Text>
             </TouchableOpacity>
             <Modal
@@ -874,7 +995,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
                     style={{ width: 30, alignItems: 'center', paddingVertical: 10, opacity: isTracking ? 0.6 : 1 }}
                 >
                     <Text style={[styles.setText, { color: inputs.isWarmup ? '#FF9F0A' : '#8E8E93', fontWeight: inputs.isWarmup ? 'bold' : 'normal' }]}>
-                        {inputs.isWarmup ? 'W' : nextSetNumber}
+                        {inputs.isWarmup ? 'W' : String(nextSetNumber)}
                     </Text>
                 </TouchableOpacity>
 
@@ -984,7 +1105,13 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
                         }
                     }}
                     disabled={!inputs.weight || (isStopped && inputs.reps === null)}
+                    activeOpacity={0.8}
                 >
+                    {(isActive && isInitial) ? (
+                        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#48484A', borderRadius: 10 }]} />
+                    ) : isTracking ? (
+                        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#48484A', borderRadius: 10 }]} />
+                    ) : null}
                     <Text style={[
                         styles.addSetButtonText,
                         isTracking && styles.stopSetButtonText,
@@ -1105,6 +1232,12 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
             rightThreshold={40}
         >
             <View style={[styles.exerciseCard, { marginBottom: 0 }]}>
+                <LinearGradient
+                    colors={['#1F1F22', '#1A1A1C', '#1F1F22']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFillObject}
+                />
                 <View style={styles.exerciseRow}>
                 <TouchableOpacity
                     onLongPress={isViewOnly ? undefined : drag}
@@ -1118,7 +1251,13 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                     <View style={styles.exerciseInfo}>
                         <View style={styles.exerciseNameRow}>
                             <Text style={styles.exerciseName}>
-                                {exercise.name || ''} {isLocked && <Ionicons name="lock-closed" size={14} color="#8E8E93" />}
+                                {exercise.name || ''}
+                                {isLocked && (
+                                    <>
+                                        {' '}
+                                        <Ionicons name="lock-closed" size={14} color="#8E8E93" />
+                                    </>
+                                )}
                             </Text>
                             <TouchableOpacity 
                                 onPress={() => setShowMenu(true)}
@@ -1170,7 +1309,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                         }}
 >                        <View style={styles.setsHeader}>
                             <Text style={[styles.setHeaderText, {maxWidth: 30}]}>Set</Text>
-                            <Text style={[styles.setHeaderText, {}]}>Rest (before starting set)</Text>
+                            <Text style={[styles.setHeaderText, {}]}>Rest</Text>
                             <Text style={[styles.setHeaderText, {}]}>Weight</Text>
                             <Text style={[styles.setHeaderText, {}]}>Reps</Text>
                             <Text style={[styles.setHeaderText, {}]}>RIR</Text>
@@ -1338,15 +1477,19 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
 
 const styles = StyleSheet.create({
     exerciseCard: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 22,
-        marginBottom: 16,
-        padding: 16,
+        backgroundColor: '#1A1A1C',
+        borderRadius: 16,
+        marginBottom: 12,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: '#2A2A2E',
         shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 20,
+        elevation: 3,
+        overflow: 'hidden',
+        position: 'relative',
     },
     exerciseRow: {
         flexDirection: 'row',
@@ -1360,13 +1503,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 6,
     },
     exerciseName: {
         color: '#FFFFFF',
         fontSize: 17,
-        fontWeight: '400',
+        fontWeight: '700',
         flex: 1,
+        letterSpacing: -0.4,
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     exerciseMenuButton: {
         padding: 8,
@@ -1379,23 +1526,26 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     menuModalContent: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 22,
-        padding: 16,
-        minWidth: 200,
+        backgroundColor: '#1A1A1C',
+        borderRadius: 24,
+        padding: 8,
+        minWidth: 220,
         borderWidth: 1,
-        borderColor: '#2C2C2E',
+        borderColor: '#2A2A2E',
         shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 32,
+        elevation: 8,
     },
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 16,
+        paddingVertical: 14,
         paddingHorizontal: 16,
+        borderRadius: 12,
+        marginHorizontal: 4,
+        marginVertical: 2,
     },
     menuItemDelete: {
         borderTopWidth: 1,
@@ -1405,7 +1555,8 @@ const styles = StyleSheet.create({
     menuItemText: {
         color: '#FFFFFF',
         fontSize: 17,
-        fontWeight: '400',
+        fontWeight: '500',
+        letterSpacing: -0.2,
     },
     menuItemTextDelete: {
         color: '#FF3B30',
@@ -1427,38 +1578,43 @@ const styles = StyleSheet.create({
     },
     exerciseTag: {
         backgroundColor: '#2C2C2E',
-        paddingHorizontal: 8,
-        paddingVertical: 8,
-        borderRadius: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#3A3A3C',
         ...Platform.select({
-            web: { marginRight: 8, marginBottom: 8 },
+            web: { marginRight: 6, marginBottom: 6 },
             default: {},
         }),
     },
     primaryMuscleTag: {
-        // Slightly brighter for primary muscle distinction
+        backgroundColor: '#3A3A3C',
+        borderColor: '#48484A',
     },
     exerciseTagText: {
-        color: '#A1A1A6',
-        fontSize: 13,
-        fontWeight: '300',
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '500',
+        letterSpacing: 0.2,
     },
     secondaryMuscleTagText: {
         color: '#8E8E93',
-        fontSize: 12,
-        fontWeight: '300',
+        fontSize: 11,
+        fontWeight: '400',
+        letterSpacing: 0.1,
     },
     setsContainer: {
-        marginTop: 16,
-        paddingTop: 16,
+        marginTop: 12,
+        paddingTop: 12,
         borderTopWidth: 1,
-        borderTopColor: '#2C2C2E',
+        borderTopColor: '#2A2A2E',
     },
     setsHeader: {
         flex: 1,
         flexDirection: 'row',
-        marginBottom: 8,
-        paddingLeft: 8,
+        marginBottom: 6,
+        paddingLeft: 4,
         ...Platform.select({
             web: {
                 display: 'flex',
@@ -1469,9 +1625,11 @@ const styles = StyleSheet.create({
     setHeaderText: {
         flex: 1,
         color: '#8E8E93',
-        fontSize: 13,
-        fontWeight: '300',
+        fontSize: 11,
+        fontWeight: '600',
         textAlign: 'center',
+        letterSpacing: 0.3,
+        textTransform: 'uppercase',
         ...Platform.select({
             web: {
                 ...(IS_WEB_SMALL && {
@@ -1488,24 +1646,22 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         paddingBottom: 8,
         paddingTop: 8,
-        paddingHorizontal: 0,
+        paddingHorizontal: 4,
         alignItems: 'center',
-        backgroundColor: '#1C1C1E',
-        ...Platform.select({
-            web: {
-                display: 'flex',
-                width: '100%',
-                ...(IS_WEB_SMALL && {
-                    paddingBottom: 8,
-                    paddingTop: 8,
-                }),
-            },
-        }),
+        borderRadius: 8,
+        backgroundColor: 'transparent',
+    },
+    setRowWithBadInsights: {
+        borderWidth: 2,
+        borderColor: '#FF453A',
+        backgroundColor: 'rgba(255, 69, 58, 0.08)',
+        borderStyle: 'solid',
     },
     setText: {
         flex: 1,
         color: '#FFFFFF',
-        fontSize: 17,
+        fontSize: 15,
+        fontWeight: '500',
         textAlign: 'center',
         fontVariant: ['tabular-nums'],
         lineHeight: 20,
@@ -1531,16 +1687,16 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         textAlignVertical: 'center',
         color: '#FFFFFF',
-        fontSize: 17,
+        fontSize: 16,
         fontVariant: ['tabular-nums'],
         backgroundColor: 'transparent',
         borderBottomWidth: 1,
         borderBottomColor: '#3A3A3C',
-        paddingVertical: 8,
-        paddingBottom: 8,
-        marginHorizontal: 8,
-        minHeight: 48,
-        lineHeight: 20,
+        paddingVertical: 6,
+        paddingBottom: 6,
+        marginHorizontal: 6,
+        minHeight: 40,
+        lineHeight: 18,
         ...Platform.select({
             android: { includeFontPadding: false },
             web: {
@@ -1554,10 +1710,10 @@ const styles = StyleSheet.create({
                 ...(IS_WEB_SMALL && {
                     fontSize: 13,
                     lineHeight: 16,
-                    paddingVertical: 8,
-                    paddingBottom: 8,
-                    marginHorizontal: 8,
-                    minHeight: 40,
+                    paddingVertical: 6,
+                    paddingBottom: 6,
+                    marginHorizontal: 6,
+                    minHeight: 36,
                     maxWidth: 72,
                     flex: 0,
                     minWidth: 64,
@@ -1574,18 +1730,19 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
     },
     addSetRowContainer: {
-        backgroundColor: '#1A1A1C',
-        borderRadius: 8,
-        paddingHorizontal: 8,
+        backgroundColor: '#1E1E20',
+        borderRadius: 10,
+        paddingHorizontal: 10,
         marginTop: 8,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
+        borderWidth: 1.5,
+        borderColor: '#3A3A3C',
+        borderStyle: 'dashed',
     },
     addSetInput: {
-        backgroundColor: '#2C2C2E',
-        borderBottomWidth: 1,
-        borderBottomColor: '#6366F1',
-        borderRadius: 4,
+        backgroundColor: '#252528',
+        borderBottomWidth: 1.5,
+        borderBottomColor: '#48484A',
+        borderRadius: 6,
         ...Platform.select({
             web: {
                 outline: 'none',
@@ -1607,7 +1764,15 @@ const styles = StyleSheet.create({
         borderRadius: 0,
     },
     analysisSetAction: {
-        backgroundColor: '#6366F1',
+        backgroundColor: '#48484A',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: 60,
+        height: '100%',
+        borderRadius: 0,
+    },
+    insightsSetAction: {
+        backgroundColor: '#FF9F0A',
         justifyContent: 'center',
         alignItems: 'center',
         width: 60,
@@ -1615,47 +1780,66 @@ const styles = StyleSheet.create({
         borderRadius: 0,
     },
     addSetButton: {
-        marginTop: 16,
+        marginTop: 12,
         backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: '#6366F1',
-        borderRadius: 8,
-        paddingVertical: 8,
+        borderWidth: 1.5,
+        borderColor: '#48484A',
+        borderRadius: 10,
+        paddingVertical: 10,
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
+        overflow: 'hidden',
+        position: 'relative',
     },
     startSetButton: {
-        backgroundColor: '#8B5CF6',
-        borderColor: '#8B5CF6',
+        borderColor: '#48484A',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 2,
+        borderWidth: 0,
     },
     stopSetButton: {
-        backgroundColor: '#FF9500',
-        borderColor: '#FF9500',
+        borderColor: '#48484A',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 2,
+        borderWidth: 0,
     },
     addSetButtonText: {
-        color: '#6366F1',
+        color: '#FFFFFF',
         fontSize: 17,
-        fontWeight: '400',
+        fontWeight: '600',
+        letterSpacing: 0.2,
     },
     stopSetButtonText: {
         color: '#FFFFFF',
+        fontWeight: '700',
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     tutTimerContainer: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 8,
+        backgroundColor: '#1E1E20',
+        borderRadius: 12,
         paddingVertical: 12,
         paddingHorizontal: 16,
-        marginTop: 16,
+        marginTop: 12,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#2C2C2E',
+        borderColor: '#2A2A2E',
     },
     tutTimerLabel: {
         color: '#8E8E93',
-        fontSize: 13,
-        fontWeight: '400',
-        marginBottom: 8,
+        fontSize: 12,
+        fontWeight: '600',
+        letterSpacing: 0.3,
+        textTransform: 'uppercase',
+        marginBottom: 6,
     },
     tutInputContainer: {
         flexDirection: 'row',
@@ -1664,7 +1848,7 @@ const styles = StyleSheet.create({
     },
     tutInput: {
         color: '#0A84FF',
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: '700',
         fontVariant: ['tabular-nums'],
         textAlign: 'center',
@@ -1689,6 +1873,10 @@ const styles = StyleSheet.create({
     },
     startSetButtonText: {
         color: '#FFFFFF',
+        fontWeight: '700',
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     pickerInput: {
         justifyContent: 'center',
@@ -1807,6 +1995,81 @@ const styles = StyleSheet.create({
         height: '100%',
         borderRadius: 22,
         marginRight: 8,
+    },
+    insightsModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    insightsModalContent: {
+        backgroundColor: '#1A1A1C',
+        borderRadius: 24,
+        width: '90%',
+        maxHeight: '80%',
+        borderWidth: 1.5,
+        borderColor: '#2A2A2E',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 32,
+        elevation: 12,
+    },
+    insightsModalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#2C2C2E',
+    },
+    insightsModalTitle: {
+        color: '#FFFFFF',
+        fontSize: 20,
+        fontWeight: '700',
+    },
+    insightsModalBody: {
+        padding: 20,
+        maxHeight: 500,
+    },
+    insightsSection: {
+        marginBottom: 24,
+    },
+    insightsSectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        gap: 8,
+    },
+    insightsSectionTitle: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: '600',
+    },
+    insightItem: {
+        backgroundColor: '#252528',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#323236',
+    },
+    insightReason: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        lineHeight: 22,
+        marginBottom: 8,
+    },
+    insightDetail: {
+        color: '#8E8E93',
+        fontSize: 13,
+        marginTop: 4,
+    },
+    noInsightsText: {
+        color: '#8E8E93',
+        fontSize: 15,
+        textAlign: 'center',
+        fontStyle: 'italic',
     },
 });
 

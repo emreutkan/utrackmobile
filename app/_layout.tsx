@@ -1,4 +1,5 @@
 import AuthCheck from '@/components/AuthCheck';
+import BottomNavigator from '@/components/BottomNavigator';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -14,7 +15,7 @@ export default function RootLayout() {
     <AuthCheck>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack 
+            <Stack 
             screenOptions={{ 
               headerShown: false,
               contentStyle: { backgroundColor: 'black' }
@@ -35,6 +36,7 @@ export default function RootLayout() {
             <Stack.Screen name="(templates)" />
             <Stack.Screen name="(volume-analysis)" />
           </Stack>
+          <BottomNavigator />
           <StatusBar style="light" />
         </ThemeProvider>
       </GestureHandlerRootView>

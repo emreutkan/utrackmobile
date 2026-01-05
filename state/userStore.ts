@@ -99,3 +99,27 @@ export const useActiveWorkoutStore = create<ActiveWorkoutState>((set) => ({
     setLastSetTimestamp: (timestamp) => set({ lastSetTimestamp: timestamp }),
     setLastExerciseCategory: (category) => set({ lastExerciseCategory: category }),
 }));
+
+interface HomeLoadingState {
+    isInitialLoadComplete: boolean;
+    todayStatus: any | null;
+    recoveryStatus: Record<string, any> | null;
+    setInitialLoadComplete: (complete: boolean) => void;
+    setTodayStatus: (status: any) => void;
+    setRecoveryStatus: (status: Record<string, any>) => void;
+    clearHomeData: () => void;
+}
+
+export const useHomeLoadingStore = create<HomeLoadingState>((set) => ({
+    isInitialLoadComplete: false,
+    todayStatus: null,
+    recoveryStatus: null,
+    setInitialLoadComplete: (complete) => set({ isInitialLoadComplete: complete }),
+    setTodayStatus: (status) => set({ todayStatus: status }),
+    setRecoveryStatus: (status) => set({ recoveryStatus: status }),
+    clearHomeData: () => set({ 
+        isInitialLoadComplete: false, 
+        todayStatus: null, 
+        recoveryStatus: null 
+    }),
+}));

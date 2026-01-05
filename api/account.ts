@@ -100,3 +100,25 @@ export const deleteWeightEntry = async (weightId: number, deleteBodyfat: boolean
         return error.message || 'An unknown error occurred';
     }
 }
+
+export interface ExportDataResponse {
+    download_url: string;
+    expires_at?: string;
+    message?: string;
+}
+
+export const exportUserData = async (): Promise<ExportDataResponse | any> => {
+    try {
+        const response = await apiClient.post('/user/export-data/');
+        if (response.status === 200 || response.status === 201) {
+            return response.data;
+        } else {
+            return { error: response.data?.error || 'Failed to export user data' };
+        }
+    } catch (error: any) {
+        if (error.response) {
+            return error.response.data || { error: 'An unknown error occurred' };
+        }
+        return { error: error.message || 'An unknown error occurred' };
+    }
+}

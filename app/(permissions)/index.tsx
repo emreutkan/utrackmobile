@@ -3,157 +3,173 @@ import UnifiedHeader from '@/components/UnifiedHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+    ActivityIndicator,
+    Alert,
+    Linking,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// --- Design Tokens ---
+const COLORS = {
+    bg: '#000000',
+    card: '#1C1C1E',
+    primary: '#0A84FF',
+    success: '#32D74B',
+    text: '#FFFFFF',
+    textSecondary: '#8E8E93',
+    border: '#2C2C2E',
+};
 
 export default function PermissionsScreen() {
     const insets = useSafeAreaInsets();
-    const [hasHealthPermission, setHasHealthPermission] = useState<boolean | null>(null);
-    const [isChecking, setIsChecking] = useState(true);
+    const [status, setStatus] = useState<'granted' | 'denied' | 'undetermined' | 'loading'>('loading');
     const [isRequesting, setIsRequesting] = useState(false);
 
     useEffect(() => {
-        checkHealthPermission();
+        checkPermission();
     }, []);
 
-    const checkHealthPermission = async () => {
-        setIsChecking(true);
+    const checkPermission = async () => {
         try {
+            // Add a small artificial delay for smoother UI transition if it's too fast
             const hasPermission = await healthService.checkPermissionStatus();
-            setHasHealthPermission(hasPermission);
+            setStatus(hasPermission ? 'granted' : 'undetermined');
         } catch (error) {
-            console.log('Error checking health permission:', error);
-            setHasHealthPermission(false);
-        } finally {
-            setIsChecking(false);
+            console.log('Error checking permission:', error);
+            setStatus('denied');
         }
     };
 
-    const handleRequestHealthPermission = async () => {
+    const handleRequest = async () => {
         setIsRequesting(true);
         try {
             const success = await healthService.initialize();
             if (success) {
-                setHasHealthPermission(true);
-                Alert.alert(
-                    'Success',
-                    `Health permissions granted successfully. You can now see your step count on the home screen.`,
-                    [{ text: 'OK' }]
-                );
+                setStatus('granted');
+                Alert.alert("All Set", "Step tracking is now active.");
             } else {
-                Alert.alert(
-                    'Permission Denied',
-                    Platform.OS === 'ios'
-                        ? 'HealthKit permissions were denied. Please enable them in Settings > Privacy & Security > Health.'
-                        : 'Google Fit permissions were denied. Please enable them in your device settings.',
-                    [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Check Again', onPress: checkHealthPermission },
-                    ]
-                );
+                setStatus('denied');
+                // If denied on iOS, we usually need to send them to settings manually
+                if (Platform.OS === 'ios') {
+                    Alert.alert(
+                        "Permission Required",
+                        "Health access was previously denied. Please enable 'Steps' in Settings.",
+                        [
+                            { text: "Cancel", style: "cancel" },
+                            { text: "Open Settings", onPress: () => Linking.openSettings() }
+                        ]
+                    );
+                }
             }
-        } catch (error: any) {
-            Alert.alert('Error', error?.message || 'Failed to request health permissions');
+        } catch (error) {
+            setStatus('denied');
         } finally {
             setIsRequesting(false);
         }
     };
 
-    const getHealthInstructions = () => {
-        if (Platform.OS === 'ios') {
-            return [
-                '1. Tap "Request Health Permissions" below',
-                '2. Allow access to step count when prompted',
-                '3. If denied, go to Settings > Privacy & Security > Health > uTrack',
-                '4. Enable "Read Steps" permission',
-            ];
-        } else {
-            return [
-                '1. Tap "Request Health Permissions" below',
-                '2. Sign in to your Google account if prompted',
-                '3. Grant access to Google Fit activity data',
-                '4. If denied, go to Settings > Apps > Google Fit > Permissions',
-                '5. Enable "Physical Activity" permission',
-            ];
+    const instructions = Platform.OS === 'ios' ? [
+        "Tap 'Enable Integration' below.",
+        "Toggle 'Turn All Categories On' or select 'Steps'.",
+        "Tap 'Allow' at the top right."
+    ] : [
+        "Tap 'Enable Integration' below.",
+        "Select your Google Account.",
+        "Allow access to physical activity."
+    ];
+
+    const renderStatusHero = () => {
+        if (status === 'loading') {
+            return (
+                <View style={styles.heroContainer}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                    <Text style={styles.heroTitle}>Checking Status...</Text>
+                </View>
+            );
         }
+
+        const isGranted = status === 'granted';
+        return (
+            <View style={styles.heroContainer}>
+                <View style={[styles.iconCircle, { backgroundColor: isGranted ? 'rgba(50, 215, 75, 0.1)' : 'rgba(10, 132, 255, 0.1)' }]}>
+                    <Ionicons 
+                        name={isGranted ? "checkmark-circle" : "heart"} 
+                        size={48} 
+                        color={isGranted ? COLORS.success : COLORS.primary} 
+                    />
+                </View>
+                <Text style={styles.heroTitle}>
+                    {isGranted ? "Health Access Active" : "Health Access Inactive"}
+                </Text>
+                <Text style={styles.heroSubtitle}>
+                    {isGranted 
+                        ? "Your step count is automatically syncing with Apple Health."
+                        : "Enable access to view your daily step count and activity trends directly in uTrack."
+                    }
+                </Text>
+            </View>
+        );
     };
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <UnifiedHeader 
-                title="Permissions"
-                onBackPress={() => router.back()}
-                backButtonText="Account"
+                title="Integrations" 
+                onBackPress={() => router.back()} 
+                backButtonText="Settings"
             />
 
-            <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40, paddingTop: 84 }}>
-                <View style={styles.section}>
-                    <View style={styles.permissionCard}>
-                        <View style={styles.permissionHeader}>
-                            <Ionicons 
-                                name={Platform.OS === 'ios' ? 'heart-outline' : 'fitness-outline'} 
-                                size={24} 
-                                color="#0A84FF" 
-                            />
-                            <Text style={styles.permissionTitle}>Health Permissions</Text>
+            <ScrollView contentContainerStyle={[styles.content, { marginTop: 58 }]}>
+                {renderStatusHero()}
+
+                {status !== 'granted' && status !== 'loading' && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionHeader}>SETUP INSTRUCTIONS</Text>
+                        <View style={styles.card}>
+                            {instructions.map((step, index) => (
+                                <View key={index} style={[styles.stepRow, index !== instructions.length - 1 && styles.stepBorder]}>
+                                    <View style={styles.stepNumber}>
+                                        <Text style={styles.stepNumberText}>{index + 1}</Text>
+                                    </View>
+                                    <Text style={styles.stepText}>{step}</Text>
+                                </View>
+                            ))}
                         </View>
-
-                        {isChecking ? (
-                            <View style={styles.checkingContainer}>
-                                <ActivityIndicator size="small" color="#0A84FF" />
-                                <Text style={styles.checkingText}>Checking permissions...</Text>
-                            </View>
-                        ) : hasHealthPermission ? (
-                            <View style={styles.grantedContainer}>
-                                <View style={styles.grantedBadge}>
-                                    <Ionicons name="checkmark-circle" size={24} color="#32D74B" />
-                                    <Text style={styles.grantedText}>Permissions Granted</Text>
-                                </View>
-                                <Text style={styles.grantedDescription}>
-                                    You can see your daily step count on the home screen.
-                                </Text>
-                                <TouchableOpacity
-                                    style={styles.refreshButton}
-                                    onPress={checkHealthPermission}
-                                >
-                                    <Text style={styles.refreshButtonText}>Refresh Status</Text>
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <View style={styles.requestContainer}>
-                                <Text style={styles.requestDescription}>
-                                    Grant access to your health data to view your daily step count.
-                                </Text>
-                                
-                                <View style={styles.instructionsContainer}>
-                                    <Text style={styles.instructionsTitle}>How to enable:</Text>
-                                    {getHealthInstructions().map((instruction, index) => (
-                                        <Text key={index} style={styles.instructionText}>
-                                            {instruction}
-                                        </Text>
-                                    ))}
-                                </View>
-
-                                <TouchableOpacity
-                                    style={[styles.requestButton, isRequesting && styles.requestButtonDisabled]}
-                                    onPress={handleRequestHealthPermission}
-                                    disabled={isRequesting}
-                                >
-                                    {isRequesting ? (
-                                        <>
-                                            <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-                                            <Text style={styles.requestButtonText}>Requesting...</Text>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Ionicons name="shield-checkmark" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                                            <Text style={styles.requestButtonText}>Request Health Permissions</Text>
-                                        </>
-                                    )}
-                                </TouchableOpacity>
-                            </View>
-                        )}
                     </View>
+                )}
+
+                <View style={styles.actionContainer}>
+                    {status === 'granted' ? (
+                        <TouchableOpacity style={styles.secondaryButton} onPress={checkPermission}>
+                            <Text style={styles.secondaryButtonText}>Refresh Status</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity 
+                            style={[styles.primaryButton, isRequesting && { opacity: 0.7 }]} 
+                            onPress={handleRequest}
+                            disabled={isRequesting || status === 'loading'}
+                        >
+                            {isRequesting ? (
+                                <ActivityIndicator color="#FFF" />
+                            ) : (
+                                <Text style={styles.primaryButtonText}>Enable Integration</Text>
+                            )}
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                <View style={styles.privacyContainer}>
+                    <Ionicons name="lock-closed" size={14} color={COLORS.textSecondary} />
+                    <Text style={styles.privacyText}>
+                        Your health data is stored locally on your device and is only used to display your daily metrics.
+                    </Text>
                 </View>
             </ScrollView>
         </View>
@@ -163,116 +179,126 @@ export default function PermissionsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000000',
+        backgroundColor: COLORS.bg,
     },
     content: {
+        padding: 20,
+        paddingBottom: 40,
+    },
+    // Hero
+    heroContainer: {
+        alignItems: 'center',
+        paddingVertical: 32,
+        marginBottom: 24,
+    },
+    iconCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    heroTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: COLORS.text,
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    heroSubtitle: {
+        fontSize: 16,
+        color: COLORS.textSecondary,
+        textAlign: 'center',
+        lineHeight: 22,
+        maxWidth: '80%',
+    },
+    // Section
+    section: {
+        marginBottom: 32,
+    },
+    sectionHeader: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: COLORS.textSecondary,
+        marginBottom: 8,
+        marginLeft: 16,
+        textTransform: 'uppercase',
+    },
+    card: {
+        backgroundColor: COLORS.card,
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    stepRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        gap: 16,
+    },
+    stepBorder: {
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: COLORS.border,
+    },
+    stepNumber: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: COLORS.border,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    stepNumberText: {
+        color: COLORS.text,
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    stepText: {
+        color: COLORS.text,
+        fontSize: 16,
         flex: 1,
     },
-    section: {
-        marginHorizontal: 16,
-        marginTop: 24,
-    },
-    permissionCard: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 16,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-    },
-    permissionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 20,
+    // Actions
+    actionContainer: {
         gap: 12,
+        marginBottom: 24,
     },
-    permissionTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#FFFFFF',
-    },
-    checkingContainer: {
-        alignItems: 'center',
-        paddingVertical: 20,
-    },
-    checkingText: {
-        color: '#8E8E93',
-        fontSize: 15,
-        marginTop: 12,
-    },
-    grantedContainer: {
-        alignItems: 'center',
-    },
-    grantedBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 12,
-    },
-    grantedText: {
-        color: '#32D74B',
-        fontSize: 17,
-        fontWeight: '600',
-    },
-    grantedDescription: {
-        color: '#8E8E93',
-        fontSize: 15,
-        textAlign: 'center',
-        marginBottom: 20,
-    },
-    refreshButton: {
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        backgroundColor: '#2C2C2E',
-    },
-    refreshButtonText: {
-        color: '#0A84FF',
-        fontSize: 15,
-        fontWeight: '600',
-    },
-    requestContainer: {
-        alignItems: 'stretch',
-    },
-    requestDescription: {
-        color: '#FFFFFF',
-        fontSize: 15,
-        marginBottom: 20,
-        lineHeight: 22,
-    },
-    instructionsContainer: {
-        backgroundColor: '#2C2C2E',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 20,
-    },
-    instructionsTitle: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 12,
-    },
-    instructionText: {
-        color: '#8E8E93',
-        fontSize: 14,
-        lineHeight: 20,
-        marginBottom: 8,
-    },
-    requestButton: {
-        flexDirection: 'row',
+    primaryButton: {
+        backgroundColor: COLORS.primary,
+        paddingVertical: 16,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#0A84FF',
-        borderRadius: 12,
-        paddingVertical: 16,
-        paddingHorizontal: 20,
     },
-    requestButtonDisabled: {
-        opacity: 0.6,
-    },
-    requestButtonText: {
+    primaryButtonText: {
         color: '#FFFFFF',
         fontSize: 17,
         fontWeight: '600',
     },
+    secondaryButton: {
+        backgroundColor: COLORS.card,
+        paddingVertical: 16,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    secondaryButtonText: {
+        color: COLORS.primary,
+        fontSize: 17,
+        fontWeight: '600',
+    },
+    // Privacy
+    privacyContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 6,
+        paddingHorizontal: 24,
+        opacity: 0.8,
+    },
+    privacyText: {
+        fontSize: 13,
+        color: COLORS.textSecondary,
+        textAlign: 'center',
+        lineHeight: 18,
+    },
 });
-

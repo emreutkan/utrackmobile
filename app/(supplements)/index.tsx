@@ -1,848 +1,537 @@
 import { addUserSupplement, deleteSupplementLog, getSupplementLogs, getSupplements, getTodayLogs, getUserSupplements, logUserSupplement, Supplement, SupplementLog, UserSupplement } from '@/api/Supplements';
-import UnifiedHeader from '@/components/UnifiedHeader';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { Stack, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// ============================================================================
+// 1. COMPONENTS
+// ============================================================================
+
+const SwipeDeleteAction = ({ progress, onPress }: any) => {
+    const animatedStyle = useAnimatedStyle(() => {
+        const scale = interpolate(progress.value, [0, 1], [0.5, 1], Extrapolation.CLAMP);
+        return { transform: [{ scale }] };
+    });
+
+    return (
+        <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.deleteAction}>
+            <Animated.View style={animatedStyle}>
+                <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+            </Animated.View>
+        </TouchableOpacity>
+    );
+};
+
+// ============================================================================
+// 2. MAIN SCREEN
+// ============================================================================
 
 export default function SupplementsScreen() {
     const insets = useSafeAreaInsets();
+    
+    // --- Data State ---
     const [userSupplements, setUserSupplements] = useState<UserSupplement[]>([]);
     const [availableSupplements, setAvailableSupplements] = useState<Supplement[]>([]);
-    const [todayLogsMap, setTodayLogsMap] = useState<Map<number, boolean>>(new Map()); // Map of user_supplement_id -> isLoggedToday
-    const [viewingLogs, setViewingLogs] = useState<SupplementLog[]>([]); // For the logs modal
-    const [isAddModalVisible, setIsAddModalVisible] = useState(false);
-    const [isLogModalVisible, setIsLogModalVisible] = useState(false);
-    const [isLogsModalVisible, setIsLogsModalVisible] = useState(false);
-    const [selectedSupplement, setSelectedSupplement] = useState<Supplement | null>(null);
-    const [selectedUserSupplement, setSelectedUserSupplement] = useState<UserSupplement | null>(null);
-    const [selectedUserSupplementForLogs, setSelectedUserSupplementForLogs] = useState<UserSupplement | null>(null);
-    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
-    const [dosage, setDosage] = useState('');
-    const [frequency, setFrequency] = useState('daily');
-    const [timeOfDay, setTimeOfDay] = useState('');
-    const [logDate, setLogDate] = useState('');
-    const [logTime, setLogTime] = useState('');
-    const [logDosage, setLogDosage] = useState('');
+    const [todayLogsMap, setTodayLogsMap] = useState<Map<number, boolean>>(new Map());
+    
+    // --- UI State ---
+    const [modals, setModals] = useState({ add: false, history: false });
+    const [isLoading, setIsLoading] = useState(false);
+    
+    // --- Selection & Form State ---
+    const [selectedSupp, setSelectedSupp] = useState<UserSupplement | null>(null);
+    const [viewingLogs, setViewingLogs] = useState<SupplementLog[]>([]);
+    
+    const [addStep, setAddStep] = useState<1 | 2>(1);
+    const [newSuppData, setNewSuppData] = useState<{
+        base: Supplement | null,
+        dosage: string,
+        freq: string,
+        time: string
+    }>({ base: null, dosage: '', freq: 'daily', time: '' });
 
-    useEffect(() => {
-        loadData();
-        loadTodayLogsStatus();
-    }, []);
+    // --- Loading ---
 
     useFocusEffect(
         useCallback(() => {
-            // Refresh today's logs status when screen comes into focus
-            loadTodayLogsStatus();
+            loadData();
         }, [])
     );
 
     const loadData = async () => {
-        const [userData, allData] = await Promise.all([
-            getUserSupplements(),
-            getSupplements()
-        ]);
-        setUserSupplements(userData);
-        setAvailableSupplements(allData);
-        // Load today's logs to show indicators
-        loadTodayLogsStatus();
-    };
-
-    const loadTodayLogsStatus = async () => {
         try {
-            const todayLogsResponse = await getTodayLogs();
-            if (todayLogsResponse && todayLogsResponse.logs) {
-                // Create a map of user_supplement_id -> true for all supplements logged today
-                const loggedTodayMap = new Map<number, boolean>();
-                todayLogsResponse.logs.forEach(log => {
-                    loggedTodayMap.set(log.id, true);
-                });
-                setTodayLogsMap(loggedTodayMap);
-            } else {
-                setTodayLogsMap(new Map());
+            const [userData, allData, todayData] = await Promise.all([
+                getUserSupplements(),
+                getSupplements(),
+                getTodayLogs()
+            ]);
+            
+            setUserSupplements(userData);
+            setAvailableSupplements(allData);
+            
+            const logMap = new Map<number, boolean>();
+            if (todayData?.logs) {
+                todayData.logs.forEach(log => logMap.set(log.id, true));
             }
-        } catch (error) {
-            console.error('Error loading today logs:', error);
-            setTodayLogsMap(new Map());
-        } 
+            setTodayLogsMap(logMap);
+        } catch (e) { console.error(e); }
     };
 
-    const loadLogsForSupplement = async (userSupplementId: number) => {
-        setIsLoadingLogs(true);
+    const loadLogs = async (id: number) => {
+        setIsLoading(true);
         try {
-            const logs = await getSupplementLogs(userSupplementId);
+            const logs = await getSupplementLogs(id);
             setViewingLogs(logs);
-        } catch (error) {
-            console.error('Error loading logs:', error);
-            setViewingLogs([]);
-        } finally {
-            setIsLoadingLogs(false);
-        }
+        } catch (e) { console.error(e); } finally { setIsLoading(false); }
     };
 
-    const handleAddSupplement = async () => {
-        if (!selectedSupplement || !dosage) return;
+    // --- Actions ---
 
-        const result = await addUserSupplement({
-            supplement_id: selectedSupplement.id,
-            dosage: parseFloat(dosage),
-            frequency,
-            time_of_day: timeOfDay
-        });
-
-        if (result) {
-            setIsAddModalVisible(false);
-            resetForm();
-            loadData();
-        }
-    };
-
-    const resetForm = () => {
-        setSelectedSupplement(null);
-        setDosage('');
-        setFrequency('daily');
-        setTimeOfDay('');
-    };
-
-    const resetLogForm = () => {
-        setSelectedUserSupplement(null);
-        setLogDate('');
-        setLogTime('');
-        setLogDosage('');
-    };
-
-    const handleLogSupplement = (userSupplement: UserSupplement) => {
-        setSelectedUserSupplement(userSupplement);
+    const handleLog = async (item: UserSupplement) => {
+        // Immediate feedback
         const now = new Date();
-        setLogDate(now.toISOString().split('T')[0]);
-        const hours = now.getHours().toString().padStart(2, '0');
-        const minutes = now.getMinutes().toString().padStart(2, '0');
-        setLogTime(`${hours}:${minutes}`);
-        setLogDosage(userSupplement.dosage.toString());
-        setIsLogModalVisible(true);
-    };
-
-    const handleSaveLog = async () => {
-        if (!selectedUserSupplement || !logDate || !logTime || !logDosage) {
-            Alert.alert("Missing Information", "Please fill in all fields.");
-            return;
-        }
-
         const result = await logUserSupplement({
-            user_supplement_id: selectedUserSupplement.id,
-            date: logDate,
-            time: `${logTime}:00`,
-            dosage: parseFloat(logDosage)
+            user_supplement_id: item.id,
+            date: now.toISOString().split('T')[0],
+            time: `${now.getHours()}:${now.getMinutes()}:00`,
+            dosage: item.dosage
         });
 
         if (result) {
-            setIsLogModalVisible(false);
-            resetLogForm();
             loadData();
-            // Refresh today's logs status and viewing logs if applicable
-            loadTodayLogsStatus();
-            if (selectedUserSupplementForLogs && selectedUserSupplementForLogs.id === selectedUserSupplement.id) {
-                loadLogsForSupplement(selectedUserSupplement.id);
-            }
-            Alert.alert("Success", "Supplement logged successfully");
         } else {
-            Alert.alert("Error", "Failed to log supplement");
+            Alert.alert("Error", "Failed to log.");
         }
+    };
+
+    const handleAddSubmit = async () => {
+        if (!newSuppData.base || !newSuppData.dosage) return;
+        
+        const result = await addUserSupplement({
+            supplement_id: newSuppData.base.id,
+            dosage: parseFloat(newSuppData.dosage),
+            frequency: newSuppData.freq,
+            time_of_day: newSuppData.time
+        });
+
+        if (result) {
+            setModals(m => ({ ...m, add: false }));
+            setAddStep(1);
+            setNewSuppData({ base: null, dosage: '', freq: 'daily', time: '' });
+            loadData();
+        }
+    };
+
+    const openHistory = (item: UserSupplement) => {
+        setSelectedSupp(item);
+        setModals(m => ({ ...m, history: true }));
+        loadLogs(item.id);
     };
 
     const handleDeleteLog = async (logId: number) => {
-        Alert.alert(
-            "Delete Log",
-            "Are you sure you want to delete this log entry?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        const success = await deleteSupplementLog(logId);
-                        if (success) {
-                            // Refresh today's logs status
-                            loadTodayLogsStatus();
-                            // Refresh logs for the current supplement
-                            if (selectedUserSupplementForLogs) {
-                                loadLogsForSupplement(selectedUserSupplementForLogs.id);
-                            }
-                        } else {
-                            Alert.alert("Error", "Failed to delete log entry");
-                        }
-                    }
-                }
-            ]
-        );
+        await deleteSupplementLog(logId);
+        if (selectedSupp) loadLogs(selectedSupp.id);
+        loadData();
     };
 
-    const formatDateTime = (date: string, time: string) => {
-        const dateObj = new Date(`${date}T${time}`);
-        return dateObj.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        });
-    };
+    // --- Render Items ---
 
-    const renderUserSupplement = ({ item }: { item: UserSupplement }) => {
-        // Check if logged today from the map
-        const isLoggedToday = todayLogsMap.get(item.id) || false;
+    const renderItem = ({ item }: { item: UserSupplement }) => {
+        const isLogged = todayLogsMap.get(item.id);
 
         return (
-            <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle}>{item.supplement_details.name}</Text>
-                    <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{item.frequency}</Text>
-                    </View>
+            <TouchableOpacity 
+                style={styles.rowItem} 
+                activeOpacity={0.7}
+                onPress={() => openHistory(item)}
+            >
+                {/* Left: Info */}
+                <View style={styles.rowLeft}>
+                    <Text style={styles.rowTitle}>{item.supplement_details.name}</Text>
+                    <Text style={styles.rowSubtitle}>
+                        {item.dosage} {item.supplement_details.dosage_unit} • {item.frequency}
+                    </Text>
                 </View>
-                <View style={styles.cardContent}>
-                    <View style={styles.infoRow}>
-                        <Ionicons name="medical" size={16} color="#8E8E93" />
-                        <Text style={styles.infoText}>
-                            {item.dosage} {item.supplement_details.dosage_unit}
-                        </Text>
-                    </View>
-                    {item.time_of_day && (
-                        <View style={styles.infoRow}>
-                            <Ionicons name="time" size={16} color="#8E8E93" />
-                            <Text style={styles.infoText}>{item.time_of_day}</Text>
-                        </View>
-                    )}
-                </View>
-                <View style={styles.cardActions}>
-                    <TouchableOpacity 
-                        style={[styles.logButton, isLoggedToday && styles.logButtonLogged]}
-                        onPress={async () => {
-                            await handleLogSupplement(item);
-                            // Refresh today's logs status after logging
-                            loadTodayLogsStatus();
-                        }}
-                    >
-                        <Ionicons 
-                            name={isLoggedToday ? "checkmark-circle" : "add-circle-outline"} 
-                            size={18} 
-                            color={isLoggedToday ? "#32D74B" : "#0A84FF"} 
-                        />
-                        <Text style={[styles.logButtonText, isLoggedToday && styles.logButtonTextLogged]}>
-                            {isLoggedToday ? "Logged Today" : "Log"}
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={styles.viewLogsButton}
-                        onPress={async () => {
-                            setSelectedUserSupplementForLogs(item);
-                            setIsLogsModalVisible(true);
-                            await loadLogsForSupplement(item.id);
-                        }}
-                    >
-                        <Ionicons name="list-outline" size={18} color="#8E8E93" />
-                        <Text style={styles.viewLogsButtonText}>View Logs</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
+
+                {/* Right: Action Button (Pill Style) */}
+                <TouchableOpacity 
+                    style={[styles.logButton, isLogged && styles.logButtonDone]}
+                    onPress={() => !isLogged && handleLog(item)}
+                    activeOpacity={0.8}
+                    disabled={isLogged}
+                >
+                    <Text style={[styles.logButtonText, isLogged && styles.logButtonTextDone]}>
+                        {isLogged ? "LOGGED" : "LOG"}
+                    </Text>
+                </TouchableOpacity>
+            </TouchableOpacity>
         );
     };
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top + 10}]}>
+        <View style={[styles.container, { paddingTop: insets.top }]}>
             <Stack.Screen options={{ headerShown: false }} />
-            
-            <UnifiedHeader 
-                title="My Stack"
-                rightButton={{
-                    icon: "add",
-                    onPress: () => setIsAddModalVisible(true),
-                }}
-                modalContent={
-                    <ScrollView style={styles.modalScrollContent}>
-                        {!selectedSupplement ? (
-                            <>
-                                <Text style={styles.sectionTitle}>Select Supplement</Text>
-                                {availableSupplements.map(supp => (
-                                    <TouchableOpacity 
-                                        key={supp.id}
-                                        style={styles.optionItem}
-                                        onPress={() => {
-                                            setSelectedSupplement(supp);
-                                            setDosage(supp.default_dosage?.toString() || '');
-                                        }}
-                                    >
-                                        <Text style={styles.optionTitle}>{supp.name}</Text>
-                                        <Text style={styles.optionSubtitle}>{supp.description}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </>
-                        ) : (
-                            <>
-                                <View style={styles.selectedHeader}>
-                                    <Text style={styles.selectedTitle}>{selectedSupplement.name}</Text>
-                                    <TouchableOpacity onPress={() => setSelectedSupplement(null)}>
-                                        <Text style={styles.changeButton}>Change</Text>
+
+            <FlatList
+                data={userSupplements}
+                renderItem={renderItem}
+                keyExtractor={item => item.id.toString()}
+                contentContainerStyle={[styles.listContent, { paddingTop: 16, paddingBottom: insets.bottom + 100 }]}
+                ListHeaderComponent={
+                    userSupplements.length > 0 ? (
+                        <Text style={styles.sectionHeader}>YOUR SUPPLEMENTS</Text>
+                    ) : null
+                }
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <View style={styles.emptyIcon}>
+                            <Ionicons name="nutrition" size={32} color="#8E8E93" />
+                        </View>
+                        <Text style={styles.emptyTitle}>No Supplements</Text>
+                        <Text style={styles.emptyText}>Add supplements to track your daily intake.</Text>
+                    </View>
+                }
+            />
+
+            {/* Floating Add Button */}
+            <View style={[styles.floatingButtonContainer, { bottom: insets.bottom + 80 }]}>
+                {Platform.OS === 'ios' ? (
+                    <BlurView intensity={80} tint="dark" style={styles.floatingButtonBlur}>
+                        <TouchableOpacity 
+                            style={styles.floatingButton}
+                            onPress={() => setModals(m => ({ ...m, add: true }))}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="add" size={24} color="#0A84FF" />
+                        </TouchableOpacity>
+                    </BlurView>
+                ) : (
+                    <View style={[styles.floatingButtonBlur, styles.androidFloatingButton]}>
+                        <TouchableOpacity 
+                            style={styles.floatingButton}
+                            onPress={() => setModals(m => ({ ...m, add: true }))}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="add" size={24} color="#0A84FF" />
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
+
+            {/* ================= ADD MODAL ================= */}
+            <Modal visible={modals.add} animationType="slide" presentationStyle="pageSheet">
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>
+                            {addStep === 1 ? "Add Supplement" : "Details"}
+                        </Text>
+                        <TouchableOpacity onPress={() => {
+                            setModals(m => ({ ...m, add: false }));
+                            setAddStep(1);
+                        }}>
+                            <Ionicons name="close-circle" size={30} color="#3A3A3C" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {addStep === 1 ? (
+                        // Step 1: List
+                        <FlatList
+                            data={availableSupplements}
+                            keyExtractor={item => item.id.toString()}
+                            contentContainerStyle={{ padding: 16 }}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity 
+                                    style={styles.selectionRow}
+                                    onPress={() => {
+                                        setNewSuppData(prev => ({ 
+                                            ...prev, 
+                                            base: item, 
+                                            dosage: item.default_dosage?.toString() || '' 
+                                        }));
+                                        setAddStep(2);
+                                    }}
+                                >
+                                    <Text style={styles.selectionText}>{item.name}</Text>
+                                    <Ionicons name="chevron-forward" size={20} color="#545458" />
+                                </TouchableOpacity>
+                            )}
+                        />
+                    ) : (
+                        // Step 2: Form
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+                            <ScrollView contentContainerStyle={styles.formContent}>
+                                <View style={styles.previewBanner}>
+                                    <Text style={styles.previewText}>{newSuppData.base?.name}</Text>
+                                    <TouchableOpacity onPress={() => setAddStep(1)}>
+                                        <Text style={styles.changeLink}>Change</Text>
                                     </TouchableOpacity>
                                 </View>
 
-                                <Text style={styles.label}>Dosage ({selectedSupplement.dosage_unit})</Text>
+                                <Text style={styles.label}>DOSAGE ({newSuppData.base?.dosage_unit})</Text>
                                 <TextInput
                                     style={styles.input}
-                                    value={dosage}
-                                    onChangeText={setDosage}
+                                    value={newSuppData.dosage}
+                                    onChangeText={t => setNewSuppData(p => ({ ...p, dosage: t }))}
                                     keyboardType="numeric"
-                                    placeholder="Enter amount"
-                                    placeholderTextColor="#8E8E93"
+                                    placeholder="0"
+                                    placeholderTextColor="#545458"
+                                    autoFocus
                                 />
 
-                                <Text style={styles.label}>Frequency</Text>
-                                <View style={styles.pillContainer}>
-                                    {['daily', 'weekly'].map(freq => (
-                                        <TouchableOpacity
-                                            key={freq}
-                                            style={[
-                                                styles.pill,
-                                                frequency === freq && styles.pillActive
-                                            ]}
-                                            onPress={() => setFrequency(freq)}
+                                <Text style={styles.label}>FREQUENCY</Text>
+                                <View style={styles.pillRow}>
+                                    {['Daily', 'Weekly'].map(f => (
+                                        <TouchableOpacity 
+                                            key={f}
+                                            style={[styles.pill, newSuppData.freq.toLowerCase() === f.toLowerCase() && styles.pillActive]}
+                                            onPress={() => setNewSuppData(p => ({ ...p, freq: f.toLowerCase() }))}
                                         >
-                                            <Text style={[
-                                                styles.pillText,
-                                                frequency === freq && styles.pillTextActive
-                                            ]}>
-                                                {freq.charAt(0).toUpperCase() + freq.slice(1)}
-                                            </Text>
+                                            <Text style={[styles.pillText, newSuppData.freq.toLowerCase() === f.toLowerCase() && styles.pillTextActive]}>{f}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
 
-                                <Text style={styles.label}>Time of Day (Optional)</Text>
+                                <Text style={styles.label}>TIME OF DAY (OPTIONAL)</Text>
                                 <TextInput
                                     style={styles.input}
-                                    value={timeOfDay}
-                                    onChangeText={setTimeOfDay}
-                                    placeholder="e.g. Morning, With meals"
-                                    placeholderTextColor="#8E8E93"
+                                    value={newSuppData.time}
+                                    onChangeText={t => setNewSuppData(p => ({ ...p, time: t }))}
+                                    placeholder="Morning, Pre-workout..."
+                                    placeholderTextColor="#545458"
                                 />
 
-                                <TouchableOpacity 
-                                    style={styles.saveButton}
-                                    onPress={handleAddSupplement}
-                                >
-                                    <Text style={styles.saveButtonText}>Add to Stack</Text>
+                                <TouchableOpacity style={styles.saveButton} onPress={handleAddSubmit}>
+                                    <Text style={styles.saveButtonText}>Add Supplement</Text>
                                 </TouchableOpacity>
-                            </>
-                        )}
-                    </ScrollView>
-                }
-                modalVisible={isAddModalVisible}
-                onModalClose={() => {
-                    setIsAddModalVisible(false);
-                    resetForm();
-                }}
-            />
-
-            <FlatList
-                data={userSupplements}
-                renderItem={renderUserSupplement}
-                keyExtractor={item => item.id.toString()}
-                contentContainerStyle={[styles.listContent, { paddingTop: 60 }]}
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <Ionicons name="nutrition-outline" size={64} color="#8E8E93" />
-                        <Text style={styles.emptyText}>No supplements added yet</Text>
-                        <Text style={styles.emptySubtext}>Add supplements to track your intake</Text>
-                    </View>
-                }
-            />
-
-            {/* Log Supplement Modal */}
-            <Modal
-                visible={isLogModalVisible}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={() => {
-                    setIsLogModalVisible(false);
-                    resetLogForm();
-                }}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
-                        <Text style={styles.modalTitle}>Log Supplement</Text>
-                        <TouchableOpacity onPress={() => {
-                            setIsLogModalVisible(false);
-                            resetLogForm();
-                        }}>
-                            <Ionicons name="close" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView style={styles.modalScrollContent} contentContainerStyle={styles.modalContent}>
-                        {selectedUserSupplement && (
-                            <>
-                                <Text style={styles.logSupplementName}>{selectedUserSupplement.supplement_details.name}</Text>
-                                
-                                <Text style={styles.label}>Date</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={logDate}
-                                    onChangeText={setLogDate}
-                                    placeholder="YYYY-MM-DD"
-                                    placeholderTextColor="#8E8E93"
-                                />
-
-                                <Text style={styles.label}>Time</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={logTime}
-                                    onChangeText={setLogTime}
-                                    placeholder="HH:MM (e.g., 08:00)"
-                                    placeholderTextColor="#8E8E93"
-                                />
-
-                                <Text style={styles.label}>Dosage ({selectedUserSupplement.supplement_details.dosage_unit})</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={logDosage}
-                                    onChangeText={setLogDosage}
-                                    keyboardType="numeric"
-                                    placeholder={selectedUserSupplement.dosage.toString()}
-                                    placeholderTextColor="#8E8E93"
-                                />
-
-                                <TouchableOpacity 
-                                    style={styles.saveButton}
-                                    onPress={handleSaveLog}
-                                >
-                                    <Text style={styles.saveButtonText}>Log Supplement</Text>
-                                </TouchableOpacity>
-                            </>
-                        )}
-                    </ScrollView>
+                            </ScrollView>
+                        </KeyboardAvoidingView>
+                    )}
                 </View>
             </Modal>
 
-            {/* View Logs Modal */}
-            <Modal
-                visible={isLogsModalVisible}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={() => {
-                    setIsLogsModalVisible(false);
-                    setSelectedUserSupplementForLogs(null);
-                    setViewingLogs([]);
-                }}
-            >
+            {/* ================= HISTORY MODAL ================= */}
+            <Modal visible={modals.history} animationType="slide" presentationStyle="pageSheet">
                 <View style={styles.modalContainer}>
-                    <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
-                        <View style={styles.modalHeaderContent}>
-                            <Text style={styles.modalTitle}>
-                                {selectedUserSupplementForLogs?.supplement_details.name || 'Supplement'} Logs
-                            </Text>
-                            {selectedUserSupplementForLogs && (
-                                <Text style={styles.modalSubtitle}>
-                                    {selectedUserSupplementForLogs.dosage} {selectedUserSupplementForLogs.supplement_details?.dosage_unit || 'units'}
-                                </Text>
-                            )}
+                    <View style={styles.modalHeader}>
+                        <View>
+                            <Text style={styles.modalTitle}>{selectedSupp?.supplement_details.name} Logs</Text>
+                            <Text style={styles.modalSubtitle}>History</Text>
                         </View>
-                        <TouchableOpacity onPress={() => {
-                            setIsLogsModalVisible(false);
-                            setSelectedUserSupplementForLogs(null);
-                            setViewingLogs([]);
-                        }}>
-                            <Ionicons name="close" size={24} color="#FFFFFF" />
+                        <TouchableOpacity onPress={() => setModals(m => ({ ...m, history: false }))}>
+                            <Ionicons name="close-circle" size={30} color="#3A3A3C" />
                         </TouchableOpacity>
                     </View>
-                    {isLoadingLogs ? (
+
+                    {isLoading ? (
                         <View style={styles.loadingContainer}>
-                            <Text style={styles.loadingText}>Loading logs...</Text>
+                            <ActivityIndicator color="#0A84FF" />
                         </View>
                     ) : (
                         <FlatList
                             data={viewingLogs}
                             keyExtractor={item => item.id.toString()}
-                            contentContainerStyle={styles.logsListContent}
-                            renderItem={({ item }) => {
-                                const dosageUnit = item.user_supplement?.supplement_details?.dosage_unit || 
-                                                  selectedUserSupplementForLogs?.supplement_details?.dosage_unit || 
-                                                  'units';
-                                return (
-                                    <View style={styles.logItem}>
-                                        <View style={styles.logItemLeft}>
-                                            <Text style={styles.logItemDateTime}>
-                                                {formatDateTime(item.date, item.time)}
+                            renderItem={({ item, index }) => (
+                                <ReanimatedSwipeable
+                                    renderRightActions={(p) => <SwipeDeleteAction progress={p} onPress={() => handleDeleteLog(item.id)} />}
+                                    friction={2}
+                                >
+                                    <View style={[styles.logRow, index === viewingLogs.length - 1 && styles.logRowLast]}>
+                                        <Text style={styles.logDate}>
+                                            {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        </Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <Text style={styles.logDetail}>
+                                                {item.time.substring(0, 5)}
                                             </Text>
-                                        </View>
-                                        <View style={styles.logItemRight}>
-                                            <Text style={styles.logItemDosage}>
-                                                {item.dosage} {dosageUnit}
+                                            <Text style={styles.logDosage}>
+                                                {item.dosage} {selectedSupp?.supplement_details.dosage_unit}
                                             </Text>
-                                            <TouchableOpacity 
-                                                onPress={async () => {
-                                                    await handleDeleteLog(item.id);
-                                                    if (selectedUserSupplementForLogs) {
-                                                        loadLogsForSupplement(selectedUserSupplementForLogs.id);
-                                                    }
-                                                }}
-                                                style={styles.deleteLogButton}
-                                            >
-                                                <Ionicons name="trash-outline" size={18} color="#FF3B30" />
-                                            </TouchableOpacity>
                                         </View>
                                     </View>
-                                );
-                            }}
+                                </ReanimatedSwipeable>
+                            )}
                             ListEmptyComponent={
-                                <View style={styles.emptyState}>
-                                    <Ionicons name="list-outline" size={48} color="#8E8E93" />
-                                    <Text style={styles.emptyText}>No logs yet</Text>
-                                    <Text style={styles.emptySubtext}>Log when you take this supplement</Text>
+                                <View style={styles.emptyContainer}>
+                                    <Text style={styles.emptyText}>No logs found.</Text>
                                 </View>
                             }
-                            refreshing={isLoadingLogs}
-                            onRefresh={() => {
-                                if (selectedUserSupplementForLogs) {
-                                    loadLogsForSupplement(selectedUserSupplementForLogs.id);
-                                }
-                            }}
                         />
                     )}
                 </View>
             </Modal>
-
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#000000',
+    container: { flex: 1, backgroundColor: '#000000' },
+    listContent: { padding: 16 },
+
+    // Section Header
+    sectionHeader: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#636366',
+        marginBottom: 8,
+        marginLeft: 16,
     },
-    listContent: {
-        padding: 16,
-        paddingBottom: 96,
-    },
-    card: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 22,
-        padding: 16,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    cardHeader: {
+
+    // List Item (Apple Style)
+    rowItem: {
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    cardTitle: {
-        fontSize: 18,
-        fontWeight: '500',
-        color: '#FFFFFF',
-    },
-    badge: {
-        backgroundColor: 'rgba(10, 132, 255, 0.1)',
-        paddingHorizontal: 8,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    badgeText: {
-        fontSize: 13,
-        color: '#0A84FF',
-        fontWeight: '300',
-        textTransform: 'capitalize',
-    },
-    cardContent: {
-        flexDirection: 'row',
-        gap: 16,
-    },
-    infoRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    infoText: {
-        fontSize: 17,
-        color: '#8E8E93',
-        fontWeight: '400',
-    },
-    emptyState: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 100,
-    },
-    emptyText: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        marginTop: 16,
-    },
-    emptySubtext: {
-        fontSize: 17,
-        color: '#8E8E93',
-        marginTop: 8,
-    },
-    modalContainer: {
-        flex: 1,
-        backgroundColor: '#000000',
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 24,
-        backgroundColor: '#1C1C1E',
-        borderBottomWidth: 1,
-        borderBottomColor: '#2C2C2E',
-    },
-    modalHeaderContent: {
-        flex: 1,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '500',
-        color: '#FFFFFF',
-    },
-    modalSubtitle: {
-        fontSize: 13,
-        color: '#8E8E93',
-        marginTop: 8,
-        fontWeight: '300',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 40,
-    },
-    loadingText: {
-        fontSize: 17,
-        color: '#8E8E93',
-        fontWeight: '400',
-    },
-    closeButton: {
-        fontSize: 17,
-        color: '#0A84FF',
-        fontWeight: '400',
-    },
-    modalContent: {
-        padding: 24,
-    },
-    modalScrollContent: {
-        maxHeight: 500,
-    },
-    sectionTitle: {
-        fontSize: 13,
-        fontWeight: '300',
-        color: '#8E8E93',
-        textTransform: 'uppercase',
-        marginBottom: 16,
-        marginLeft: 8,
-    },
-    optionItem: {
         backgroundColor: '#1C1C1E',
         padding: 16,
-        marginBottom: 1,
-        borderRadius: 0,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#2C2C2E',
-    },
-    optionTitle: {
-        fontSize: 17,
-        fontWeight: '400',
-        color: '#FFFFFF',
+        borderRadius: 16,
         marginBottom: 8,
     },
-    optionSubtitle: {
-        fontSize: 13,
-        color: '#8E8E93',
-        fontWeight: '300',
-    },
-    selectedHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 24,
-    },
-    selectedTitle: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#FFFFFF',
-    },
-    changeButton: {
-        fontSize: 17,
-        color: '#0A84FF',
-        fontWeight: '400',
-    },
-    label: {
-        fontSize: 13,
-        fontWeight: '300',
-        color: '#8E8E93',
-        marginBottom: 16,
-        marginLeft: 8,
-    },
-    input: {
-        backgroundColor: '#1C1C1E',
-        padding: 16,
-        borderRadius: 22,
-        marginBottom: 24,
-        fontSize: 17,
-        color: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-        fontWeight: '400',
-    },
-    pillContainer: {
-        flexDirection: 'row',
-        gap: 8,
-        marginBottom: 24,
-    },
-    pill: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#1C1C1E',
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-    },
-    pillActive: {
-        backgroundColor: '#0A84FF',
-        borderColor: '#0A84FF',
-    },
-    pillText: {
-        fontSize: 17,
-        fontWeight: '400',
-        color: '#FFFFFF',
-    },
-    pillTextActive: {
-        color: '#FFFFFF',
-    },
-    saveButton: {
-        backgroundColor: '#0A84FF',
-        padding: 16,
-        borderRadius: 22,
-        alignItems: 'center',
-        marginTop: 24,
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    saveButtonText: {
-        fontSize: 17,
-        fontWeight: '400',
-        color: '#FFFFFF',
-    },
-    cardActions: {
-        flexDirection: 'row',
-        marginTop: 16,
-        gap: 8,
-        paddingTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#2C2C2E',
-    },
-    logButton: {
+    rowLeft: {
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 16,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        backgroundColor: 'rgba(10, 132, 255, 0.1)',
+    },
+    rowTitle: {
+        fontSize: 17,
+        fontWeight: '600',
+        color: '#FFFFFF',
+        marginBottom: 4,
+    },
+    rowSubtitle: {
+        fontSize: 14,
+        color: '#8E8E93',
+    },
+
+    // Log Button (Pill)
+    logButton: {
+        backgroundColor: '#2C2C2E', // Dark gray background initially
+        paddingVertical: 8,
+        paddingHorizontal: 20,
+        borderRadius: 20,
         borderWidth: 1,
         borderColor: '#0A84FF',
     },
-    logButtonLogged: {
-        backgroundColor: 'rgba(50, 215, 75, 0.1)',
-        borderColor: '#32D74B',
+    logButtonDone: {
+        backgroundColor: '#1C1C1E',
+        borderColor: '#32D74B', // Green border
     },
     logButtonText: {
-        fontSize: 17,
-        fontWeight: '400',
         color: '#0A84FF',
+        fontSize: 13,
+        fontWeight: '700',
+        letterSpacing: 0.5,
     },
-    logButtonTextLogged: {
+    logButtonTextDone: {
         color: '#32D74B',
     },
-    viewLogsButton: {
-        flex: 1,
-        flexDirection: 'row',
+
+    // Empty State
+    emptyContainer: { alignItems: 'center', paddingVertical: 40 },
+    emptyIcon: { 
+        width: 60, height: 60, borderRadius: 30, 
+        backgroundColor: '#1C1C1E', alignItems: 'center', justifyContent: 'center', marginBottom: 16 
+    },
+    emptyTitle: { fontSize: 20, fontWeight: '700', color: '#FFF', marginBottom: 8 },
+    emptyText: { fontSize: 15, color: '#8E8E93', textAlign: 'center' },
+
+    // Modals
+    modalContainer: { flex: 1, backgroundColor: '#1C1C1E' },
+    modalHeader: { 
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
+        padding: 20, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' 
+    },
+    modalTitle: { fontSize: 17, fontWeight: '600', color: '#FFF' },
+    modalSubtitle: { fontSize: 13, color: '#8E8E93' },
+
+    // Selection List
+    selectionRow: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#3A3A3C'
+    },
+    selectionText: { fontSize: 17, color: '#FFF' },
+
+    // Form
+    formContent: { padding: 20 },
+    previewBanner: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        backgroundColor: '#2C2C2E', padding: 16, borderRadius: 12, marginBottom: 24,
+        borderWidth: 1, borderColor: '#3A3A3C'
+    },
+    previewText: { fontSize: 17, fontWeight: '600', color: '#FFF' },
+    changeLink: { color: '#0A84FF', fontSize: 15 },
+    
+    label: { color: '#8E8E93', fontSize: 13, fontWeight: '600', marginBottom: 8 },
+    input: {
+        backgroundColor: '#2C2C2E', borderRadius: 12, padding: 16,
+        fontSize: 17, color: '#FFF', marginBottom: 24,
+    },
+    pillRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+    pill: {
+        flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#2C2C2E',
+        borderWidth: 1, borderColor: '#3A3A3C', alignItems: 'center'
+    },
+    pillActive: { backgroundColor: '#0A84FF', borderColor: '#0A84FF' },
+    pillText: { color: '#8E8E93', fontWeight: '600' },
+    pillTextActive: { color: '#FFF' },
+    saveButton: { backgroundColor: '#0A84FF', padding: 16, borderRadius: 14, alignItems: 'center', marginTop: 8 },
+    saveButtonText: { color: '#FFF', fontSize: 17, fontWeight: '600' },
+
+    // Logs
+    logRow: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        padding: 16, backgroundColor: '#1C1C1E', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#3A3A3C'
+    },
+    logRowLast: { borderBottomWidth: 0 },
+    logDate: { color: '#FFF', fontSize: 17 },
+    logDetail: { color: '#8E8E93', fontSize: 15 },
+    logDosage: { color: '#FFF', fontSize: 15, fontWeight: '500' },
+    
+    loadingContainer: { padding: 40, alignItems: 'center' },
+    deleteAction: { backgroundColor: '#FF3B30', width: 80, alignItems: 'center', justifyContent: 'center' },
+    
+    // Floating Button
+    floatingButtonContainer: {
+        position: 'absolute',
+        right: 12,
+        zIndex: 1000,
+    },
+    floatingButtonBlur: {
+        borderRadius: 24,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        elevation: 10,
+    },
+    androidFloatingButton: {
+        backgroundColor: '#1C1C1E',
+    },
+    floatingButton: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 16,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        backgroundColor: '#1C1C1E',
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-    },
-    viewLogsButtonText: {
-        fontSize: 17,
-        fontWeight: '400',
-        color: '#8E8E93',
-    },
-    logSupplementName: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        marginBottom: 24,
-    },
-    logsListContent: {
-        padding: 24,
-    },
-    logItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        marginBottom: 16,
-        backgroundColor: '#1C1C1E',
-        borderRadius: 22,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    logItemLeft: {
-        flex: 1,
-    },
-    logItemName: {
-        fontSize: 17,
-        fontWeight: '400',
-        color: '#FFFFFF',
-        marginBottom: 8,
-    },
-    logItemDateTime: {
-        fontSize: 13,
-        color: '#8E8E93',
-        fontWeight: '300',
-    },
-    logItemRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-    },
-    logItemDosage: {
-        fontSize: 17,
-        fontWeight: '400',
-        color: '#8E8E93',
-    },
-    deleteLogButton: {
-        padding: 4,
+        backgroundColor: 'transparent',
     },
 });

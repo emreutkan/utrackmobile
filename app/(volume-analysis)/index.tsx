@@ -1,600 +1,338 @@
 import { getVolumeAnalysis } from '@/api/VolumeAnalysis';
 import { VolumeAnalysisResponse } from '@/api/types';
+import UnifiedHeader from '@/components/UnifiedHeader';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// ============================================================================
+// 1. TYPES & HELPERS
+// ============================================================================
 
 interface MuscleGroupSummary {
     muscle_group: string;
     average_volume: number;
     max_volume: number;
-    min_volume: number;
     total_sets: number;
     total_workouts: number;
 }
 
+const MUSCLE_COLORS: Record<string, string> = {
+    chest: '#FF3B30', shoulders: '#FF9500', biceps: '#FFCC00', triceps: '#32D74B',
+    lats: '#0A84FF', traps: '#5E5CE6', quads: '#FF2D55', hamstrings: '#BF5AF2',
+    glutes: '#FF375F', calves: '#30D158', abs: '#64D2FF', forearms: '#FF9F0A'
+};
+
+const getMuscleColor = (mg: string) => MUSCLE_COLORS[mg.toLowerCase()] || '#8E8E93';
+
+const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+// ============================================================================
+// 2. MAIN COMPONENT
+// ============================================================================
+
 export default function VolumeAnalysisScreen() {
     const insets = useSafeAreaInsets();
+    
+    // --- State ---
     const [analysis, setAnalysis] = useState<VolumeAnalysisResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string | null>(null);
-    const [weeksBack, setWeeksBack] = useState('12');
-    const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+    const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
+    const [filterWeeks, setFilterWeeks] = useState('12');
+    const [isFilterVisible, setIsFilterVisible] = useState(false);
 
-    useEffect(() => {
-        loadAnalysis();
-    }, []);
-
+    // --- Data Loading ---
     const loadAnalysis = async () => {
         setIsLoading(true);
         try {
-            const weeks = weeksBack ? parseInt(weeksBack) : 12;
+            const weeks = parseInt(filterWeeks) || 12;
             const data = await getVolumeAnalysis({ weeks_back: weeks });
-            if (data?.weeks) {
-                setAnalysis(data);
-            }
+            if (data?.weeks) setAnalysis(data);
         } catch (error) {
-            console.error('Failed to load volume analysis:', error);
+            console.error(error);
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Calculate summary stats from weeks data
+    useFocusEffect(
+        useCallback(() => {
+            loadAnalysis();
+        }, [])
+    );
+
+    // --- Calculations ---
     const summaryStats = useMemo(() => {
         if (!analysis?.weeks) return [];
-
-        const muscleGroupMap = new Map<string, { volumes: number[]; sets: number; workouts: number }>();
+        const map = new Map<string, { volumes: number[]; sets: number; workouts: number }>();
 
         analysis.weeks.forEach(week => {
-            Object.entries(week.muscle_groups).forEach(([muscleGroup, data]) => {
-                if (!muscleGroupMap.has(muscleGroup)) {
-                    muscleGroupMap.set(muscleGroup, { volumes: [], sets: 0, workouts: 0 });
-                }
-                const stats = muscleGroupMap.get(muscleGroup)!;
+            Object.entries(week.muscle_groups).forEach(([mg, data]) => {
+                if (!map.has(mg)) map.set(mg, { volumes: [], sets: 0, workouts: 0 });
+                const stats = map.get(mg)!;
                 stats.volumes.push(data.total_volume);
                 stats.sets += data.sets;
                 stats.workouts += data.workouts;
             });
         });
 
-        const summaries: MuscleGroupSummary[] = [];
-        muscleGroupMap.forEach((stats, muscleGroup) => {
+        const result: MuscleGroupSummary[] = [];
+        map.forEach((stats, mg) => {
             if (stats.volumes.length > 0) {
-                summaries.push({
-                    muscle_group: muscleGroup,
+                result.push({
+                    muscle_group: mg,
                     average_volume: stats.volumes.reduce((a, b) => a + b, 0) / stats.volumes.length,
                     max_volume: Math.max(...stats.volumes),
-                    min_volume: Math.min(...stats.volumes),
                     total_sets: stats.sets,
                     total_workouts: stats.workouts,
                 });
             }
         });
-
-        return summaries.sort((a, b) => b.average_volume - a.average_volume);
+        return result.sort((a, b) => b.average_volume - a.average_volume);
     }, [analysis]);
 
-    // Calculate total stats
     const totalStats = useMemo(() => {
-        if (!analysis?.weeks) return { totalWorkouts: 0, totalSets: 0 };
-        
-        const workoutSet = new Set<number>();
+        if (!analysis?.weeks) return { workouts: 0, sets: 0 };
         let totalSets = 0;
+        let totalWorkouts = 0;
         
         analysis.weeks.forEach(week => {
-            Object.values(week.muscle_groups).forEach(data => {
-                totalSets += data.sets;
-                // Note: workouts might be duplicated across muscle groups, but we'll use the max per week
-            });
+            // Rough estimate: Max workouts for any muscle group in a week = workouts that week
+            const weekWorkouts = Math.max(...Object.values(week.muscle_groups).map(d => d.workouts), 0);
+            totalWorkouts += weekWorkouts;
+            Object.values(week.muscle_groups).forEach(d => totalSets += d.sets);
         });
 
-        // Count unique workouts (approximate - using max workouts per week)
-        const totalWorkouts = Math.max(...analysis.weeks.map(week => 
-            Math.max(...Object.values(week.muscle_groups).map(d => d.workouts), 0)
-        ), 0) * analysis.weeks.length;
-
-        return {
-            totalWorkouts: analysis.weeks.reduce((sum, week) => 
-                sum + Math.max(...Object.values(week.muscle_groups).map(d => d.workouts), 0), 0
-            ),
-            totalSets,
-        };
+        return { workouts: totalWorkouts, sets: totalSets };
     }, [analysis]);
 
-    const handleApplyFilters = () => {
-        setIsFilterModalVisible(false);
-        loadAnalysis();
-    };
+    const weeklyChartData = useMemo(() => {
+        if (!analysis || !selectedMuscle) return [];
+        const data = analysis.weeks.map(week => ({
+            date: week.week_start,
+            volume: week.muscle_groups[selectedMuscle]?.total_volume || 0
+        })).reverse(); // Oldest to newest
+        return data;
+    }, [analysis, selectedMuscle]);
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    };
+    // --- Renderers ---
 
-    const getMuscleGroupColor = (muscleGroup: string) => {
-        const colors: Record<string, string> = {
-            'chest': '#FF3B30',
-            'shoulders': '#FF9500',
-            'biceps': '#FFCC00',
-            'triceps': '#34C759',
-            'lats': '#5AC8FA',
-            'traps': '#AF52DE',
-            'quads': '#FF2D55',
-            'hamstrings': '#5856D6',
-            'glutes': '#FF9500',
-            'calves': '#32D74B',
-            'abs': '#0A84FF',
-            'forearms': '#FF9500',
-        };
-        return colors[muscleGroup.toLowerCase()] || '#8E8E93';
-    };
-
-    const renderSummaryCard = ({ item }: { item: MuscleGroupSummary }) => {
-        const color = getMuscleGroupColor(item.muscle_group);
-        const maxVolume = summaryStats.reduce((max, stat) => Math.max(max, stat.max_volume), 0) || 1;
-        const volumePercentage = (item.average_volume / maxVolume) * 100;
+    const renderChart = () => {
+        if (!selectedMuscle || weeklyChartData.length === 0) return null;
+        
+        const maxVol = Math.max(...weeklyChartData.map(d => d.volume), 1);
+        const color = getMuscleColor(selectedMuscle);
 
         return (
-            <TouchableOpacity
-                style={styles.summaryCard}
-                onPress={() => setSelectedMuscleGroup(item.muscle_group)}
-                activeOpacity={0.7}
-            >
-                <View style={styles.summaryHeader}>
-                    <Text style={styles.summaryMuscleGroup}>
-                        {item.muscle_group.charAt(0).toUpperCase() + item.muscle_group.slice(1)}
-                    </Text>
-                    <View style={[styles.summaryColorDot, { backgroundColor: color }]} />
-                </View>
-                
-                <View style={styles.summaryStats}>
-                    <View style={styles.summaryStat}>
-                        <Text style={styles.summaryStatLabel}>Avg</Text>
-                        <Text style={styles.summaryStatValue}>{item.average_volume.toFixed(0)}</Text>
+            <View style={styles.chartCard}>
+                <View style={styles.chartHeader}>
+                    <View>
+                        <Text style={styles.chartTitle}>{selectedMuscle}</Text>
+                        <Text style={styles.chartSubtitle}>Weekly Volume History</Text>
                     </View>
-                    <View style={styles.summaryStat}>
-                        <Text style={styles.summaryStatLabel}>Max</Text>
-                        <Text style={styles.summaryStatValue}>{item.max_volume.toFixed(0)}</Text>
-                    </View>
-                    <View style={styles.summaryStat}>
-                        <Text style={styles.summaryStatLabel}>Sets</Text>
-                        <Text style={styles.summaryStatValue}>{item.total_sets}</Text>
-                    </View>
+                    <TouchableOpacity onPress={() => setSelectedMuscle(null)} style={styles.closeChartBtn}>
+                        <Ionicons name="close" size={20} color="#8E8E93" />
+                    </TouchableOpacity>
                 </View>
 
-                <View style={styles.summaryBarContainer}>
-                    <View style={styles.summaryBarBackground}>
-                        <View 
-                            style={[
-                                styles.summaryBarFill,
-                                { 
-                                    width: `${volumePercentage}%`,
-                                    backgroundColor: color
-                                }
-                            ]}
-                        />
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chartScroll}>
+                    {weeklyChartData.map((d, i) => {
+                        const heightPct = (d.volume / maxVol) * 100;
+                        return (
+                            <View key={i} style={styles.barContainer}>
+                                <View style={styles.barTrack}>
+                                    <View style={[styles.barFill, { height: `${Math.max(heightPct, 5)}%`, backgroundColor: color }]} />
+                                </View>
+                                <Text style={styles.barLabel}>{formatDate(d.date)}</Text>
+                            </View>
+                        );
+                    })}
+                </ScrollView>
+            </View>
+        );
+    };
+
+    const renderMuscleRow = ({ item }: { item: MuscleGroupSummary }) => {
+        const color = getMuscleColor(item.muscle_group);
+        // Calculate relative width based on the highest average volume in the list
+        const maxAvg = summaryStats[0]?.average_volume || 1;
+        const widthPct = (item.average_volume / maxAvg) * 100;
+        const isSelected = selectedMuscle === item.muscle_group;
+
+        return (
+            <TouchableOpacity 
+                style={[styles.rowCard, isSelected && styles.rowCardActive]} 
+                onPress={() => setSelectedMuscle(item.muscle_group)}
+                activeOpacity={0.7}
+            >
+                <View style={styles.rowHeader}>
+                    <View style={styles.rowTitleContainer}>
+                        <View style={[styles.dot, { backgroundColor: color }]} />
+                        <Text style={styles.rowTitle}>{item.muscle_group}</Text>
                     </View>
+                    <Text style={styles.rowValue}>{item.average_volume.toFixed(0)} <Text style={styles.rowUnit}>kg/wk</Text></Text>
+                </View>
+
+                {/* Progress Bar */}
+                <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${widthPct}%`, backgroundColor: color }]} />
+                </View>
+
+                <View style={styles.rowStats}>
+                    <Text style={styles.rowStatText}>{item.total_sets} Sets</Text>
+                    <Text style={styles.rowStatText}>Max: {item.max_volume.toFixed(0)}</Text>
                 </View>
             </TouchableOpacity>
         );
     };
 
-    const renderWeeklyData = () => {
-        if (!analysis || !selectedMuscleGroup) return null;
-
-        const weeklyData = analysis.weeks.map(week => {
-            const muscleData = week.muscle_groups[selectedMuscleGroup];
-            return {
-                week: week,
-                volume: muscleData?.total_volume || 0,
-                sets: muscleData?.sets || 0,
-            };
-        });
-
-        const maxVolume = Math.max(...weeklyData.map(d => d.volume), 1);
-
-        return (
-            <View style={styles.weeklyContainer}>
-                <View style={styles.weeklyHeader}>
-                    <Text style={styles.weeklyTitle}>
-                        {selectedMuscleGroup.charAt(0).toUpperCase() + selectedMuscleGroup.slice(1)} - Weekly Volume
-                    </Text>
-                    <TouchableOpacity onPress={() => setSelectedMuscleGroup(null)}>
-                        <Ionicons name="close-circle" size={24} color="#8E8E93" />
-                    </TouchableOpacity>
-                </View>
-                
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.weeklyChart}>
-                        {weeklyData.map((data, idx) => {
-                            const heightPercentage = (data.volume / maxVolume) * 100;
-                            return (
-                                <View key={idx} style={styles.weeklyBarContainer}>
-                                    <View style={styles.weeklyBarWrapper}>
-                                        <View 
-                                            style={[
-                                                styles.weeklyBar,
-                                                {
-                                                    height: `${Math.max(heightPercentage, 5)}%`,
-                                                    backgroundColor: getMuscleGroupColor(selectedMuscleGroup)
-                                                }
-                                            ]}
-                                        />
-                                    </View>
-                                    <Text style={styles.weeklyBarValue}>{data.volume.toFixed(0)}</Text>
-                                    <Text style={styles.weeklyBarLabel} numberOfLines={2}>
-                                        {formatDate(data.week.week_start)}
-                                    </Text>
-                                </View>
-                            );
-                        })}
-                    </View>
-                </ScrollView>
-            </View>
-        );
-    };
-
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="chevron-back" size={24} color="#0A84FF" />
-                </TouchableOpacity>
-                <Text style={styles.title}>Volume Analysis</Text>
-                <TouchableOpacity onPress={() => setIsFilterModalVisible(true)}>
-                    <Ionicons name="options-outline" size={24} color="#0A84FF" />
-                </TouchableOpacity>
-            </View>
+            <UnifiedHeader 
+                title="Volume Analysis" 
+                rightButton={{ icon: "filter", onPress: () => setIsFilterVisible(true) }} 
+            />
 
             {isLoading ? (
-                <View style={styles.loadingContainer}>
+                <View style={[styles.centerFill, { marginTop: 58 }]}>
                     <ActivityIndicator size="large" color="#0A84FF" />
                 </View>
-            ) : analysis ? (
-                <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                    {/* Overview Stats */}
-                    <View style={styles.overviewCard}>
-                        <Text style={styles.overviewTitle}>Overview</Text>
-                        <View style={styles.overviewStats}>
-                            <View style={styles.overviewStat}>
-                                <Text style={styles.overviewStatValue}>{totalStats.totalWorkouts}</Text>
-                                <Text style={styles.overviewStatLabel}>Workouts</Text>
-                            </View>
-                            <View style={styles.overviewStat}>
-                                <Text style={styles.overviewStatValue}>{totalStats.totalSets}</Text>
-                                <Text style={styles.overviewStatLabel}>Total Sets</Text>
-                            </View>
-                            <View style={styles.overviewStat}>
-                                <Text style={styles.overviewStatValue}>{analysis.period?.total_weeks || analysis.weeks.length}</Text>
-                                <Text style={styles.overviewStatLabel}>Weeks</Text>
-                            </View>
+            ) : !analysis ? (
+                <View style={[styles.centerFill, { marginTop: 58 }]}>
+                    <Ionicons name="stats-chart" size={48} color="#2C2C2E" />
+                    <Text style={styles.emptyText}>No data found</Text>
+                </View>
+            ) : (
+                <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20, marginTop: 58 }]}>
+                    
+                    {/* Overview Chips */}
+                    <View style={styles.statsRow}>
+                        <View style={styles.statChip}>
+                            <Text style={styles.statChipValue}>{totalStats.workouts}</Text>
+                            <Text style={styles.statChipLabel}>WORKOUTS</Text>
+                        </View>
+                        <View style={styles.statChip}>
+                            <Text style={styles.statChipValue}>{totalStats.sets}</Text>
+                            <Text style={styles.statChipLabel}>TOTAL SETS</Text>
+                        </View>
+                        <View style={styles.statChip}>
+                            <Text style={styles.statChipValue}>{analysis.period?.total_weeks || 12}</Text>
+                            <Text style={styles.statChipLabel}>WEEKS</Text>
                         </View>
                     </View>
 
-                    {/* Weekly Chart (if muscle group selected) */}
-                    {renderWeeklyData()}
+                    {/* Interactive Chart Section */}
+                    {renderChart()}
 
-                    {/* Summary Stats */}
-                    {summaryStats.length > 0 && (
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Muscle Group Summary</Text>
-                            <FlatList
-                                data={summaryStats}
-                                renderItem={renderSummaryCard}
-                                keyExtractor={(item) => item.muscle_group}
-                                scrollEnabled={false}
-                            />
-                        </View>
-                    )}
+                    {/* Muscle List */}
+                    <Text style={styles.sectionTitle}>MUSCLE GROUPS</Text>
+                    <FlatList
+                        data={summaryStats}
+                        renderItem={renderMuscleRow}
+                        keyExtractor={i => i.muscle_group}
+                        scrollEnabled={false}
+                    />
+
                 </ScrollView>
-            ) : (
-                <View style={styles.emptyState}>
-                    <Ionicons name="bar-chart-outline" size={64} color="#8E8E93" />
-                    <Text style={styles.emptyText}>No data available</Text>
-                </View>
             )}
 
             {/* Filter Modal */}
-            <Modal
-                visible={isFilterModalVisible}
-                animationType="fade"
-                transparent
-                onRequestClose={() => setIsFilterModalVisible(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Filter Options</Text>
-                        
-                        <Text style={styles.modalLabel}>Weeks Back</Text>
-                        <TextInput
-                            style={styles.modalInput}
-                            value={weeksBack}
-                            onChangeText={setWeeksBack}
-                            keyboardType="numeric"
-                            placeholder="12"
-                            placeholderTextColor="#8E8E93"
-                        />
-
-                        <View style={styles.modalButtonRow}>
-                            <TouchableOpacity 
-                                style={[styles.modalButton, styles.modalButtonCancel]}
-                                onPress={() => setIsFilterModalVisible(false)}
-                            >
-                                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+            <Modal visible={isFilterVisible} transparent animationType="fade" onRequestClose={() => setIsFilterVisible(false)}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <Text style={styles.modalTitle}>Analysis Period</Text>
+                        <View style={styles.inputContainer}>
+                            <TextInput 
+                                style={styles.input} 
+                                value={filterWeeks} 
+                                onChangeText={setFilterWeeks} 
+                                keyboardType="numeric" 
+                                placeholder="12" 
+                                placeholderTextColor="#545458"
+                                autoFocus
+                            />
+                            <Text style={styles.inputUnit}>Weeks</Text>
+                        </View>
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity style={styles.btnCancel} onPress={() => setIsFilterVisible(false)}>
+                                <Text style={styles.btnTextCancel}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.modalButton, styles.modalButtonSave]}
-                                onPress={handleApplyFilters}
-                            >
-                                <Text style={styles.modalButtonSaveText}>Apply</Text>
+                            <TouchableOpacity style={styles.btnApply} onPress={() => { setIsFilterVisible(false); loadAnalysis(); }}>
+                                <Text style={styles.btnTextApply}>Apply</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#000000',
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingBottom: 12,
-        backgroundColor: '#000000',
-        borderBottomWidth: 1,
-        borderBottomColor: '#2C2C2E',
-    },
-    backButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        minWidth: 40,
-    },
-    title: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: '#FFFFFF',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    content: {
-        flex: 1,
-    },
-    overviewCard: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 12,
-        padding: 16,
-        margin: 16,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-    },
-    overviewTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        marginBottom: 16,
-    },
-    overviewStats: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-    },
-    overviewStat: {
-        alignItems: 'center',
-    },
-    overviewStatValue: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#0A84FF',
-        marginBottom: 4,
-    },
-    overviewStatLabel: {
-        fontSize: 12,
-        color: '#8E8E93',
-    },
-    weeklyContainer: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 12,
-        padding: 16,
-        margin: 16,
-        marginTop: 0,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-    },
-    weeklyHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    weeklyTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#FFFFFF',
-        flex: 1,
-    },
-    weeklyChart: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        paddingVertical: 8,
-    },
-    weeklyBarContainer: {
-        alignItems: 'center',
-        marginRight: 12,
-        minWidth: 50,
-    },
-    weeklyBarWrapper: {
-        height: 120,
-        width: 40,
-        justifyContent: 'flex-end',
-        marginBottom: 8,
-    },
-    weeklyBar: {
-        width: '100%',
-        borderRadius: 4,
-        minHeight: 4,
-    },
-    weeklyBarValue: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#FFFFFF',
-        marginBottom: 4,
-    },
-    weeklyBarLabel: {
-        fontSize: 10,
-        color: '#8E8E93',
-        textAlign: 'center',
-    },
-    section: {
-        paddingHorizontal: 16,
-        marginBottom: 16,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        marginBottom: 12,
-    },
-    summaryCard: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-    },
-    summaryHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    summaryMuscleGroup: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#FFFFFF',
-    },
-    summaryColorDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-    },
-    summaryStats: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        marginBottom: 12,
-    },
-    summaryStat: {
-        alignItems: 'center',
-    },
-    summaryStatLabel: {
-        fontSize: 11,
-        color: '#8E8E93',
-        marginBottom: 4,
-    },
-    summaryStatValue: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#FFFFFF',
-    },
-    summaryBarContainer: {
-        marginTop: 8,
-    },
-    summaryBarBackground: {
-        height: 6,
-        backgroundColor: '#2C2C2E',
-        borderRadius: 3,
-        overflow: 'hidden',
-    },
-    summaryBarFill: {
-        height: '100%',
-        borderRadius: 3,
-    },
-    emptyState: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    emptyText: {
-        fontSize: 16,
-        color: '#8E8E93',
-        marginTop: 16,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    modalContent: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 24,
-        padding: 24,
-        width: '100%',
-        maxWidth: 400,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        marginBottom: 24,
-        textAlign: 'center',
-    },
-    modalLabel: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#8E8E93',
-        marginBottom: 8,
-        marginLeft: 4,
-    },
-    modalInput: {
-        backgroundColor: '#2C2C2E',
-        borderRadius: 14,
-        padding: 18,
-        color: '#FFFFFF',
-        fontSize: 17,
-        fontWeight: '500',
-        marginBottom: 24,
-    },
-    modalButtonRow: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    modalButton: {
-        flex: 1,
-        paddingVertical: 16,
-        borderRadius: 14,
-        alignItems: 'center',
-    },
-    modalButtonCancel: {
-        backgroundColor: '#2C2C2E',
-    },
-    modalButtonSave: {
-        backgroundColor: '#0A84FF',
-    },
-    modalButtonCancelText: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: '#FFFFFF',
-    },
-    modalButtonSaveText: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: '#FFFFFF',
-    },
-});
+    container: { flex: 1, backgroundColor: '#000000' },
+    centerFill: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    scrollContent: { padding: 16 },
+    emptyText: { color: '#8E8E93', marginTop: 16, fontSize: 16 },
 
+    // Stats Row
+    statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+    statChip: { flex: 1, backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#2C2C2E' },
+    statChipValue: { fontSize: 20, fontWeight: '700', color: '#FFF', marginBottom: 4 },
+    statChipLabel: { fontSize: 11, fontWeight: '600', color: '#8E8E93', letterSpacing: 0.5 },
+
+    // Chart Card
+    chartCard: { backgroundColor: '#1C1C1E', borderRadius: 20, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: '#2C2C2E' },
+    chartHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+    chartTitle: { fontSize: 18, fontWeight: '700', color: '#FFF', textTransform: 'capitalize' },
+    chartSubtitle: { fontSize: 13, color: '#8E8E93' },
+    closeChartBtn: { padding: 4, backgroundColor: '#2C2C2E', borderRadius: 12 },
+    chartScroll: { alignItems: 'flex-end', gap: 16, paddingRight: 20 },
+    barContainer: { alignItems: 'center', gap: 8, width: 30 },
+    barTrack: { height: 120, width: 6, backgroundColor: '#2C2C2E', borderRadius: 3, justifyContent: 'flex-end', overflow: 'hidden' },
+    barFill: { width: '100%', borderRadius: 3 },
+    barLabel: { fontSize: 10, color: '#8E8E93', width: 40, textAlign: 'center' },
+
+    // List
+    sectionTitle: { fontSize: 13, fontWeight: '600', color: '#636366', marginBottom: 12, marginLeft: 4 },
+    rowCard: { backgroundColor: '#1C1C1E', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#2C2C2E' },
+    rowCardActive: { borderColor: '#0A84FF', backgroundColor: '#1C1C1E' },
+    rowHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    rowTitleContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    dot: { width: 8, height: 8, borderRadius: 4 },
+    rowTitle: { fontSize: 17, fontWeight: '600', color: '#FFF', textTransform: 'capitalize' },
+    rowValue: { fontSize: 17, fontWeight: '600', color: '#FFF' },
+    rowUnit: { fontSize: 13, color: '#8E8E93', fontWeight: '400' },
+    progressTrack: { height: 6, backgroundColor: '#2C2C2E', borderRadius: 3, marginBottom: 12, overflow: 'hidden' },
+    progressFill: { height: '100%', borderRadius: 3 },
+    rowStats: { flexDirection: 'row', justifyContent: 'space-between' },
+    rowStatText: { fontSize: 13, color: '#8E8E93' },
+
+    // Modal
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: 24 },
+    modalCard: { backgroundColor: '#1C1C1E', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#2C2C2E' },
+    modalTitle: { fontSize: 20, fontWeight: '700', color: '#FFF', textAlign: 'center', marginBottom: 24 },
+    inputContainer: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', marginBottom: 32 },
+    input: { fontSize: 40, fontWeight: '700', color: '#FFF', minWidth: 60, textAlign: 'center' },
+    inputUnit: { fontSize: 20, color: '#8E8E93', fontWeight: '600', marginLeft: 8 },
+    modalActions: { flexDirection: 'row', gap: 12 },
+    btnCancel: { flex: 1, padding: 16, backgroundColor: '#2C2C2E', borderRadius: 14, alignItems: 'center' },
+    btnApply: { flex: 1, padding: 16, backgroundColor: '#0A84FF', borderRadius: 14, alignItems: 'center' },
+    btnTextCancel: { color: '#FFF', fontSize: 17, fontWeight: '600' },
+    btnTextApply: { color: '#FFF', fontSize: 17, fontWeight: '600' },
+});

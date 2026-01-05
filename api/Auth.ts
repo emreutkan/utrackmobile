@@ -24,9 +24,12 @@ export const login = async (email: string, password: string): Promise<{ access: 
 }
 
 
-export const register = async (email: string, password: string, gender?: string, height?: number): Promise<{ access: string, refresh: string } | string> => {
+export const register = async (email: string, password: string, gender?: string, height?: number, name?: string): Promise<{ access: string, refresh: string } | string> => {
     try {
         const payload: any = { email, password };
+        if (name) {
+            payload.name = name;
+        }
         if (gender) {
             payload.gender = gender;
         }
@@ -58,6 +61,64 @@ export const register = async (email: string, password: string, gender?: string,
         return error.response?.data?.detail || error.message || 'An unknown error occurred';
     }
 }
+
+export interface CheckEmailResponse {
+    is_valid: boolean;
+    errors: string[];
+    user_exists: boolean;
+    security_threats: string[];
+    normalized_email?: string;
+}
+
+export interface CheckPasswordResponse {
+    is_valid: boolean;
+    errors: string[];
+    security_threats: string[];
+    strength_score: number;
+    strength_level: 'weak' | 'medium' | 'strong';
+}
+
+export interface CheckNameResponse {
+    is_valid: boolean;
+    errors: string[];
+    security_threats: string[];
+}
+
+export const checkEmail = async (email: string): Promise<CheckEmailResponse | any> => {
+    try {
+        const response = await apiClient.post('/user/check-email/', { email });
+        return response.data;
+    } catch (error: any) {
+        if (error.response) {
+            return error.response.data;
+        }
+        return { is_valid: false, errors: [error.message || 'An unknown error occurred'], user_exists: false, security_threats: [] };
+    }
+};
+
+export const checkPassword = async (password: string): Promise<CheckPasswordResponse | any> => {
+    try {
+        const response = await apiClient.post('/user/check-password/', { password });
+        return response.data;
+    } catch (error: any) {
+        if (error.response) {
+            return error.response.data;
+        }
+        return { is_valid: false, errors: [error.message || 'An unknown error occurred'], security_threats: [], strength_score: 0, strength_level: 'weak' };
+    }
+};
+
+export const checkName = async (name: string): Promise<CheckNameResponse | any> => {
+    try {
+        const response = await apiClient.post('/user/check-name/', { name });
+        return response.data;
+    } catch (error: any) {
+        if (error.response) {
+            return error.response.data;
+        }
+        return { is_valid: false, errors: [error.message || 'An unknown error occurred'], security_threats: [] };
+    }
+};
 
 export const googleLogin = async (accessToken: string): Promise<{ access: string, refresh: string } | string> => {
     try {

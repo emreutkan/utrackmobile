@@ -1,21 +1,138 @@
 import { calculateBodyFatMen, calculateBodyFatWomen, createMeasurement, getMeasurements } from '@/api/Measurements';
-import { updateHeight, updateWeight, getWeightHistory, getAccount, deleteWeightEntry } from '@/api/account';
-import { BodyMeasurement, CalculateBodyFatResponse, CreateMeasurementRequest, WeightHistoryEntry, WeightHistoryResponse } from '@/api/types';
-import UnifiedHeader from '@/components/UnifiedHeader';
+import { deleteWeightEntry, getAccount, getWeightHistory, updateWeight } from '@/api/account';
+import { BodyMeasurement, CalculateBodyFatResponse, CreateMeasurementRequest, WeightHistoryEntry } from '@/api/types';
 import { useUserStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState, useRef } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Dimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Polyline, Circle, Line } from 'react-native-svg';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle, Defs, LinearGradient, Polyline, Stop } from 'react-native-svg';
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CHART_WIDTH = SCREEN_WIDTH - 64;
-const CHART_HEIGHT = 180;
+const CHART_WIDTH = SCREEN_WIDTH - 48; // Account for padding
+const CHART_HEIGHT = 160;
 
+// ============================================================================
+// HELPER COMPONENTS
+// ============================================================================
+
+/**
+ * Progress Chart Component
+ * Displays a line chart with gradient fill for weight or body fat data
+ */
+const ProgressChart = ({ 
+    data, 
+    color, 
+    yKey, 
+    xKey, 
+    unit 
+}: { 
+    data: any[]; 
+    color: string; 
+    yKey: string; 
+    xKey: string;
+    unit: string; 
+}) => {
+    // Empty state
+    if (data.length === 0) {
+        return (
+            <View style={styles.emptyChart}>
+                <Ionicons name="bar-chart-outline" size={32} color="#2C2C2E" />
+                <Text style={styles.emptyChartText}>No data available</Text>
+            </View>
+        );
+    }
+
+    // Calculate chart values and ranges
+    const values = data.map(d => parseFloat(d[yKey] || 0));
+    const maxVal = Math.max(...values);
+    const minVal = Math.min(...values);
+    const range = maxVal - minVal || 1;
+    
+    // Generate points for the line chart
+    const points = values.map((val, index) => {
+        const x = (index / (values.length - 1 || 1)) * CHART_WIDTH;
+        const y = CHART_HEIGHT - ((val - minVal) / range) * (CHART_HEIGHT - 20) - 10;
+        return `${x},${y}`;
+    }).join(' ');
+
+    // Get the most recent value for display
+    const lastValue = values[values.length - 1];
+
+    return (
+        <View>
+            <View style={styles.chartHeaderRow}>
+                <Text style={[styles.chartValueBig, { color }]}>
+                    {lastValue.toFixed(1)}<Text style={styles.chartUnit}>{unit}</Text>
+                </Text>
+            </View>
+            
+            <View style={{ height: CHART_HEIGHT, marginTop: 10 }}>
+                <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
+                    <Defs>
+                        <LinearGradient id={`grad-${color}`} x1="0" y1="0" x2="0" y2="1">
+                            <Stop offset="0" stopColor={color} stopOpacity="1" />
+                            <Stop offset="1" stopColor={color} stopOpacity="0.5" />
+                        </LinearGradient>
+                    </Defs>
+                    
+                    {/* Main line path */}
+                    <Polyline
+                        points={points}
+                        fill="none"
+                        stroke={`url(#grad-${color})`}
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+
+                    {/* Data point markers */}
+                    {values.map((val, index) => {
+                        const x = (index / (values.length - 1 || 1)) * CHART_WIDTH;
+                        const y = CHART_HEIGHT - ((val - minVal) / range) * (CHART_HEIGHT - 20) - 10;
+                        return (
+                            <Circle
+                                key={index}
+                                cx={x}
+                                cy={y}
+                                r="4"
+                                fill="#000"
+                                stroke={color}
+                                strokeWidth="2"
+                            />
+                        );
+                    })}
+                </Svg>
+            </View>
+        </View>
+    );
+};
+
+/**
+ * Swipe Action Component
+ * Animated delete action that appears when swiping left on history items
+ */
 const SwipeAction = ({ progress, onPress }: any) => {
     const animatedStyle = useAnimatedStyle(() => {
         const scale = interpolate(progress.value, [0, 1], [0.5, 1], Extrapolation.CLAMP);
@@ -25,66 +142,81 @@ const SwipeAction = ({ progress, onPress }: any) => {
     return (
         <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.deleteAction}>
             <Animated.View style={animatedStyle}>
-                <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+                <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
             </Animated.View>
         </TouchableOpacity>
     );
 };
 
+// ============================================================================
+// MAIN SCREEN COMPONENT
+// ============================================================================
+
 export default function MeasurementsScreen() {
     const insets = useSafeAreaInsets();
-    const { user, fetchUser } = useUserStore();
+    const { user } = useUserStore();
+    
+    // ========================================================================
+    // STATE MANAGEMENT
+    // ========================================================================
+    
+    // Data state
     const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
     const [weightHistory, setWeightHistory] = useState<WeightHistoryEntry[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isWeightModalVisible, setIsWeightModalVisible] = useState(false);
-    const [isHeightModalVisible, setIsHeightModalVisible] = useState(false);
-    const [isBodyFatModalVisible, setIsBodyFatModalVisible] = useState(false);
-    const [isCalculating, setIsCalculating] = useState(false);
-    const [isSavingHeight, setIsSavingHeight] = useState(false);
-    const [isSavingWeight, setIsSavingWeight] = useState(false);
-    const [previewResult, setPreviewResult] = useState<CalculateBodyFatResponse | null>(null);
-    const [tempHeight, setTempHeight] = useState('');
-    const [tempWeight, setTempWeight] = useState('');
     const [currentWeight, setCurrentWeight] = useState<number | null>(null);
     
-    // Body fat form state
-    const [weight, setWeight] = useState('');
-    const [waist, setWaist] = useState('');
-    const [neck, setNeck] = useState('');
-    const [hips, setHips] = useState('');
-    const [notes, setNotes] = useState('');
+    // UI state
+    const [isLoading, setIsLoading] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    
+    // Modal state
+    const [modals, setModals] = useState({
+        weight: false,
+        bodyFat: false
+    });
+    
+    // Form state
+    const [tempVal, setTempVal] = useState(''); // For weight input
+    const [bfForm, setBfForm] = useState({
+        weight: '',
+        waist: '',
+        neck: '',
+        hips: '',
+        notes: ''
+    });
+    const [previewResult, setPreviewResult] = useState<CalculateBodyFatResponse | null>(null);
 
+    // Derived user info
     const userGender = (user?.gender as 'male' | 'female') || 'male';
     const userHeight = user?.height;
     const isFemale = userGender === 'female';
 
+    // ========================================================================
+    // DATA LOADING
+    // ========================================================================
+
+    // Load data when screen comes into focus
     useFocusEffect(
         useCallback(() => {
             loadData();
         }, [])
     );
 
+    /**
+     * Load all measurement and weight data from the API
+     */
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const [measurementsData, weightHistoryData, accountData] = await Promise.all([
+            const [measData, weightData, accountData] = await Promise.all([
                 getMeasurements(),
                 getWeightHistory(),
                 getAccount()
             ]);
             
-            if (Array.isArray(measurementsData)) {
-                setMeasurements(measurementsData);
-            }
-            
-            if (weightHistoryData?.results) {
-                setWeightHistory(weightHistoryData.results);
-            }
-            
-            if (accountData?.weight) {
-                setCurrentWeight(accountData.weight);
-            }
+            if (Array.isArray(measData)) setMeasurements(measData);
+            if (weightData?.results) setWeightHistory(weightData.results);
+            if (accountData?.weight) setCurrentWeight(accountData.weight);
         } catch (error) {
             console.error('Failed to load data:', error);
         } finally {
@@ -92,1144 +224,824 @@ export default function MeasurementsScreen() {
         }
     };
 
-    const handleLogWeight = () => {
-        setTempWeight(currentWeight?.toString() || '');
-        setIsWeightModalVisible(true);
+    // ========================================================================
+    // EVENT HANDLERS
+    // ========================================================================
+
+    /**
+     * Open weight input modal with current weight pre-filled
+     */
+    const openWeightModal = () => {
+        setTempVal(currentWeight?.toString() || '');
+        setModals(prev => ({ ...prev, weight: true }));
     };
 
+    /**
+     * Save new weight entry
+     */
     const handleSaveWeight = async () => {
-        if (!tempWeight) {
-            Alert.alert("Missing Field", "Please enter your weight.");
+        if (!tempVal) return;
+        setIsProcessing(true);
+        try {
+            await updateWeight(parseFloat(tempVal));
+            setCurrentWeight(parseFloat(tempVal));
+            await loadData();
+            setModals(prev => ({ ...prev, weight: false }));
+        } catch (error: any) {
+            Alert.alert("Error", error.message || "Failed to save");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    /**
+     * Calculate body fat percentage (preview or save)
+     */
+    const handleCalculateBodyFat = async (previewOnly = false) => {
+        // Validation
+        if (!bfForm.weight || !bfForm.waist || !bfForm.neck || (!userHeight)) {
+            Alert.alert("Missing Data", "Please fill in all fields and ensure height is set.");
+            return;
+        }
+        if (isFemale && !bfForm.hips) {
+            Alert.alert("Missing Data", "Hips measurement is required for women.");
             return;
         }
 
-        setIsSavingWeight(true);
-        try {
-            const result = await updateWeight(parseFloat(tempWeight));
-            if (result?.weight || result?.message) {
-                await fetchUser();
-                setCurrentWeight(parseFloat(tempWeight));
-                setIsWeightModalVisible(false);
-                loadData();
-            } else if (result?.error) {
-                Alert.alert("Error", result.error);
-            }
-        } catch (error: any) {
-            Alert.alert("Error", "Failed to save weight");
-        } finally {
-            setIsSavingWeight(false);
-        }
-    };
-
-    const handleEditHeight = () => {
-        setTempHeight(userHeight?.toString() || '');
-        setIsHeightModalVisible(true);
-    };
-
-    const handleSaveHeight = async () => {
-        if (!tempHeight) {
-            Alert.alert("Missing Field", "Please enter your height.");
-            return;
-        }
-
-        setIsSavingHeight(true);
-        try {
-            const result = await updateHeight(parseFloat(tempHeight));
-            if (result?.height || result?.message) {
-                await fetchUser();
-                setIsHeightModalVisible(false);
-            } else if (result?.error) {
-                Alert.alert("Error", result.error);
-            }
-        } catch (error: any) {
-            Alert.alert("Error", "Failed to save height");
-        } finally {
-            setIsSavingHeight(false);
-        }
-    };
-
-    const handleOpenBodyFatModal = () => {
-        if (!userHeight) {
-            setIsHeightModalVisible(true);
-            setTempHeight('');
-        } else {
-            resetForm();
-            setIsBodyFatModalVisible(true);
-        }
-    };
-
-    const handlePreview = async () => {
-        if (!validateInputs() || !userHeight) return;
-
-        setIsCalculating(true);
+        setIsProcessing(true);
         try {
             const baseData = {
                 height: userHeight,
-                weight: parseFloat(weight),
-                waist: parseFloat(waist),
-                neck: parseFloat(neck),
+                weight: parseFloat(bfForm.weight),
+                waist: parseFloat(bfForm.waist),
+                neck: parseFloat(bfForm.neck),
             };
 
-            let result: CalculateBodyFatResponse;
+            // Calculate body fat based on gender
+            let result;
             if (isFemale) {
-                if (!hips) {
-                    Alert.alert("Missing Field", "Hips measurement is required for women.");
-                    setIsCalculating(false);
-                    return;
-                }
-                result = await calculateBodyFatWomen({
-                    ...baseData,
-                    hips: parseFloat(hips),
-                });
+                result = await calculateBodyFatWomen({ ...baseData, hips: parseFloat(bfForm.hips) });
             } else {
                 result = await calculateBodyFatMen(baseData);
             }
 
-            if (result?.body_fat_percentage !== undefined) {
+            if (result?.error) throw new Error(result.error);
+
+            if (previewOnly) {
+                // Just show preview, don't save
                 setPreviewResult(result);
-            } else if (result?.error) {
-                Alert.alert("Calculation Error", result.error);
+            } else {
+                // Save the measurement
+                const payload: CreateMeasurementRequest = {
+                    ...baseData,
+                    notes: bfForm.notes,
+                    hips: isFemale ? parseFloat(bfForm.hips) : undefined
+                };
+                await createMeasurement(payload);
+                await loadData();
+                setModals(prev => ({ ...prev, bodyFat: false }));
+                setBfForm({ weight: '', waist: '', neck: '', hips: '', notes: '' });
+                setPreviewResult(null);
+                Alert.alert("Success", "Measurement recorded.");
             }
         } catch (error: any) {
-            Alert.alert("Error", error?.error || "Failed to calculate body fat");
+            Alert.alert("Error", error.message || "Calculation failed");
         } finally {
-            setIsCalculating(false);
+            setIsProcessing(false);
         }
     };
 
-    const handleSaveBodyFat = async () => {
-        if (!validateInputs() || !userHeight) return;
-        if (isFemale && !hips) {
-            Alert.alert("Missing Field", "Hips measurement is required for women.");
+    /**
+     * Delete a weight/body fat entry
+     */
+    const handleDeleteEntry = (entry: WeightHistoryEntry) => {
+        const performDelete = async (deleteBF: boolean) => {
+            await deleteWeightEntry(entry.id, deleteBF);
+            loadData();
+        };
+
+        // If entry has body fat data, ask user what to delete
+        if (entry.bodyfat !== null) {
+            Alert.alert("Delete Entry", "This entry contains body fat data.", [
+                { text: "Cancel", style: "cancel" },
+                { text: "Weight Only", onPress: () => performDelete(false) },
+                { text: "Weight & Body Fat", style: "destructive", onPress: () => performDelete(true) }
+            ]);
+        } else {
+            performDelete(false);
+        }
+    };
+
+    /**
+     * Open body fat calculator modal
+     */
+    const openBodyFatModal = () => {
+        if (!userHeight) {
+            Alert.alert("Height Required", "Please set your height in Account settings to calculate body fat.");
             return;
         }
-
-        setIsLoading(true);
-        try {
-            const payload: CreateMeasurementRequest = {
-                height: userHeight,
-                weight: parseFloat(weight),
-                waist: parseFloat(waist),
-                neck: parseFloat(neck),
-                notes: notes || undefined,
-            };
-
-            if (isFemale) {
-                payload.hips = parseFloat(hips);
-            }
-
-            const result = await createMeasurement(payload);
-            
-            if (result?.id) {
-                Alert.alert("Success", "Measurement saved successfully!");
-                resetForm();
-                setIsBodyFatModalVisible(false);
-                loadData();
-            } else if (result?.hips) {
-                Alert.alert("Error", Array.isArray(result.hips) ? result.hips[0] : result.hips);
-            } else if (result?.error) {
-                Alert.alert("Error", result.error);
-            }
-        } catch (error: any) {
-            Alert.alert("Error", "Failed to save measurement");
-        } finally {
-            setIsLoading(false);
+        setModals(prev => ({ ...prev, bodyFat: true }));
+        // Pre-fill weight if available
+        if (currentWeight) {
+            setBfForm(prev => ({ ...prev, weight: currentWeight.toString() }));
         }
     };
 
-    const handleDeleteWeight = (entry: WeightHistoryEntry) => {
-        const hasBodyfat = entry.bodyfat !== null;
-        
-        if (hasBodyfat) {
-            Alert.alert(
-                "Delete Entry",
-                "This entry has both weight and body fat data. What would you like to delete?",
-                [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                        text: "Delete Weight Only",
-                        style: "default",
-                        onPress: () => deleteWeight(entry.id, false)
-                    },
-                    {
-                        text: "Delete Weight + Body Fat",
-                        style: "destructive",
-                        onPress: () => deleteWeight(entry.id, true)
-                    }
-                ]
-            );
-        } else {
-            Alert.alert(
-                "Delete Weight Entry",
-                "Are you sure you want to delete this weight entry?",
-                [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                        text: "Delete",
-                        style: "destructive",
-                        onPress: () => deleteWeight(entry.id, false)
-                    }
-                ]
-            );
-        }
-    };
+    // ========================================================================
+    // DATA FORMATTING
+    // ========================================================================
 
-    const deleteWeight = async (weightId: number, deleteBodyfat: boolean) => {
-        setIsLoading(true);
-        try {
-            const result = await deleteWeightEntry(weightId, deleteBodyfat);
-            if (result?.message) {
-                Alert.alert("Success", result.message);
-                loadData();
-            } else if (result?.error) {
-                Alert.alert("Error", result.error);
-            }
-        } catch (error: any) {
-            Alert.alert("Error", "Failed to delete weight entry");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const validateInputs = () => {
-        if (!weight || !waist || !neck) {
-            Alert.alert("Missing Fields", "Please fill in all required measurements.");
-            return false;
-        }
-        if (isFemale && !hips) {
-            Alert.alert("Missing Field", "Hips measurement is required for women.");
-            return false;
-        }
-        return true;
-    };
-
-    const resetForm = () => {
-        setWeight('');
-        setWaist('');
-        setNeck('');
-        setHips('');
-        setNotes('');
-        setPreviewResult(null);
-    };
-
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric',
-            year: 'numeric'
-        });
-    };
-
-    const formatShortDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric'
-        });
-    };
-
-    // Prepare chart data
+    // Prepare chart data (last 10 entries, reversed for chronological order)
     const weightChartData = weightHistory.slice(-10).reverse();
-    const bodyFatChartData = measurements.filter(m => m.body_fat_percentage).slice(-10).reverse();
+    const bfChartData = measurements
+        .filter(m => m.body_fat_percentage)
+        .slice(-10)
+        .reverse();
 
-    const getWeightChartPoints = () => {
-        if (weightChartData.length === 0) return '';
-        const maxWeight = Math.max(...weightChartData.map(w => w.weight));
-        const minWeight = Math.min(...weightChartData.map(w => w.weight));
-        const range = maxWeight - minWeight || 1;
-        const padding = 20;
-        const xStep = weightChartData.length > 1 ? (CHART_WIDTH - 2 * padding) / (weightChartData.length - 1) : 0;
-        
-        return weightChartData.map((entry, index) => {
-            const x = padding + (index * xStep);
-            const y = CHART_HEIGHT - padding - ((entry.weight - minWeight) / range) * (CHART_HEIGHT - 2 * padding);
-            return `${x},${y}`;
-        }).join(' ');
-    };
-
-    const getBodyFatChartPoints = () => {
-        if (bodyFatChartData.length === 0) return '';
-        const maxBF = Math.max(...bodyFatChartData.map(m => parseFloat(String(m.body_fat_percentage || 0))));
-        const minBF = Math.min(...bodyFatChartData.map(m => parseFloat(String(m.body_fat_percentage || 0))));
-        const range = maxBF - minBF || 1;
-        const padding = 20;
-        const xStep = bodyFatChartData.length > 1 ? (CHART_WIDTH - 2 * padding) / (bodyFatChartData.length - 1) : 0;
-        
-        return bodyFatChartData.map((entry, index) => {
-            const x = padding + (index * xStep);
-            const bf = parseFloat(String(entry.body_fat_percentage || 0));
-            const y = CHART_HEIGHT - padding - ((bf - minBF) / range) * (CHART_HEIGHT - 2 * padding);
-            return `${x},${y}`;
-        }).join(' ');
-    };
-
-    // Use weight history for table (sorted by date, most recent first)
-    const sortedWeightHistory = [...weightHistory].sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
+    // Sort history by date (newest first)
+    const sortedHistory = [...weightHistory].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
+
+    /**
+     * Format date for display
+     */
+    const formatDate = (d: string) => 
+        new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    // ========================================================================
+    // RENDER FUNCTIONS
+    // ========================================================================
+
+    /**
+     * Render a history entry item
+     */
+    const renderHistoryItem = ({ item, index }: { item: WeightHistoryEntry; index: number }) => (
+        <ReanimatedSwipeable
+            key={item.id}
+            renderRightActions={(p) => (
+                <SwipeAction 
+                    progress={p} 
+                    onPress={() => handleDeleteEntry(item)} 
+                />
+            )}
+            friction={2}
+        >
+            <View style={[
+                styles.historyRow, 
+                index === sortedHistory.length - 1 && styles.historyRowLast
+            ]}>
+                <View style={styles.historyLeft}>
+                    <Text style={styles.historyDate}>{formatDate(item.date)}</Text>
+                </View>
+                <View style={styles.historyRight}>
+                    <View style={styles.historyStat}>
+                        <Text style={styles.historyLabel}>Weight</Text>
+                        <Text style={styles.historyValue}>{item.weight}</Text>
+                    </View>
+                    <View style={styles.historyStat}>
+                        <Text style={styles.historyLabel}>BF%</Text>
+                        <Text style={styles.historyValue}>
+                            {item.bodyfat 
+                                ? parseFloat(item.bodyfat.toString()).toFixed(1) 
+                                : '-'
+                            }
+                        </Text>
+                    </View>
+                </View>
+            </View>
+        </ReanimatedSwipeable>
+    );
+
+    // ========================================================================
+    // RENDER
+    // ========================================================================
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            <UnifiedHeader title="Measurements" />
-
             <ScrollView 
-                style={styles.scrollView}
-                contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+                contentContainerStyle={[
+                    styles.scrollContent, 
+                    { paddingBottom: insets.bottom + 100, paddingTop: 20 }
+                ]}
             >
-                {/* Weight and Height Section */}
-                <View style={styles.topSection}>
-                    <View style={styles.valueCard}>
-                        <View style={styles.cardHeader}>
-                            <Ionicons name="scale-outline" size={20} color="#0A84FF" />
-                            <Text style={styles.valueLabel}>Weight</Text>
-                        </View>
-                        <Text style={styles.valueText}>
-                            {currentWeight ? `${currentWeight}` : '--'}
-                            <Text style={styles.valueUnit}> kg</Text>
-                        </Text>
-                        <TouchableOpacity 
-                            style={styles.logButton}
-                            onPress={handleLogWeight}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons name="add" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
-                            <Text style={styles.logButtonText}>Log</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <TouchableOpacity 
-                        style={[styles.valueCard, styles.heightCard]}
-                        onPress={handleEditHeight}
-                        activeOpacity={0.7}
-                    >
-                        <View style={styles.cardHeader}>
-                            <Ionicons name="resize-outline" size={20} color="#32D74B" />
-                            <Text style={styles.valueLabel}>Height</Text>
-                        </View>
-                        <Text style={styles.valueText}>
-                            {userHeight ? `${userHeight}` : '--'}
-                            <Text style={styles.valueUnit}> cm</Text>
-                        </Text>
-                        <View style={styles.editHint}>
-                            <Ionicons name="pencil" size={12} color="#8E8E93" />
-                            <Text style={styles.editHintText}>Tap to edit</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Body Fat Calculation Button */}
+                {/* Weight Card - Quick access to current weight */}
                 <TouchableOpacity 
-                    style={styles.bodyFatButton}
-                    onPress={handleOpenBodyFatModal}
+                    style={styles.weightCard} 
+                    onPress={openWeightModal} 
                     activeOpacity={0.8}
                 >
-                    <View style={styles.bodyFatButtonContent}>
-                        <View style={styles.bodyFatIconContainer}>
-                            <Ionicons name="calculator" size={22} color="#FFFFFF" />
-                        </View>
-                        <Text style={styles.bodyFatButtonText}>Calculate Body Fat</Text>
+                    <View style={styles.iconCircleBlue}>
+                        <Ionicons name="scale" size={18} color="#0A84FF" />
                     </View>
+                    <View style={styles.weightCardContent}>
+                        <Text style={styles.statLabel}>Weight</Text>
+                        <Text style={styles.statValue}>
+                            {currentWeight ? currentWeight : '--'} 
+                            <Text style={styles.statUnit}>kg</Text>
+                        </Text>
+                    </View>
+                    <Ionicons name="add-circle" size={20} color="#0A84FF" />
                 </TouchableOpacity>
 
-                {/* Charts Section */}
-                <View style={styles.chartsSection}>
-                    <View style={styles.sectionHeader}>
-                        <Ionicons name="trending-up-outline" size={18} color="#8E8E93" />
-                        <Text style={styles.sectionHeaderText}>Progress</Text>
-                    </View>
+                {/* Body Fat Calculator Button */}
+                <TouchableOpacity 
+                    style={styles.calcButton}
+                    onPress={openBodyFatModal}
+                >
+                    <Ionicons name="calculator" size={20} color="#FFF" />
+                    <Text style={styles.calcButtonText}>Calculate Body Fat</Text>
+                </TouchableOpacity>
+
+                {/* Progress Charts Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Progress Trends</Text>
                     
                     {/* Weight Chart */}
-                    <View style={styles.chartContainer}>
-                        <View style={styles.chartHeader}>
-                            <View style={styles.chartTitleRow}>
-                                <View style={[styles.chartColorIndicator, { backgroundColor: '#0A84FF' }]} />
-                                <Text style={styles.chartTitle}>Weight</Text>
-                            </View>
-                            {weightChartData.length > 0 && (
-                                <Text style={styles.chartSubtitle}>
-                                    {weightChartData[weightChartData.length - 1].weight} kg
-                                </Text>
-                            )}
+                    <View style={styles.chartCard}>
+                        <View style={styles.chartTitleRow}>
+                            <Ionicons 
+                                name="ellipse" 
+                                size={12} 
+                                color="#0A84FF" 
+                                style={{ marginRight: 6 }} 
+                            />
+                            <Text style={styles.chartTitleText}>Weight History</Text>
                         </View>
-                        {weightChartData.length > 0 ? (
-                            <View style={styles.chart}>
-                                <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-                                    <Polyline
-                                        points={getWeightChartPoints()}
-                                        fill="none"
-                                        stroke="#0A84FF"
-                                        strokeWidth="2.5"
-                                    />
-                                    {weightChartData.map((entry, index) => {
-                                        const points = getWeightChartPoints().split(' ');
-                                        const point = points[index]?.split(',');
-                                        if (point) {
-                                            return (
-                                                <Circle
-                                                    key={`${entry.date}-${index}`}
-                                                    cx={parseFloat(point[0])}
-                                                    cy={parseFloat(point[1])}
-                                                    r="5"
-                                                    fill="#0A84FF"
-                                                    stroke="#000000"
-                                                    strokeWidth="1"
-                                                />
-                                            );
-                                        }
-                                        return null;
-                                    })}
-                                </Svg>
-                                <View style={styles.chartLabels}>
-                                    <Text style={styles.chartLabel}>
-                                        {weightChartData[0] ? formatShortDate(weightChartData[0].date) : ''}
-                                    </Text>
-                                    <Text style={styles.chartLabel}>
-                                        {weightChartData[weightChartData.length - 1] ? formatShortDate(weightChartData[weightChartData.length - 1].date) : ''}
-                                    </Text>
-                                </View>
-                            </View>
-                        ) : (
-                            <View style={styles.emptyChart}>
-                                <Ionicons name="analytics-outline" size={48} color="#2C2C2E" />
-                                <Text style={styles.emptyChartText}>No weight data yet</Text>
-                                <Text style={styles.emptyChartSubtext}>Log your weight to see progress</Text>
-                            </View>
-                        )}
+                        <ProgressChart 
+                            data={weightChartData} 
+                            color="#0A84FF" 
+                            xKey="date" 
+                            yKey="weight"
+                            unit="kg"
+                        />
                     </View>
 
                     {/* Body Fat Chart */}
-                    <View style={styles.chartContainer}>
-                        <View style={styles.chartHeader}>
-                            <View style={styles.chartTitleRow}>
-                                <View style={[styles.chartColorIndicator, { backgroundColor: '#32D74B' }]} />
-                                <Text style={styles.chartTitle}>Body Fat</Text>
-                            </View>
-                            {bodyFatChartData.length > 0 && (
-                                <Text style={styles.chartSubtitle}>
-                                    {parseFloat(String(bodyFatChartData[bodyFatChartData.length - 1].body_fat_percentage)).toFixed(1)}%
-                                </Text>
-                            )}
+                    <View style={[styles.chartCard, { marginTop: 16 }]}>
+                        <View style={styles.chartTitleRow}>
+                            <Ionicons 
+                                name="ellipse" 
+                                size={12} 
+                                color="#30D158" 
+                                style={{ marginRight: 6 }} 
+                            />
+                            <Text style={styles.chartTitleText}>Body Fat %</Text>
                         </View>
-                        {bodyFatChartData.length > 0 ? (
-                            <View style={styles.chart}>
-                                <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-                                    <Polyline
-                                        points={getBodyFatChartPoints()}
-                                        fill="none"
-                                        stroke="#32D74B"
-                                        strokeWidth="2.5"
-                                    />
-                                    {bodyFatChartData.map((entry, index) => {
-                                        const points = getBodyFatChartPoints().split(' ');
-                                        const point = points[index]?.split(',');
-                                        if (point) {
-                                            return (
-                                                <Circle
-                                                    key={`bf-${entry.id}-${index}`}
-                                                    cx={parseFloat(point[0])}
-                                                    cy={parseFloat(point[1])}
-                                                    r="5"
-                                                    fill="#32D74B"
-                                                    stroke="#000000"
-                                                    strokeWidth="1"
-                                                />
-                                            );
-                                        }
-                                        return null;
-                                    })}
-                                </Svg>
-                                <View style={styles.chartLabels}>
-                                    <Text style={styles.chartLabel}>
-                                        {bodyFatChartData[0] ? formatShortDate(bodyFatChartData[0].created_at) : ''}
-                                    </Text>
-                                    <Text style={styles.chartLabel}>
-                                        {bodyFatChartData[bodyFatChartData.length - 1] ? formatShortDate(bodyFatChartData[bodyFatChartData.length - 1].created_at) : ''}
-                                    </Text>
-                                </View>
-                            </View>
-                        ) : (
-                            <View style={styles.emptyChart}>
-                                <Ionicons name="analytics-outline" size={48} color="#2C2C2E" />
-                                <Text style={styles.emptyChartText}>No body fat data yet</Text>
-                                <Text style={styles.emptyChartSubtext}>Calculate body fat to see progress</Text>
-                            </View>
-                        )}
+                        <ProgressChart 
+                            data={bfChartData} 
+                            color="#30D158" 
+                            xKey="created_at" 
+                            yKey="body_fat_percentage"
+                            unit="%"
+                        />
                     </View>
                 </View>
 
-                {/* History Table */}
-                <View style={styles.tableSection}>
-                    <View style={styles.sectionHeader}>
-                        <Ionicons name="time-outline" size={18} color="#8E8E93" />
-                        <Text style={styles.sectionHeaderText}>History</Text>
-                    </View>
-                    <View style={styles.tableHeader}>
-                        <Text style={[styles.tableHeaderText, { flex: 1 }]}>Weight</Text>
-                        <Text style={[styles.tableHeaderText, { flex: 1 }]}>Body Fat</Text>
-                        <Text style={[styles.tableHeaderText, { flex: 1 }]}>Date</Text>
-                    </View>
-                    {sortedWeightHistory.length > 0 ? (
-                        sortedWeightHistory.map((entry) => (
-                            <ReanimatedSwipeable
-                                key={entry.id}
-                                renderRightActions={(progress) => (
-                                    <SwipeAction 
-                                        progress={progress} 
-                                        onPress={() => handleDeleteWeight(entry)} 
-                                    />
-                                )}
-                                overshootRight={false}
-                                friction={2}
-                                rightThreshold={40}
-                                containerStyle={styles.swipeableContainer}
-                            >
-                                <View style={styles.tableRow}>
-                                    <Text style={[styles.tableCell, { flex: 1 }]}>
-                                        {entry.weight} kg
-                                    </Text>
-                                    <Text style={[styles.tableCell, { flex: 1 }]}>
-                                        {entry.bodyfat !== null 
-                                            ? `${parseFloat(String(entry.bodyfat)).toFixed(1)}%`
-                                            : '-'
-                                        }
-                                    </Text>
-                                    <Text style={[styles.tableCell, { flex: 1 }]}>
-                                        {formatDate(entry.date)}
-                                    </Text>
-                                </View>
-                            </ReanimatedSwipeable>
-                        ))
+                {/* History List Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Recent Logs</Text>
+                    {sortedHistory.length > 0 ? (
+                        <View style={styles.historyContainer}>
+                            <FlatList
+                                data={sortedHistory}
+                                renderItem={renderHistoryItem}
+                                keyExtractor={item => item.id.toString()}
+                                scrollEnabled={false}
+                            />
+                        </View>
                     ) : (
-                        <View style={styles.emptyTable}>
-                            <Ionicons name="document-text-outline" size={48} color="#2C2C2E" />
-                            <Text style={styles.emptyTableText}>No weight history yet</Text>
-                            <Text style={styles.emptyTableSubtext}>Start logging your weight to track progress</Text>
+                        <View style={styles.emptyState}>
+                            <Ionicons name="list-outline" size={48} color="#8E8E93" />
+                            <Text style={styles.emptyText}>No logs recorded yet.</Text>
                         </View>
                     )}
                 </View>
             </ScrollView>
 
-            {/* Weight Modal */}
-            <Modal
-                visible={isWeightModalVisible}
+            {/* ====================================================================
+                MODALS
+            ==================================================================== */}
+
+            {/* Weight Input Modal */}
+            <Modal 
+                visible={modals.weight} 
+                transparent 
                 animationType="fade"
-                transparent
-                onRequestClose={() => setIsWeightModalVisible(false)}
+                onRequestClose={() => setModals(prev => ({ ...prev, weight: false }))}
             >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Log Weight</Text>
-                        <TextInput
-                            style={styles.modalInput}
-                            value={tempWeight}
-                            onChangeText={setTempWeight}
-                            keyboardType="numeric"
-                            placeholder="75.5"
-                            placeholderTextColor="#8E8E93"
-                        />
-                        <View style={styles.modalButtonRow}>
+                <KeyboardAvoidingView 
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+                    style={styles.modalOverlay}
+                >
+                    <View style={styles.modalCard}>
+                        <Text style={styles.modalTitle}>Update Weight</Text>
+                        <View style={styles.bigInputWrapper}>
+                            <TextInput
+                                style={styles.bigInput}
+                                value={tempVal}
+                                onChangeText={setTempVal}
+                                keyboardType="numeric"
+                                placeholder="0"
+                                placeholderTextColor="#3A3A3C"
+                                autoFocus
+                            />
+                            <Text style={styles.bigInputSuffix}>kg</Text>
+                        </View>
+                        <View style={styles.modalActions}>
                             <TouchableOpacity 
-                                style={[styles.modalButton, styles.modalButtonCancel]}
-                                onPress={() => setIsWeightModalVisible(false)}
+                                style={styles.btnCancel} 
+                                onPress={() => setModals(prev => ({ ...prev, weight: false }))}
                             >
-                                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+                                <Text style={styles.btnText}>Cancel</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
-                                style={[styles.modalButton, styles.modalButtonSave]}
-                                onPress={handleSaveWeight}
-                                disabled={isSavingWeight}
+                                style={styles.btnSave} 
+                                onPress={handleSaveWeight} 
+                                disabled={isProcessing}
                             >
-                                {isSavingWeight ? (
-                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                {isProcessing ? (
+                                    <ActivityIndicator color="#FFF" />
                                 ) : (
-                                    <Text style={styles.modalButtonSaveText}>Save</Text>
+                                    <Text style={[styles.btnText, { color: '#FFF' }]}>Save</Text>
                                 )}
                             </TouchableOpacity>
                         </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
-            {/* Height Modal */}
-            <Modal
-                visible={isHeightModalVisible}
-                animationType="fade"
-                transparent
-                onRequestClose={() => setIsHeightModalVisible(false)}
+            {/* Body Fat Calculator Modal */}
+            <Modal 
+                visible={modals.bodyFat} 
+                animationType="slide" 
+                presentationStyle="pageSheet"
+                onRequestClose={() => setModals(prev => ({ ...prev, bodyFat: false }))}
             >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Edit Height</Text>
-                        <TextInput
-                            style={styles.modalInput}
-                            value={tempHeight}
-                            onChangeText={setTempHeight}
-                            keyboardType="numeric"
-                            placeholder="175"
-                            placeholderTextColor="#8E8E93"
-                        />
-                        <View style={styles.modalButtonRow}>
-                            <TouchableOpacity 
-                                style={[styles.modalButton, styles.modalButtonCancel]}
-                                onPress={() => setIsHeightModalVisible(false)}
-                            >
-                                <Text style={styles.modalButtonCancelText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.modalButton, styles.modalButtonSave]}
-                                onPress={handleSaveHeight}
-                                disabled={isSavingHeight}
-                            >
-                                {isSavingHeight ? (
-                                    <ActivityIndicator size="small" color="#FFFFFF" />
-                                ) : (
-                                    <Text style={styles.modalButtonSaveText}>Save</Text>
-                                )}
-                            </TouchableOpacity>
-                        </View>
+                <View style={styles.sheetContainer}>
+                    <View style={styles.sheetHeader}>
+                        <Text style={styles.sheetTitle}>Body Fat Calculator</Text>
+                        <TouchableOpacity 
+                            onPress={() => setModals(prev => ({ ...prev, bodyFat: false }))}
+                        >
+                            <Ionicons name="close-circle" size={30} color="#3A3A3C" />
+                        </TouchableOpacity>
                     </View>
-                </View>
-            </Modal>
-
-            {/* Body Fat Modal */}
-            <Modal
-                visible={isBodyFatModalVisible}
-                animationType="fade"
-                transparent
-                onRequestClose={() => {
-                    setIsBodyFatModalVisible(false);
-                    resetForm();
-                }}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.bodyFatModalContent}>
-                        <ScrollView style={styles.modalScrollContent}>
-                            <Text style={styles.modalTitle}>Calculate Body Fat</Text>
-                            
-                            <View style={styles.inputRow}>
-                                <Text style={styles.inputLabel}>Weight (kg) *</Text>
-                                <TextInput
-                                    style={styles.inputRowInput}
-                                    value={weight}
-                                    onChangeText={setWeight}
-                                    keyboardType="numeric"
-                                    placeholder="75.5"
-                                    placeholderTextColor="#8E8E93"
+                    
+                    <ScrollView contentContainerStyle={styles.sheetContent}>
+                        {/* Input Grid */}
+                        <View style={styles.grid}>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Weight (kg)</Text>
+                                <TextInput 
+                                    style={styles.sheetInput} 
+                                    value={bfForm.weight} 
+                                    onChangeText={t => setBfForm({ ...bfForm, weight: t })} 
+                                    keyboardType="numeric" 
+                                    placeholder="0"
+                                    placeholderTextColor="#545458"
                                 />
                             </View>
-
-                            <View style={styles.inputRow}>
-                                <Text style={styles.inputLabel}>Waist (cm) *</Text>
-                                <TextInput
-                                    style={styles.inputRowInput}
-                                    value={waist}
-                                    onChangeText={setWaist}
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Waist (cm)</Text>
+                                <TextInput 
+                                    style={styles.sheetInput} 
+                                    value={bfForm.waist} 
+                                    onChangeText={t => setBfForm({ ...bfForm, waist: t })} 
                                     keyboardType="numeric"
-                                    placeholder="85"
-                                    placeholderTextColor="#8E8E93"
+                                    placeholder="0"
+                                    placeholderTextColor="#545458" 
                                 />
                             </View>
-
-                            <View style={styles.inputRow}>
-                                <Text style={styles.inputLabel}>Neck (cm) *</Text>
-                                <TextInput
-                                    style={styles.inputRowInput}
-                                    value={neck}
-                                    onChangeText={setNeck}
-                                    keyboardType="numeric"
-                                    placeholder="38"
-                                    placeholderTextColor="#8E8E93"
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.inputLabel}>Neck (cm)</Text>
+                                <TextInput 
+                                    style={styles.sheetInput} 
+                                    value={bfForm.neck} 
+                                    onChangeText={t => setBfForm({ ...bfForm, neck: t })} 
+                                    keyboardType="numeric" 
+                                    placeholder="0"
+                                    placeholderTextColor="#545458"
                                 />
                             </View>
-
+                            {/* Hips input for women only */}
                             {isFemale && (
-                                <View style={styles.inputRow}>
-                                    <Text style={styles.inputLabel}>Hips (cm) *</Text>
-                                    <TextInput
-                                        style={styles.inputRowInput}
-                                        value={hips}
-                                        onChangeText={setHips}
-                                        keyboardType="numeric"
-                                        placeholder="95"
-                                        placeholderTextColor="#8E8E93"
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.inputLabel}>Hips (cm)</Text>
+                                    <TextInput 
+                                        style={styles.sheetInput} 
+                                        value={bfForm.hips} 
+                                        onChangeText={t => setBfForm({ ...bfForm, hips: t })} 
+                                        keyboardType="numeric" 
+                                        placeholder="0"
+                                        placeholderTextColor="#545458"
                                     />
                                 </View>
                             )}
+                        </View>
 
-                            <View style={styles.inputRow}>
-                                <Text style={styles.inputLabel}>Notes</Text>
-                                <TextInput
-                                    style={styles.inputRowInput}
-                                    value={notes}
-                                    onChangeText={setNotes}
-                                    placeholder="Optional"
-                                    placeholderTextColor="#8E8E93"
-                                />
+                        {/* Notes Input */}
+                        <Text style={styles.inputLabel}>Notes (Optional)</Text>
+                        <TextInput 
+                            style={[styles.sheetInput, { marginBottom: 24 }]} 
+                            value={bfForm.notes} 
+                            onChangeText={t => setBfForm({ ...bfForm, notes: t })} 
+                            placeholder="Morning check..."
+                            placeholderTextColor="#545458"
+                        />
+
+                        {/* Preview Result Display */}
+                        {previewResult && (
+                            <View style={styles.resultBox}>
+                                <Text style={styles.resultLabel}>ESTIMATED BODY FAT</Text>
+                                <Text style={styles.resultValue}>
+                                    {previewResult.body_fat_percentage.toFixed(1)}%
+                                </Text>
+                                <Text style={styles.resultMethod}>
+                                    Method: {previewResult.method}
+                                </Text>
                             </View>
+                        )}
 
-                            {previewResult && (
-                                <View style={styles.previewCard}>
-                                    <Text style={styles.previewTitle}>Body Fat Estimate</Text>
-                                    <Text style={styles.previewValue}>
-                                        {previewResult.body_fat_percentage.toFixed(2)}%
-                                    </Text>
-                                    <Text style={styles.previewMethod}>{previewResult.method}</Text>
-                                </View>
-                            )}
-
-                            <View style={styles.buttonRow}>
-                                <TouchableOpacity 
-                                    style={[styles.button, styles.previewButton]}
-                                    onPress={handlePreview}
-                                    disabled={isCalculating}
-                                >
-                                    {isCalculating ? (
-                                        <ActivityIndicator size="small" color="#0A84FF" />
-                                    ) : (
-                                        <Text style={styles.previewButtonText}>Preview</Text>
-                                    )}
-                                </TouchableOpacity>
-
-                                <TouchableOpacity 
-                                    style={[styles.button, styles.saveButton]}
-                                    onPress={handleSaveBodyFat}
-                                    disabled={isLoading}
-                                >
-                                    {isLoading ? (
-                                        <ActivityIndicator size="small" color="#FFFFFF" />
-                                    ) : (
-                                        <Text style={styles.saveButtonText}>Save</Text>
-                                    )}
-                                </TouchableOpacity>
-                            </View>
-                        </ScrollView>
-                    </View>
+                        {/* Action Buttons */}
+                        <View style={styles.sheetActions}>
+                            <TouchableOpacity 
+                                style={[styles.sheetBtn, styles.sheetBtnOutline]} 
+                                onPress={() => handleCalculateBodyFat(true)}
+                                disabled={isProcessing}
+                            >
+                                <Text style={styles.sheetBtnTextOutline}>Preview</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.sheetBtn, styles.sheetBtnPrimary]} 
+                                onPress={() => handleCalculateBodyFat(false)}
+                                disabled={isProcessing}
+                            >
+                                {isProcessing ? (
+                                    <ActivityIndicator color="#FFF" />
+                                ) : (
+                                    <Text style={styles.sheetBtnTextPrimary}>Save Log</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </ScrollView>
                 </View>
             </Modal>
         </View>
     );
 }
 
+// ============================================================================
+// STYLES
+// ============================================================================
+
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#000000',
+    container: { 
+        flex: 1, 
+        backgroundColor: '#000000' 
     },
-    scrollView: {
-        flex: 1,
+    scrollContent: { 
+        padding: 16 
     },
-    scrollContent: {
-        padding: 16,
-        paddingTop: 60,
-    },
-    topSection: {
+
+    // Weight Card
+    weightCard: {
         flexDirection: 'row',
-        gap: 16,
-        marginBottom: 24,
-    },
-    valueCard: {
-        flex: 1,
+        alignItems: 'center',
         backgroundColor: '#1C1C1E',
-        borderRadius: 22,
-        padding: 24,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    heightCard: {
-        // Same as valueCard but touchable
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 16,
-    },
-    valueLabel: {
-        fontSize: 13,
-        color: '#8E8E93',
-        fontWeight: '300',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    valueText: {
-        fontSize: 34,
-        color: '#FFFFFF',
-        fontWeight: '700',
-        marginBottom: 16,
-        letterSpacing: -0.5,
-    },
-    valueUnit: {
-        fontSize: 18,
-        color: '#8E8E93',
-        fontWeight: '400',
-    },
-    logButton: {
-        backgroundColor: '#0A84FF',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 16,
-        paddingHorizontal: 16,
-        borderRadius: 22,
-        alignSelf: 'flex-start',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    logButtonText: {
-        color: '#FFFFFF',
-        fontSize: 17,
-        fontWeight: '400',
-    },
-    editHint: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginTop: 8,
-    },
-    editHintText: {
-        fontSize: 13,
-        color: '#8E8E93',
-        fontWeight: '300',
-    },
-    bodyFatButton: {
-        backgroundColor: '#0A84FF',
-        borderRadius: 22,
-        marginBottom: 32,
-        overflow: 'hidden',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    bodyFatButtonContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 16,
-        gap: 16,
-    },
-    bodyFatIconContainer: {
-        width: 32,
-        height: 32,
         borderRadius: 16,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    bodyFatButtonText: {
-        color: '#FFFFFF',
-        fontSize: 17,
-        fontWeight: '400',
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
+        padding: 12,
         marginBottom: 16,
-        marginTop: 8,
-    },
-    sectionHeaderText: {
-        fontSize: 13,
-        fontWeight: '300',
-        color: '#8E8E93',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    chartsSection: {
-        gap: 16,
-        marginBottom: 24,
-    },
-    chartContainer: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 22,
-        padding: 24,
         borderWidth: 1,
         borderColor: '#2C2C2E',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
+        gap: 12,
     },
-    chartHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 24,
-    },
-    chartTitleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    chartColorIndicator: {
-        width: 4,
-        height: 20,
-        borderRadius: 2,
-    },
-    chartTitle: {
-        fontSize: 18,
-        fontWeight: '500',
-        color: '#FFFFFF',
-    },
-    chartSubtitle: {
-        fontSize: 17,
-        fontWeight: '400',
-        color: '#8E8E93',
-    },
-    chart: {
-        alignItems: 'center',
-    },
-    chartLabels: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: CHART_WIDTH,
-        marginTop: 16,
-    },
-    chartLabel: {
-        fontSize: 13,
-        color: '#8E8E93',
-        fontWeight: '300',
-    },
-    emptyChart: {
-        height: CHART_HEIGHT,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 24,
-    },
-    emptyChartText: {
-        color: '#8E8E93',
-        fontSize: 17,
-        fontWeight: '400',
-        marginTop: 16,
-    },
-    emptyChartSubtext: {
-        color: '#2C2C2E',
-        fontSize: 13,
-        marginTop: 8,
-    },
-    tableSection: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 22,
-        padding: 24,
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    tableHeader: {
-        flexDirection: 'row',
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#2C2C2E',
-        marginBottom: 16,
-    },
-    tableHeaderText: {
-        fontSize: 13,
-        fontWeight: '300',
-        color: '#8E8E93',
-    },
-    tableRow: {
-        flexDirection: 'row',
-        paddingVertical: 16,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: '#2C2C2E',
-    },
-    tableCell: {
-        fontSize: 17,
-        color: '#FFFFFF',
-        fontWeight: '400',
-    },
-    emptyTable: {
-        paddingVertical: 40,
-        alignItems: 'center',
-    },
-    emptyTableText: {
-        color: '#8E8E93',
-        fontSize: 17,
-        fontWeight: '400',
-        marginTop: 16,
-    },
-    emptyTableSubtext: {
-        color: '#2C2C2E',
-        fontSize: 13,
-        marginTop: 8,
-    },
-    deleteAction: {
-        backgroundColor: '#FF3B30',
-        justifyContent: 'center',
-        alignItems: 'center',
-        width: 80,
-        borderRadius: 22,
-        marginLeft: 8,
-    },
-    swipeableContainer: {
-        marginBottom: 0,
-        backgroundColor: 'transparent',
-    },
-    modalOverlay: {
+    weightCardContent: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        justifyContent: 'center',
+    },
+    iconCircleBlue: { 
+        width: 28, 
+        height: 28, 
+        borderRadius: 14, 
+        backgroundColor: 'rgba(10,132,255,0.15)', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+    },
+    statLabel: { 
+        fontSize: 12, 
+        color: '#8E8E93', 
+        fontWeight: '500', 
+        textTransform: 'uppercase', 
+        marginBottom: 2 
+    },
+    statValue: { 
+        fontSize: 22, 
+        color: '#FFF', 
+        fontWeight: '700' 
+    },
+    statUnit: { 
+        fontSize: 14, 
+        color: '#8E8E93', 
+        fontWeight: '500' 
+    },
+
+    // Action Button
+    calcButton: {
+        flexDirection: 'row',
+        backgroundColor: '#2C2C2E',
+        padding: 16,
+        borderRadius: 16,
         alignItems: 'center',
-        padding: 24,
-    },
-    modalContent: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 22,
-        padding: 24,
-        width: '100%',
-        maxWidth: 400,
+        justifyContent: 'center',
+        gap: 8,
+        marginBottom: 32,
         borderWidth: 1,
-        borderColor: '#2C2C2E',
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24,
-        elevation: 4,
+        borderColor: '#3A3A3C'
     },
-    bodyFatModalContent: {
+    calcButtonText: { 
+        color: '#FFF', 
+        fontSize: 17, 
+        fontWeight: '600' 
+    },
+
+    // Sections
+    section: { 
+        marginBottom: 32 
+    },
+    sectionTitle: { 
+        fontSize: 20, 
+        fontWeight: '700', 
+        color: '#FFF', 
+        marginBottom: 16 
+    },
+    
+    // Charts
+    chartCard: {
         backgroundColor: '#1C1C1E',
         borderRadius: 24,
-        padding: 24,
-        width: '100%',
-        maxWidth: 400,
-        maxHeight: '80%',
-        borderWidth: 1,
-        borderColor: '#2C2C2E',
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        marginBottom: 24,
-        textAlign: 'center',
-    },
-    modalInput: {
-        backgroundColor: '#2C2C2E',
-        borderRadius: 14,
-        padding: 18,
-        color: '#FFFFFF',
-        fontSize: 17,
-        fontWeight: '500',
-        marginBottom: 24,
-        textAlign: 'center',
-    },
-    modalButtonRow: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    modalButton: {
-        flex: 1,
-        paddingVertical: 16,
-        borderRadius: 14,
-        alignItems: 'center',
-    },
-    modalButtonCancel: {
-        backgroundColor: '#2C2C2E',
-    },
-    modalButtonSave: {
-        backgroundColor: '#0A84FF',
-    },
-    modalButtonCancelText: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: '#FFFFFF',
-    },
-    modalButtonSaveText: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: '#FFFFFF',
-    },
-    modalScrollContent: {
-        maxHeight: 500,
-    },
-    inputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
-        gap: 12,
-    },
-    inputLabel: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#FFFFFF',
-        width: 120,
-    },
-    inputRowInput: {
-        flex: 1,
-        backgroundColor: '#2C2C2E',
-        padding: 12,
-        borderRadius: 10,
-        fontSize: 16,
-        color: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#3C3C43',
-    },
-    previewCard: {
-        backgroundColor: '#1C1C1E',
-        borderRadius: 12,
         padding: 20,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#0A84FF',
-        alignItems: 'center',
-    },
-    previewTitle: {
-        fontSize: 14,
-        color: '#8E8E93',
-        marginBottom: 8,
-    },
-    previewValue: {
-        fontSize: 36,
-        fontWeight: '700',
-        color: '#0A84FF',
-        marginBottom: 4,
-    },
-    previewMethod: {
-        fontSize: 12,
-        color: '#8E8E93',
-    },
-    buttonRow: {
-        flexDirection: 'row',
-        gap: 12,
-        marginTop: 10,
-    },
-    button: {
-        flex: 1,
-        padding: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    previewButton: {
-        backgroundColor: '#1C1C1E',
         borderWidth: 1,
         borderColor: '#2C2C2E',
+        overflow: 'hidden',
     },
-    previewButtonText: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: '#0A84FF',
+    chartTitleRow: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        marginBottom: 4 
     },
-    saveButton: {
-        backgroundColor: '#0A84FF',
+    chartTitleText: { 
+        fontSize: 14, 
+        color: '#8E8E93', 
+        fontWeight: '600' 
     },
-    saveButtonText: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: '#FFFFFF',
+    chartHeaderRow: { 
+        marginBottom: 16 
+    },
+    chartValueBig: { 
+        fontSize: 34, 
+        fontWeight: '700' 
+    },
+    chartUnit: { 
+        fontSize: 18, 
+        color: '#8E8E93', 
+        fontWeight: '500' 
+    },
+    emptyChart: { 
+        height: 160, 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        opacity: 0.5 
+    },
+    emptyChartText: { 
+        color: '#8E8E93', 
+        marginTop: 8 
+    },
+
+    // History List
+    historyContainer: { 
+        backgroundColor: '#1C1C1E', 
+        borderRadius: 20, 
+        overflow: 'hidden' 
+    },
+    historyRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#1C1C1E',
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: '#3A3A3C',
+    },
+    historyRowLast: { 
+        borderBottomWidth: 0 
+    },
+    historyLeft: { 
+        gap: 4 
+    },
+    historyDate: { 
+        color: '#FFF', 
+        fontSize: 17, 
+        fontWeight: '500' 
+    },
+    historyRight: { 
+        flexDirection: 'row', 
+        gap: 24 
+    },
+    historyStat: { 
+        alignItems: 'flex-end' 
+    },
+    historyLabel: { 
+        color: '#8E8E93', 
+        fontSize: 12 
+    },
+    historyValue: { 
+        color: '#FFF', 
+        fontSize: 16, 
+        fontWeight: '600' 
+    },
+    emptyState: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+    },
+    emptyText: { 
+        color: '#8E8E93', 
+        textAlign: 'center', 
+        marginTop: 8,
+        fontSize: 17
+    },
+    
+    // Swipe Action
+    deleteAction: { 
+        backgroundColor: '#FF3B30', 
+        width: 80, 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+    },
+
+    // Weight Modal
+    modalOverlay: { 
+        flex: 1, 
+        backgroundColor: 'rgba(0,0,0,0.8)', 
+        justifyContent: 'center', 
+        padding: 20 
+    },
+    modalCard: { 
+        backgroundColor: '#1C1C1E', 
+        borderRadius: 24, 
+        padding: 24, 
+        alignItems: 'center', 
+        borderWidth: 1, 
+        borderColor: '#2C2C2E' 
+    },
+    modalTitle: { 
+        color: '#FFF', 
+        fontSize: 20, 
+        fontWeight: '700', 
+        marginBottom: 24 
+    },
+    bigInputWrapper: { 
+        flexDirection: 'row', 
+        alignItems: 'baseline', 
+        marginBottom: 32 
+    },
+    bigInput: { 
+        fontSize: 56, 
+        fontWeight: '700', 
+        color: '#FFF', 
+        minWidth: 60, 
+        textAlign: 'center' 
+    },
+    bigInputSuffix: { 
+        fontSize: 24, 
+        color: '#8E8E93', 
+        fontWeight: '600', 
+        marginLeft: 8 
+    },
+    modalActions: { 
+        flexDirection: 'row', 
+        gap: 12, 
+        width: '100%' 
+    },
+    btnCancel: { 
+        flex: 1, 
+        backgroundColor: '#2C2C2E', 
+        padding: 16, 
+        borderRadius: 14, 
+        alignItems: 'center' 
+    },
+    btnSave: { 
+        flex: 1, 
+        backgroundColor: '#0A84FF', 
+        padding: 16, 
+        borderRadius: 14, 
+        alignItems: 'center' 
+    },
+    btnText: { 
+        fontSize: 17, 
+        fontWeight: '600', 
+        color: '#8E8E93' 
+    },
+
+    // Body Fat Sheet Modal
+    sheetContainer: { 
+        flex: 1, 
+        backgroundColor: '#1C1C1E' 
+    },
+    sheetHeader: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        padding: 20, 
+        borderBottomWidth: 1, 
+        borderBottomColor: '#2C2C2E' 
+    },
+    sheetTitle: { 
+        color: '#FFF', 
+        fontSize: 20, 
+        fontWeight: '700' 
+    },
+    sheetContent: { 
+        padding: 20 
+    },
+    grid: { 
+        flexDirection: 'row', 
+        flexWrap: 'wrap', 
+        gap: 12, 
+        marginBottom: 24 
+    },
+    inputGroup: { 
+        width: '48%', 
+        gap: 8 
+    },
+    inputLabel: { 
+        color: '#8E8E93', 
+        fontSize: 14, 
+        fontWeight: '500' 
+    },
+    sheetInput: { 
+        backgroundColor: '#2C2C2E', 
+        color: '#FFF', 
+        padding: 14, 
+        borderRadius: 12, 
+        fontSize: 17, 
+        borderWidth: 1, 
+        borderColor: '#3A3A3C' 
+    },
+    
+    // Result Preview Box
+    resultBox: { 
+        backgroundColor: '#0A84FF', 
+        borderRadius: 16, 
+        padding: 20, 
+        alignItems: 'center', 
+        marginBottom: 24 
+    },
+    resultLabel: { 
+        color: 'rgba(255,255,255,0.7)', 
+        fontSize: 12, 
+        fontWeight: '700', 
+        letterSpacing: 1 
+    },
+    resultValue: { 
+        color: '#FFF', 
+        fontSize: 42, 
+        fontWeight: '800', 
+        marginVertical: 4 
+    },
+    resultMethod: { 
+        color: 'rgba(255,255,255,0.8)', 
+        fontSize: 13 
+    },
+
+    // Sheet Action Buttons
+    sheetActions: { 
+        flexDirection: 'row', 
+        gap: 12, 
+        marginBottom: 40 
+    },
+    sheetBtn: { 
+        flex: 1, 
+        padding: 16, 
+        borderRadius: 14, 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+    },
+    sheetBtnOutline: { 
+        borderWidth: 1, 
+        borderColor: '#3A3A3C' 
+    },
+    sheetBtnPrimary: { 
+        backgroundColor: '#0A84FF' 
+    },
+    sheetBtnTextOutline: { 
+        color: '#0A84FF', 
+        fontSize: 17, 
+        fontWeight: '600' 
+    },
+    sheetBtnTextPrimary: { 
+        color: '#FFF', 
+        fontSize: 17, 
+        fontWeight: '600' 
     },
 });

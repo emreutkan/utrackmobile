@@ -150,7 +150,8 @@ export default function BottomNavigator() {
 
     // 1. Determine Visibility
     // Hide on Auth screens, specific flows, loading states, or workout detail pages
-    const isWorkoutDetailPage = pathname.includes('/workouts/') && pathname.split('/workouts/')[1]?.length > 0;
+    const isWorkoutDetailPage = (pathname.includes('/workouts/') && pathname.split('/workouts/')[1]?.length > 0 && !pathname.endsWith('/workouts')) || 
+                                (segments.includes('(workouts)') && segments.length > 2);
     const shouldHide = segments.some(s => 
         ['(auth)', 'auth', 'active-workout', '(active-workout)', 'recovery-status', '(recovery-status)', 'templates', '(templates)', 'loadingHome', 'permissions', '(permissions)', 'knowledge-base', '(knowledge-base)', 'volume-analysis', '(volume-analysis)'].includes(String(s))
     ) || pathname.includes('/auth') || pathname.includes('/active-workout') || pathname.includes('/recovery-status') || pathname.includes('/templates') || pathname.includes('/permissions') || pathname.includes('/knowledge-base') || pathname.includes('/volume-analysis') || isWorkoutDetailPage;

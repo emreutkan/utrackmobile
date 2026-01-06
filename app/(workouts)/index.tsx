@@ -1,22 +1,17 @@
-import { createWorkout, getActiveWorkout } from "@/api/Workout";
+import { getActiveWorkout } from "@/api/Workout";
+import WorkoutModal from "@/components/WorkoutModal";
 import { useWorkoutStore } from "@/state/userStore";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { BlurView } from "expo-blur";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     FlatList,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
     Platform,
     RefreshControl,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View
 } from "react-native";
@@ -63,12 +58,6 @@ export default function Workouts() {
     const [refreshing, setRefreshing] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [activeWorkout, setActiveWorkout] = useState<any>(null);
-    
-    // Modal Form State
-    const [workoutTitle, setWorkoutTitle] = useState('');
-    const [date, setDate] = useState(new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     // --- Data Loading ---
     const fetchActive = async () => {
@@ -123,32 +112,8 @@ export default function Workouts() {
     };
 
     // --- Modal Handlers ---
-    useEffect(() => {
-        const sub = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
-        return () => sub.remove();
-    }, []);
-
-    const handleLogPastWorkout = async () => {
-        if (!workoutTitle.trim()) return;
-        try {
-            const result = await createWorkout({ 
-                title: workoutTitle, 
-                date: date.toISOString(), 
-                is_done: true 
-            });
-
-            if (result && typeof result === 'object' && result.error === "ACTIVE_WORKOUT_EXISTS") {
-                Alert.alert("Active Workout Exists", "Please finish your current active workout first.");
-                return;
-            }
-
-            if (result?.id) {
-                setModalVisible(false);
-                setWorkoutTitle('');
-                await fetchWorkouts(true);
-                router.push(`/(workouts)/${result.id}/edit`);
-            }
-        } catch (e) { Alert.alert("Error", "Failed to log workout."); }
+    const handleModalSuccess = async () => {
+        await fetchWorkouts(true);
     };
 
     // --- RENDER ITEMS ---
@@ -225,12 +190,12 @@ export default function Workouts() {
                 ListHeaderComponent={
                     <View>
                         {activeWorkout && (
-                            <View style={styles.activeSection}>
+                            <>
                                 <Text style={styles.sectionTitle}>CURRENTLY ACTIVE</Text>
                                 {renderWorkoutCard({ item: activeWorkout, isActive: true })}
-                            </View>
+                            </>
                         )}
-                        <Text style={[styles.sectionTitle, { marginTop: activeWorkout ? 24 : 0 }]}>HISTORY</Text>
+                        <Text style={[styles.sectionTitle, { marginTop: activeWorkout ? 2 : 0 }]}>HISTORY</Text>
                     </View>
                 }
                 ListEmptyComponent={!activeWorkout && !isLoading ? (
@@ -248,7 +213,7 @@ export default function Workouts() {
             />
 
             {/* --- FAB --- */}
-            <View style={[styles.fabContainer, { bottom: insets.bottom + 20 }]}>
+            <View style={[styles.fabContainer, { bottom: insets.bottom + 70 }]}>
                  {Platform.OS === 'ios' ? (
                     <BlurView intensity={80} tint="dark" style={styles.fabBlur}>
                         <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
@@ -265,95 +230,21 @@ export default function Workouts() {
             </View>
 
             {/* --- LOG PAST WORKOUT MODAL --- */}
-            <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
-                <KeyboardAvoidingView 
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-                    style={styles.modalOverlay}
-                >
-                    <TouchableOpacity 
-                        style={styles.modalBackdrop} 
-                        activeOpacity={1} 
-                        onPress={() => setModalVisible(false)}
-                    />
-                    
-                    <View style={styles.modalCard}>
-                        <Text style={styles.modalTitle}>Log Past Workout</Text>
-                        
-                        <View style={styles.inputGroup}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Workout Name (e.g. Leg Day)"
-                                placeholderTextColor="#545458"
-                                value={workoutTitle}
-                                onChangeText={setWorkoutTitle}
-                                autoFocus
-                            />
-                            {workoutTitle.length > 0 && (
-                                <TouchableOpacity onPress={() => setWorkoutTitle('')} style={styles.clearBtn}>
-                                    <Ionicons name="close-circle" size={18} color="#8E8E93" />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-
-                        <TouchableOpacity 
-                            style={styles.dateButton}
-                            onPress={() => { Keyboard.dismiss(); setShowDatePicker(true); }}
-                        >
-                            <Ionicons name="calendar" size={20} color="#0A84FF" />
-                            <Text style={styles.dateButtonText}>
-                                {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                            </Text>
-                            <Ionicons name="time-outline" size={20} color="#8E8E93" style={{marginLeft: 'auto'}} />
-                            <Text style={styles.timeButtonText}>
-                                {date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                            </Text>
-                        </TouchableOpacity>
-
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity style={styles.btnCancel} onPress={() => setModalVisible(false)}>
-                                <Text style={styles.btnCancelText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.btnSave, !workoutTitle && { opacity: 0.5 }]} 
-                                onPress={handleLogPastWorkout}
-                                disabled={!workoutTitle}
-                            >
-                                <Text style={styles.btnSaveText}>Save</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* Date Picker Sheet (Overlaid) */}
-                    {showDatePicker && (
-                        <View style={styles.pickerOverlay}>
-                            <View style={styles.pickerToolbar}>
-                                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                                    <Text style={styles.pickerDone}>Done</Text>
-                                </TouchableOpacity>
-                            </View>
-                            <DateTimePicker
-                                value={date}
-                                mode="datetime"
-                                display="spinner"
-                                themeVariant="dark"
-                                maximumDate={new Date()}
-                                onChange={(e, d) => d && setDate(d)}
-                                style={styles.picker}
-                            />
-                        </View>
-                    )}
-                </KeyboardAvoidingView>
-            </Modal>
+            <WorkoutModal
+                visible={modalVisible}
+                onClose={() => setModalVisible(false)}
+                mode="log"
+                onSuccess={handleModalSuccess}
+            />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#000000' },
-    listContent: { padding: 16 },
+    listContent: { padding: 8 },
 
     // Sections
-    activeSection: { marginBottom: 8 },
     sectionTitle: { fontSize: 13, fontWeight: '600', color: '#636366', marginBottom: 8, marginLeft: 4, textTransform: 'uppercase' },
 
     // Cards
@@ -414,33 +305,10 @@ const styles = StyleSheet.create({
     emptyText: { fontSize: 15, color: '#8E8E93' },
 
     // FAB
-    fabContainer: { position: 'absolute', right: 20 },
-    fabBlur: { borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    fabContainer: { position: 'absolute', right: 12 },
+    fabBlur: { borderRadius: 30,  
+        
+        overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     fab: { width: 60, height: 60, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(28,28,30,0.6)' },
 
-    // Modal
-    modalOverlay: { flex: 1, justifyContent: 'center', padding: 20 },
-    modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.85)' },
-    modalCard: { backgroundColor: '#1C1C1E', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#2C2C2E' },
-    modalTitle: { fontSize: 22, fontWeight: '700', color: '#FFF', textAlign: 'center', marginBottom: 24 },
-    
-    inputGroup: { position: 'relative', marginBottom: 16 },
-    input: { backgroundColor: '#2C2C2E', borderRadius: 16, padding: 16, color: '#FFF', fontSize: 17 },
-    clearBtn: { position: 'absolute', right: 12, top: 16 },
-    
-    dateButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#2C2C2E', padding: 16, borderRadius: 16, marginBottom: 24, gap: 10 },
-    dateButtonText: { color: '#FFF', fontSize: 16, fontWeight: '500' },
-    timeButtonText: { color: '#8E8E93', fontSize: 16 },
-
-    modalActions: { flexDirection: 'row', gap: 12 },
-    btnCancel: { flex: 1, padding: 16, backgroundColor: '#2C2C2E', borderRadius: 14, alignItems: 'center' },
-    btnCancelText: { color: '#FF3B30', fontSize: 17, fontWeight: '600' },
-    btnSave: { flex: 1, padding: 16, backgroundColor: '#0A84FF', borderRadius: 14, alignItems: 'center' },
-    btnSaveText: { color: '#FFF', fontSize: 17, fontWeight: '600' },
-
-    // Picker
-    pickerOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#1C1C1E', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-    pickerToolbar: { flexDirection: 'row', justifyContent: 'flex-end', padding: 16, borderBottomWidth: 1, borderBottomColor: '#2C2C2E' },
-    pickerDone: { color: '#0A84FF', fontSize: 17, fontWeight: '600' },
-    picker: { height: 200 },
 });

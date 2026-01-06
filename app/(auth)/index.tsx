@@ -750,7 +750,6 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
         shadowRadius: 16,
-        elevation: 2,
     },
     inputTop: {
         width: '100%',
@@ -851,7 +850,6 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
         shadowRadius: 16,
-        elevation: 2,
     },
     socialButtonFull: {
         flex: 1,

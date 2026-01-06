@@ -29,8 +29,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "usesCleartextTraffic": true
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
@@ -55,7 +54,8 @@
         {
           "android": {
             "usesCleartextTraffic": true,
-            "networkSecurityConfig": "./android/app/src/main/res/xml/network_security_config.xml"
+            "networkSecurityConfig": "./android/app/src/main/res/xml/network_security_config.xml",
+            "debuggable": true
           }
         }
       ],

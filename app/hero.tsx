@@ -65,25 +65,16 @@ export default function HeroScreen() {
     return (
         <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             {/* Background Decorative Elements */}
-            <View style={styles.bgGlow} />
             <LinearGradient
-                colors={['rgba(99, 102, 241, 0.05)', 'transparent']}
+                colors={['rgba(99, 102, 241, 0.3)', 'rgba(99, 102, 241, 0.1)', 'transparent']}
+                style={styles.bgGlow}
+            />
+            <LinearGradient
+                colors={['rgba(99, 101, 241, 0.13)', 'transparent']}
                 style={styles.gradientBg}
             />
-            
-            {/* Bottom Corner Glows - Dark Purple */}
-            <LinearGradient
-                colors={['rgba(168, 85, 247, 0.3)', 'rgba(168, 85, 247, 0.15)', 'transparent']}
-                start={{ x: 0, y: 1 }}
-                end={{ x: 0, y: 0 }}
-                style={styles.bottomLeftGlow}
-            />
-            <LinearGradient
-                colors={['rgba(168, 85, 247, 0.3)', 'rgba(168, 85, 247, 0.15)', 'transparent']}
-                start={{ x: 1, y: 1 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.bottomRightGlow}
-            />
+
+  
 
             {/* Top Brand Tag */}
             <Animated.View 
@@ -164,32 +155,34 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: theme.colors.background,
         paddingHorizontal: theme.spacing.xl,
+
+        
     },
     bgGlow: {
         position: 'absolute',
-    
+        top: '25%',
+        left: '50%',
+        width: 300,
+        height: 300,
         borderRadius: 9999,
-        backgroundColor: theme.colors.background,
-        shadowColor: theme.colors.ui.brandGlow,
-        shadowOffset: { width: 10, height: 10 },
-        shadowOpacity: 1,
-        shadowRadius: 200,
-        elevation: 20,
+
+        transform: [{ translateX: -150 }],
     },
     gradientBg: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
-        height: '50%',
+        bottom: 0,
     },
+
     topSection: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: theme.spacing.s,
         justifyContent: 'center',
         paddingTop: theme.spacing.xxl,
-        paddingBottom: theme.spacing.xxl,
+                paddingBottom: theme.spacing.xxl,
 
         position: 'relative',
         zIndex: 10,
@@ -319,6 +312,8 @@ const styles = StyleSheet.create({
         width: 3,
         height: 300,
         zIndex: 1,
+        borderRadius: 60,
+
     },
     bottomRightGlow: {
         position: 'absolute',
@@ -327,5 +322,17 @@ const styles = StyleSheet.create({
         width: 3,
         height: 300,
         zIndex: 1,
+        borderRadius: 60,
+
+    },
+    bottomCenterGlow: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        
+        height: 2,
+        zIndex: 1,
+        borderRadius: 9999,
     },
 });

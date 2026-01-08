@@ -784,9 +784,6 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExer
         </>
     );
 };
-        </>
-    );
-};
 
 // Main Component
 export const ActiveWorkoutExerciseCard = ({ workoutExercise, isLocked, onToggleLock, onRemove, onAddSet, onDeleteSet, swipeControl, onInputFocus, onShowInfo, onShowStatistics, drag }: any) => {

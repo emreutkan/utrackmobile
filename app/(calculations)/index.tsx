@@ -39,52 +39,78 @@ const CHART_WIDTH = SCREEN_WIDTH - 48 - (CHART_PADDING * 2); // Card width minus
 
 /**
  * Mini Trend Graph Component
- * Small graph for cards showing trend
+ * Small graph for cards showing trend with glow effect
  */
-const MiniTrendGraph = ({ data, color }: { data: number[]; color: string }) => {
-    if (data.length < 2) return null;
+const MiniTrendGraph = ({ data, color, width }: { data: number[]; color: string; width: number }) => {
+    if (data.length < 2 || width <= 0) return null;
     
-    const MINI_WIDTH = 60;
-    const MINI_HEIGHT = 20;
+    const MINI_HEIGHT = 50;
     
     const maxVal = Math.max(...data);
     const minVal = Math.min(...data);
     const range = maxVal - minVal || 1;
-    const effectiveMin = minVal - range * 0.1;
-    const effectiveRange = (maxVal + range * 0.1) - effectiveMin;
+    const padding = range * 0.1;
+    const effectiveMin = minVal - padding;
+    const effectiveMax = maxVal + padding;
+    const effectiveRange = effectiveMax - effectiveMin;
 
     const getCoordinates = (index: number, value: number) => {
-        const x = (index / (data.length - 1)) * MINI_WIDTH;
-        const y = MINI_HEIGHT - ((value - effectiveMin) / effectiveRange) * MINI_HEIGHT;
+        const x = (index / (data.length - 1)) * width;
+        const y = MINI_HEIGHT - ((value - effectiveMin) / effectiveRange) * (MINI_HEIGHT - 10) - 5;
         return { x, y };
     };
 
     let pathD = `M ${getCoordinates(0, data[0]).x} ${getCoordinates(0, data[0]).y}`;
-    data.forEach((val, index) => {
-        if (index === 0) return;
-        const coords = getCoordinates(index, val);
-        pathD += ` L ${coords.x} ${coords.y}`;
-    });
+    for (let i = 1; i < data.length; i++) {
+        const p0 = getCoordinates(i - 1, data[i - 1]);
+        const p1 = getCoordinates(i, data[i]);
+        // Simple curve
+        const cp1x = p0.x + (p1.x - p0.x) / 2;
+        pathD += ` C ${cp1x} ${p0.y}, ${cp1x} ${p1.y}, ${p1.x} ${p1.y}`;
+    }
 
-    const fillPathD = `${pathD} L ${MINI_WIDTH} ${MINI_HEIGHT} L 0 ${MINI_HEIGHT} Z`;
+    const fillPathD = `${pathD} L ${width} ${MINI_HEIGHT} L 0 ${MINI_HEIGHT} Z`;
 
     return (
-        <Svg width={MINI_WIDTH} height={MINI_HEIGHT}>
-            <Defs>
-                <LinearGradient id={`miniGradient-${color}`} x1="0" y1="0" x2="0" y2="1">
-                    <Stop offset="0" stopColor={color} stopOpacity="0.3" />
-                    <Stop offset="1" stopColor={color} stopOpacity="0.0" />
-                </LinearGradient>
-            </Defs>
-            <Path d={fillPathD} fill={`url(#miniGradient-${color})`} />
-            <Path d={pathD} stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </Svg>
+        <View style={{ width, height: MINI_HEIGHT, overflow: 'hidden' }}>
+            <Svg width={width} height={MINI_HEIGHT}>
+                <Defs>
+                    <LinearGradient id={`glow-${color}`} x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0" stopColor={color} stopOpacity="0.5" />
+                        <Stop offset="0.5" stopColor={color} stopOpacity="0.2" />
+                        <Stop offset="1" stopColor={color} stopOpacity="0" />
+                    </LinearGradient>
+                </Defs>
+                <Path d={fillPathD} fill={`url(#glow-${color})`} />
+                
+                {/* Outer Glow */}
+                <Path 
+                    d={pathD} 
+                    stroke={color} 
+                    strokeWidth="5" 
+                    fill="none" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    opacity="0.2"
+                />
+
+                {/* Main Line */}
+                <Path 
+                    d={pathD} 
+                    stroke={color} 
+                    strokeWidth="2.5" 
+                    fill="none" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                />
+            </Svg>
+        </View>
     );
 };
 
 /**
  * Combined Neural Trend Chart Component
- * Shows both weight and body fat on same graph
+ * Shows both weight and body fat on same graph with curved lines
  */
 const NeuralTrendChart = ({ weightData, bodyFatData }: { weightData: number[]; bodyFatData: number[] }) => {
     if (weightData.length < 2 && bodyFatData.length < 2) {
@@ -102,7 +128,11 @@ const NeuralTrendChart = ({ weightData, bodyFatData }: { weightData: number[]; b
         const maxVal = Math.max(...data);
         const minVal = Math.min(...data);
         const range = maxVal - minVal || 1;
-        return data.map(val => ((val - minVal) / range) * 100);
+        const padding = range * 0.1;
+        const effectiveMin = minVal - padding;
+        const effectiveMax = maxVal + padding;
+        const effectiveRange = effectiveMax - effectiveMin;
+        return data.map(val => ((val - effectiveMin) / effectiveRange) * 100);
     };
 
     const normalizedWeight = normalizeData(weightData);
@@ -111,43 +141,36 @@ const NeuralTrendChart = ({ weightData, bodyFatData }: { weightData: number[]; b
 
     const getCoordinates = (index: number, value: number) => {
         const x = (index / (maxLength - 1 || 1)) * CHART_WIDTH;
-        const y = CHART_HEIGHT - (value / 100) * CHART_HEIGHT;
+        const y = CHART_HEIGHT - (value / 100) * (CHART_HEIGHT - 20) - 10;
         return { x, y };
     };
 
-    // Weight line (blue)
-    let weightPathD = '';
-    if (normalizedWeight.length >= 2) {
-        weightPathD = `M ${getCoordinates(0, normalizedWeight[0]).x} ${getCoordinates(0, normalizedWeight[0]).y}`;
-        normalizedWeight.forEach((val, index) => {
-            if (index === 0) return;
-            const coords = getCoordinates(index, val);
-            weightPathD += ` L ${coords.x} ${coords.y}`;
-        });
-    }
+    const generatePath = (data: number[]) => {
+        if (data.length < 2) return '';
+        let d = `M ${getCoordinates(0, data[0]).x} ${getCoordinates(0, data[0]).y}`;
+        for (let i = 1; i < data.length; i++) {
+            const p0 = getCoordinates(i - 1, data[i - 1]);
+            const p1 = getCoordinates(i, data[i]);
+            const cp1x = p0.x + (p1.x - p0.x) / 2;
+            d += ` C ${cp1x} ${p0.y}, ${cp1x} ${p1.y}, ${p1.x} ${p1.y}`;
+        }
+        return d;
+    };
 
-    // Body fat line (purple)
-    let bodyFatPathD = '';
-    if (normalizedBodyFat.length >= 2) {
-        bodyFatPathD = `M ${getCoordinates(0, normalizedBodyFat[0]).x} ${getCoordinates(0, normalizedBodyFat[0]).y}`;
-        normalizedBodyFat.forEach((val, index) => {
-            if (index === 0) return;
-            const coords = getCoordinates(index, val);
-            bodyFatPathD += ` L ${coords.x} ${coords.y}`;
-        });
-    }
+    const weightPathD = generatePath(normalizedWeight);
+    const bodyFatPathD = generatePath(normalizedBodyFat);
 
     return (
-        <View style={{ height: CHART_HEIGHT }}>
+        <View style={{ height: CHART_HEIGHT, width: CHART_WIDTH }}>
             <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
                 <Defs>
                     <LinearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor="#5E8AFF" stopOpacity="0.4" />
-                        <Stop offset="1" stopColor="#5E8AFF" stopOpacity="0.0" />
+                        <Stop offset="0" stopColor={theme.colors.text.brand} stopOpacity="0.4" />
+                        <Stop offset="1" stopColor={theme.colors.text.brand} stopOpacity="0.0" />
                     </LinearGradient>
                     <LinearGradient id="bodyFatGradient" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor="#BF5AF2" stopOpacity="0.4" />
-                        <Stop offset="1" stopColor="#BF5AF2" stopOpacity="0.0" />
+                        <Stop offset="0" stopColor={theme.colors.status.rest} stopOpacity="0.4" />
+                        <Stop offset="1" stopColor={theme.colors.status.rest} stopOpacity="0.0" />
                     </LinearGradient>
                 </Defs>
                 
@@ -167,14 +190,20 @@ const NeuralTrendChart = ({ weightData, bodyFatData }: { weightData: number[]; b
                     />
                 )}
                 
-                {/* Weight line */}
+                {/* Weight line with glow */}
                 {weightPathD && (
-                    <Path d={weightPathD} stroke="#5E8AFF" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    <>
+                        <Path d={weightPathD} stroke={theme.colors.text.brand} strokeWidth="6" fill="none" opacity="0.1" strokeLinecap="round" strokeLinejoin="round" />
+                        <Path d={weightPathD} stroke={theme.colors.text.brand} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    </>
                 )}
                 
-                {/* Body fat line */}
+                {/* Body fat line with glow */}
                 {bodyFatPathD && (
-                    <Path d={bodyFatPathD} stroke="#BF5AF2" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    <>
+                        <Path d={bodyFatPathD} stroke={theme.colors.status.rest} strokeWidth="6" fill="none" opacity="0.1" strokeLinecap="round" strokeLinejoin="round" />
+                        <Path d={bodyFatPathD} stroke={theme.colors.status.rest} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    </>
                 )}
             </Svg>
         </View>
@@ -256,6 +285,20 @@ export default function MeasurementsScreen() {
             .reverse()
             .map(m => parseFloat(m.body_fat_percentage as any));
     }, [measurements]);
+
+    const bodyFatChange = useMemo(() => {
+        if (measurements.length < 2) return { direction: null };
+        const sorted = [...measurements].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        const current = parseFloat(sorted[0]?.body_fat_percentage as any);
+        const previous = parseFloat(sorted[1]?.body_fat_percentage as any);
+        if (!current || !previous) return { direction: null };
+        return {
+            direction: current < previous ? 'down' : current > previous ? 'up' : 'stable'
+        };
+    }, [measurements]);
+
+    // Card width for graphs
+    const [cardWidth, setCardWidth] = useState(0);
 
     // List Data (Newest First)
     const sortedHistory = [...weightHistory].sort(
@@ -396,28 +439,26 @@ export default function MeasurementsScreen() {
                         style={styles.biometricCard} 
                         onPress={openWeightModal} 
                         activeOpacity={0.8}
+                        onLayout={(e) => setCardWidth(e.nativeEvent.layout.width)}
                     >
                         <View style={styles.cardHeader}>
-                            <Text style={styles.cardLabel}>WEIGHT</Text>
-                            {weightChange.direction && (
-                                <View style={{ marginLeft: 4 }}>
-                                    <Ionicons 
-                                        name={weightChange.direction == 'up' ? 'trending-up' : 'trending-down'} 
-                                        size={14} 
-                                        color="#34D399"
-                                    />
-                                </View>
-                            )}
+                            <View style={styles.cardHeaderLeft}>
+                                <Ionicons name="scale-outline" size={16} color={theme.colors.text.brand} />
+                                <Text style={styles.cardLabel}>WEIGHT</Text>
+                            </View>
+                            <Ionicons 
+                                name={weightChange.direction === 'down' ? 'trending-down' : weightChange.direction === 'up' ? 'trending-up' : 'remove-outline'} 
+                                size={18} 
+                                color={weightChange.direction === 'down' ? theme.colors.status.success : weightChange.direction === 'up' ? theme.colors.status.error : theme.colors.text.tertiary}
+                            />
                         </View>
                         <View style={styles.cardValueRow}>
                             <Text style={styles.cardValue}>{currentWeight ? currentWeight.toFixed(1) : '--'}</Text>
                             <Text style={styles.cardUnit}>KG</Text>
                         </View>
-                        {weightMiniData.length >= 2 && (
-                            <View style={styles.miniGraphContainer}>
-                                <MiniTrendGraph data={weightMiniData} color="#5E8AFF" />
-                            </View>
-                        )}
+                        <View style={styles.cardGraphWrapper}>
+                            <MiniTrendGraph data={weightMiniData} color={theme.colors.text.brand} width={cardWidth} />
+                        </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity 
@@ -426,44 +467,46 @@ export default function MeasurementsScreen() {
                         activeOpacity={0.8}
                     >
                         <View style={styles.cardHeader}>
-                            <Text style={styles.cardLabel}>BODY FAT</Text>
-                            {latestBodyFat && (
-                                <View style={{ marginLeft: 4 }}>
-                                    <Ionicons 
-                                        name="trending-down" 
-                                        size={14} 
-                                        color="#BF5AF2"
-                                    />
-                                </View>
-                            )}
+                            <View style={styles.cardHeaderLeft}>
+                                <Ionicons name="body-outline" size={16} color={theme.colors.status.rest} />
+                                <Text style={styles.cardLabel}>BODY FAT</Text>
+                            </View>
+                            <Ionicons 
+                                name={bodyFatChange.direction === 'stable' ? 'pulse' : bodyFatChange.direction === 'down' ? 'trending-down' : 'trending-up'} 
+                                size={18} 
+                                color={theme.colors.status.rest}
+                            />
                         </View>
                         <View style={styles.cardValueRow}>
                             <Text style={styles.cardValue}>{latestBodyFat ? parseFloat(latestBodyFat.toString()).toFixed(1) : '--'}</Text>
                             <Text style={styles.cardUnit}>%</Text>
                         </View>
-                        {bodyFatMiniData.length >= 2 && (
-                            <View style={styles.miniGraphContainer}>
-                                <MiniTrendGraph data={bodyFatMiniData} color="#BF5AF2" />
-                            </View>
-                        )}
+                        <View style={styles.cardGraphWrapper}>
+                            <MiniTrendGraph data={bodyFatMiniData} color={theme.colors.status.rest} width={cardWidth} />
+                        </View>
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.neuralTrendSection}>
                     <View style={styles.graphCard}>
                     <View style={styles.neuralTrendHeader}>
-                        <View style={styles.neuralTrendTitleRow}>
-                            <Ionicons name="pulse" size={18} color="#FFFFFF" />
-                            <Text style={styles.neuralTrendTitle}>TREND</Text>
+                        <View style={styles.neuralTrendHeaderMain}>
+                            <View style={styles.neuralTrendIconContainer}>
+                                <Ionicons name="stats-chart" size={20} color={theme.colors.text.brand} />
+                            </View>
+                            <View>
+                                <Text style={styles.neuralTrendTitle}>NEURAL TREND</Text>
+                                <Text style={styles.neuralTrendSubtitle}>SOMATIC PROGRESS GRAPH</Text>
+                            </View>
                         </View>
                         <View style={styles.legendContainer}>
                             <View style={styles.legendItem}>
-                                <View style={[styles.legendDot, { backgroundColor: '#5E8AFF' }]} />
-                                <Text style={styles.legendText}>WEIGHT</Text>
+                                <View style={[styles.legendDot, { backgroundColor: theme.colors.text.brand }]} />
+                                <Text style={styles.legendText}>MASS</Text>
                             </View>
                             <View style={styles.legendItem}>
-                                <View style={[styles.legendDot, { backgroundColor: '#BF5AF2' }]} />
-                                <Text style={styles.legendText}>BODY FAT</Text>
+                                <View style={[styles.legendDot, { backgroundColor: theme.colors.status.rest }]} />
+                                <Text style={styles.legendText}>FAT %</Text>
                             </View>
                         </View>
                     </View>
@@ -472,8 +515,6 @@ export default function MeasurementsScreen() {
                             bodyFatData={bodyFatGraphData}
                         />
                     </View>
-
-    
                 </View>
 
                 <View style={styles.historySection}>
@@ -496,20 +537,23 @@ export default function MeasurementsScreen() {
                                             <Text style={styles.historyDate}>
                                                 {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}
                                             </Text>
-                                            <View style={styles.historyMetricsRow}>
+                                            <View style={styles.historyMetricsContainer}>
                                                 <View style={styles.historyMetric}>
                                                     <Text style={styles.historyValue}>{item.weight}</Text>
                                                     <Text style={styles.historyUnit}>KG</Text>
                                                 </View>
-                                                {item.bodyfat && (
-                                                    <View style={styles.historyMetric}>
-                                                        <Text style={styles.historyBfValue}>{parseFloat(item.bodyfat.toString()).toFixed(1)}</Text>
-                                                        <Text style={styles.historyBfUnit}>%</Text>
-                                                    </View>
-                                                )}
+                                                
+                                                <View style={styles.historySeparator} />
+
+                                                <View style={styles.historyMetric}>
+                                                    <Text style={styles.historyBfValue}>
+                                                        {item.bodyfat ? parseFloat(item.bodyfat.toString()).toFixed(1) : '--.-'}
+                                                    </Text>
+                                                    <Text style={styles.historyBfUnit}>%</Text>
+                                                </View>
                                             </View>
                                         </View>
-                                        <Ionicons name="chevron-forward" size={20} color={theme.colors.text.secondary} />
+                                        <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
                                     </TouchableOpacity>
                                 </ReanimatedSwipeable>
                             ))}
@@ -540,88 +584,108 @@ export default function MeasurementsScreen() {
             </Modal>
             
              <Modal visible={modals.bodyFat} animationType="slide" presentationStyle="pageSheet">
-                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.sheetContainer}>
+                 <View style={styles.sheetContainer}>
                      <View style={styles.sheetContent}>
                          <View style={styles.sheetHeader}>
-                             <Text style={styles.sheetTitle}>Calculate Body Fat</Text>
-                             <TouchableOpacity onPress={() => {
-                                 setModals(p => ({...p, bodyFat: false}));
-                                 setBfForm({ weight: '', waist: '', neck: '', hips: '', notes: '' });
-                                 setPreviewResult(null);
-                             }}>
-                                 <Ionicons name="close" size={24} color={theme.colors.text.primary} />
+                             <View>
+                                <Text style={styles.sheetTitle}>BODY FAT</Text>
+                                <Text style={styles.sheetSubtitle}>CALCULATE YOUR PERCENTAGE</Text>
+                             </View>
+                             <TouchableOpacity 
+                                style={styles.closeButton}
+                                onPress={() => {
+                                    setModals(p => ({...p, bodyFat: false}));
+                                    setBfForm({ weight: '', waist: '', neck: '', hips: '', notes: '' });
+                                    setPreviewResult(null);
+                                }}
+                             >
+                                 <Ionicons name="close" size={20} color={theme.colors.text.primary} />
                              </TouchableOpacity>
                          </View>
 
                          <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
                              {previewResult ? (
                                  <View style={styles.previewContainer}>
-                                     <Text style={styles.previewTitle}>Body Fat Result</Text>
+                                     <Text style={styles.previewTitle}>ESTIMATED BODY FAT</Text>
                                      <View style={styles.previewValueContainer}>
                                          <Text style={styles.previewValue}>{previewResult.body_fat_percentage.toFixed(1)}</Text>
                                          <Text style={styles.previewUnit}>%</Text>
                                      </View>
-                                     <Text style={styles.previewMethod}>Method: {previewResult.method}</Text>
+                                     <Text style={styles.previewMethod}>US NAVY METHOD: {previewResult.method.toUpperCase()}</Text>
                                  </View>
                              ) : null}
 
-                             <View style={styles.inputGroup}>
-                                 <Text style={styles.inputLabel}>Weight (kg)</Text>
-                                 <TextInput
-                                     style={styles.input}
-                                     value={bfForm.weight}
-                                     onChangeText={(text) => setBfForm(prev => ({ ...prev, weight: text }))}
-                                     keyboardType="numeric"
-                                     placeholder="Enter weight"
-                                     placeholderTextColor={theme.colors.text.tertiary}
-                                 />
+                             <View style={styles.inputGrid}>
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.inputLabel}>WEIGHT (KG)</Text>
+                                    <View style={styles.inputWrapper}>
+                                        <Ionicons name="scale-outline" size={18} color={theme.colors.text.tertiary} style={styles.inputIcon} />
+                                        <TextInput
+                                            style={styles.input}
+                                            value={bfForm.weight}
+                                            onChangeText={(text) => setBfForm(prev => ({ ...prev, weight: text }))}
+                                            keyboardType="numeric"
+                                            placeholder="00.0"
+                                            placeholderTextColor={theme.colors.text.tertiary}
+                                        />
+                                    </View>
+                                </View>
+
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.inputLabel}>WAIST (CM)</Text>
+                                    <View style={styles.inputWrapper}>
+                                        <Ionicons name="resize-outline" size={18} color={theme.colors.text.tertiary} style={styles.inputIcon} />
+                                        <TextInput
+                                            style={styles.input}
+                                            value={bfForm.waist}
+                                            onChangeText={(text) => setBfForm(prev => ({ ...prev, waist: text }))}
+                                            keyboardType="numeric"
+                                            placeholder="00"
+                                            placeholderTextColor={theme.colors.text.tertiary}
+                                        />
+                                    </View>
+                                </View>
+
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.inputLabel}>NECK (CM)</Text>
+                                    <View style={styles.inputWrapper}>
+                                        <Ionicons name="shirt-outline" size={18} color={theme.colors.text.tertiary} style={styles.inputIcon} />
+                                        <TextInput
+                                            style={styles.input}
+                                            value={bfForm.neck}
+                                            onChangeText={(text) => setBfForm(prev => ({ ...prev, neck: text }))}
+                                            keyboardType="numeric"
+                                            placeholder="00"
+                                            placeholderTextColor={theme.colors.text.tertiary}
+                                        />
+                                    </View>
+                                </View>
+
+                                {isFemale && (
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabel}>HIPS (CM)</Text>
+                                        <View style={styles.inputWrapper}>
+                                            <Ionicons name="body-outline" size={18} color={theme.colors.text.tertiary} style={styles.inputIcon} />
+                                            <TextInput
+                                                style={styles.input}
+                                                value={bfForm.hips}
+                                                onChangeText={(text) => setBfForm(prev => ({ ...prev, hips: text }))}
+                                                keyboardType="numeric"
+                                                placeholder="00"
+                                                placeholderTextColor={theme.colors.text.tertiary}
+                                            />
+                                        </View>
+                                    </View>
+                                )}
                              </View>
 
                              <View style={styles.inputGroup}>
-                                 <Text style={styles.inputLabel}>Waist (cm)</Text>
-                                 <TextInput
-                                     style={styles.input}
-                                     value={bfForm.waist}
-                                     onChangeText={(text) => setBfForm(prev => ({ ...prev, waist: text }))}
-                                     keyboardType="numeric"
-                                     placeholder="Enter waist measurement"
-                                     placeholderTextColor={theme.colors.text.tertiary}
-                                 />
-                             </View>
-
-                             <View style={styles.inputGroup}>
-                                 <Text style={styles.inputLabel}>Neck (cm)</Text>
-                                 <TextInput
-                                     style={styles.input}
-                                     value={bfForm.neck}
-                                     onChangeText={(text) => setBfForm(prev => ({ ...prev, neck: text }))}
-                                     keyboardType="numeric"
-                                     placeholder="Enter neck measurement"
-                                     placeholderTextColor={theme.colors.text.tertiary}
-                                 />
-                             </View>
-
-                             {isFemale && (
-                                 <View style={styles.inputGroup}>
-                                     <Text style={styles.inputLabel}>Hips (cm)</Text>
-                                     <TextInput
-                                         style={styles.input}
-                                         value={bfForm.hips}
-                                         onChangeText={(text) => setBfForm(prev => ({ ...prev, hips: text }))}
-                                         keyboardType="numeric"
-                                         placeholder="Enter hips measurement"
-                                         placeholderTextColor={theme.colors.text.tertiary}
-                                     />
-                                 </View>
-                             )}
-
-                             <View style={styles.inputGroup}>
-                                 <Text style={styles.inputLabel}>Notes (optional)</Text>
+                                 <Text style={styles.inputLabel}>NOTES</Text>
                                  <TextInput
                                      style={[styles.input, styles.textArea]}
                                      value={bfForm.notes}
                                      onChangeText={(text) => setBfForm(prev => ({ ...prev, notes: text }))}
-                                     placeholder="Add any notes"
+                                     placeholder="OPTIONAL PROGRESS NOTES..."
                                      placeholderTextColor={theme.colors.text.tertiary}
                                      multiline
                                      numberOfLines={3}
@@ -632,36 +696,36 @@ export default function MeasurementsScreen() {
                                  {previewResult ? (
                                      <>
                                          <TouchableOpacity 
-                                             style={[styles.btnCancel, { flex: 1 }]} 
+                                             style={styles.btnSecondary} 
                                              onPress={() => setPreviewResult(null)}
                                          >
-                                             <Text style={styles.btnText}>Recalculate</Text>
+                                             <Text style={styles.btnText}>BACK</Text>
                                          </TouchableOpacity>
                                          <TouchableOpacity 
-                                             style={[styles.btnSave, { flex: 1 }]} 
+                                             style={styles.btnPrimary} 
                                              onPress={() => handleCalculateBodyFat(false)}
                                              disabled={isProcessing}
                                          >
-                                             <Text style={[styles.btnText, { color: '#FFF' }]}>
-                                                 {isProcessing ? 'Saving...' : 'Save'}
+                                             <Text style={styles.btnTextPrimary}>
+                                                 {isProcessing ? 'SAVING...' : 'CONFIRM & SAVE'}
                                              </Text>
                                          </TouchableOpacity>
                                      </>
                                  ) : (
                                      <TouchableOpacity 
-                                         style={styles.btnSave} 
+                                         style={styles.btnPrimary} 
                                          onPress={() => handleCalculateBodyFat(true)}
                                          disabled={isProcessing}
                                      >
-                                         <Text style={[styles.btnText, { color: '#FFF' }]}>
-                                             {isProcessing ? 'Calculating...' : 'Calculate'}
+                                         <Text style={styles.btnTextPrimary}>
+                                             {isProcessing ? 'CALCULATING...' : 'CALCULATE PROGRESS'}
                                          </Text>
                                      </TouchableOpacity>
                                  )}
                              </View>
                          </ScrollView>
                      </View>
-                 </KeyboardAvoidingView>
+                 </View>
             </Modal>
 
         </View>
@@ -688,24 +752,75 @@ const styles = StyleSheet.create({
 
     // Cards    
     cardsRow: { flexDirection: 'row', gap: theme.spacing.m, marginBottom: theme.spacing.xl },
-    biometricCard: { flex: 1, backgroundColor: theme.colors.ui.glass, borderRadius: theme.borderRadius.xl, padding: theme.spacing.m, borderWidth: 1, borderColor: theme.colors.ui.border },
-    cardHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs, marginBottom: theme.spacing.m },
-    cardLabel: { ...typographyStyles.labelTight, },
-    cardValueRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: theme.spacing.s },
-    cardValue: { ...typographyStyles.h3, color: '#FFFFFF' },
-    cardUnit: { ...typographyStyles.labelTight, color: theme.colors.text.secondary, marginLeft: 4 },
-    miniGraphContainer: { marginTop: theme.spacing.s }, 
+    biometricCard: { 
+        flex: 1, 
+        backgroundColor: theme.colors.ui.glass, 
+        borderRadius: theme.borderRadius.xl, 
+        paddingTop: theme.spacing.m,
+        paddingHorizontal: 0, 
+        borderWidth: 1, 
+        borderColor: theme.colors.ui.border,
+        overflow: 'hidden'
+    },
+    cardHeader: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        paddingHorizontal: theme.spacing.m,
+        marginBottom: theme.spacing.m 
+    },
+    cardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs },
+    cardLabel: { ...typographyStyles.labelTight, color: theme.colors.text.secondary, letterSpacing: 1 },
+    cardValueRow: { flexDirection: 'row', alignItems: 'baseline', paddingHorizontal: theme.spacing.m, marginBottom: theme.spacing.s },
+    cardValue: { ...typographyStyles.h2, color: '#FFFFFF', fontWeight: '900', fontSize: 38 },
+    cardUnit: { ...typographyStyles.labelTight, color: theme.colors.text.tertiary, marginLeft: 4, fontWeight: '900', fontSize: 14, opacity: 0.5 },
+    cardGraphWrapper: { marginTop: 'auto', width: '100%', bottom: -5 }, 
 
     // Neural Trend Section
     neuralTrendSection: { marginBottom: theme.spacing.xl },
-    neuralTrendHeader: { marginBottom: theme.spacing.m },
-    neuralTrendTitleRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs, marginBottom: 4 },
-    neuralTrendTitle: { fontSize: theme.typography.sizes.s, fontWeight: '600', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 1 },
-    legendContainer: { flexDirection: 'row', gap: theme.spacing.m, marginTop: theme.spacing.s },
+    neuralTrendHeader: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'flex-start',
+        marginBottom: theme.spacing.l 
+    },
+    neuralTrendHeaderMain: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.m },
+    neuralTrendIconContainer: { 
+        width: 44, 
+        height: 44, 
+        borderRadius: 14, 
+        backgroundColor: 'rgba(99, 102, 241, 0.1)', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.2)'
+    },
+    neuralTrendTitle: { 
+        fontSize: 16, 
+        fontWeight: '900', 
+        color: '#FFFFFF', 
+        textTransform: 'uppercase', 
+        letterSpacing: 0.5 
+    },
+    neuralTrendSubtitle: { 
+        fontSize: 10, 
+        fontWeight: '700', 
+        color: theme.colors.text.tertiary, 
+        textTransform: 'uppercase', 
+        letterSpacing: 1 
+    },
+    legendContainer: { flexDirection: 'row', gap: theme.spacing.m, marginTop: 4 },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     legendDot: { width: 8, height: 8, borderRadius: 4 },
-    legendText: { fontSize: 11, fontWeight: '600', color: theme.colors.text.secondary, textTransform: 'uppercase' },
-    graphCard: { backgroundColor: theme.colors.ui.glass, borderRadius: theme.borderRadius.xl, padding: CHART_PADDING, borderWidth: 1, borderColor: theme.colors.ui.border, overflow: 'hidden' },
+    legendText: { fontSize: 10, fontWeight: '800', color: theme.colors.text.secondary, textTransform: 'uppercase' },
+    graphCard: { 
+        backgroundColor: theme.colors.ui.glass, 
+        borderRadius: 40, 
+        padding: 24, 
+        borderWidth: 1, 
+        borderColor: theme.colors.ui.border, 
+        overflow: 'hidden' 
+    },
     emptyChart: { height: 180, alignItems: 'center', justifyContent: 'center', opacity: 0.5 },
     emptyChartText: { color: theme.colors.text.secondary, marginTop: 8, fontSize: 12 },
 
@@ -719,39 +834,51 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between', 
         alignItems: 'center', 
         backgroundColor: theme.colors.ui.glass, 
-        borderRadius: theme.borderRadius.xl, 
-        padding: theme.spacing.m, 
+        borderRadius: 35, 
+        padding: 24, 
         borderWidth: 1, 
         borderColor: theme.colors.ui.border 
     },
     historyContent: { flex: 1 },
     historyDate: { 
-        ...typographyStyles.labelTight, 
-        color: theme.colors.text.secondary, 
-        marginBottom: theme.spacing.s 
+        fontSize: 11,
+        fontWeight: '800',
+        color: theme.colors.text.tertiary, 
+        marginBottom: 12,
+        letterSpacing: 1
     },
-    historyMetricsRow: { flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.l },
+    historyMetricsContainer: { flexDirection: 'row', alignItems: 'center' },
     historyMetric: { flexDirection: 'row', alignItems: 'baseline' },
+    historySeparator: { 
+        width: 1, 
+        height: 24, 
+        backgroundColor: theme.colors.ui.border, 
+        marginHorizontal: 20,
+        opacity: 0.5
+    },
     historyValue: { 
-        ...typographyStyles.h3, 
+        fontSize: 28,
         color: theme.colors.text.primary,
-        fontWeight: '700'
+        fontWeight: '900',
+        fontStyle: 'italic'
     },
     historyUnit: { 
-        ...typographyStyles.labelTight, 
-        color: theme.colors.text.primary, 
+        fontSize: 12,
+        color: theme.colors.text.tertiary, 
         marginLeft: 4,
-        opacity: 0.7
+        fontWeight: '900'
     },
     historyBfValue: { 
-        ...typographyStyles.h3, 
-        color: '#BF5AF2',
-        fontWeight: '700'
+        fontSize: 28,
+        color: theme.colors.status.rest,
+        fontWeight: '900',
+        fontStyle: 'italic'
     },
     historyBfUnit: { 
-        ...typographyStyles.labelTight, 
-        color: '#BF5AF2', 
+        fontSize: 12,
+        color: theme.colors.status.rest, 
         marginLeft: 4,
+        fontWeight: '900',
         opacity: 0.7
     },
     
@@ -772,19 +899,87 @@ const styles = StyleSheet.create({
     btnSave: { flex: 1, backgroundColor: theme.colors.status.rest, padding: theme.spacing.m, borderRadius: theme.borderRadius.xl, alignItems: 'center' },
     btnText: { ...typographyStyles.labelTight, color: theme.colors.text.primary },
      sheetContainer: { flex: 1, backgroundColor: theme.colors.background },
-     sheetContent: { flex: 1, paddingTop: Platform.OS === 'ios' ? 60 : 20 },
-     sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: theme.spacing.m, paddingBottom: theme.spacing.m, borderBottomWidth: 1, borderBottomColor: theme.colors.ui.border },
-     sheetTitle: { ...typographyStyles.h4, color: theme.colors.text.primary },
-     sheetScroll: { flex: 1, paddingHorizontal: theme.spacing.m },
-     inputGroup: { marginBottom: theme.spacing.l },
-     inputLabel: { ...typographyStyles.labelTight, color: theme.colors.text.secondary, marginBottom: theme.spacing.s },
-     input: { backgroundColor: theme.colors.ui.glass, borderWidth: 1, borderColor: theme.colors.ui.border, borderRadius: theme.borderRadius.xl, padding: theme.spacing.m, color: theme.colors.text.primary, fontSize: theme.typography.sizes.m },
-     textArea: { minHeight: 80, textAlignVertical: 'top' },
-     sheetActions: { flexDirection: 'row', gap: theme.spacing.m, marginTop: theme.spacing.l, marginBottom: theme.spacing.xl },
-     previewContainer: { backgroundColor: theme.colors.ui.glass, borderRadius: theme.borderRadius.xl, padding: theme.spacing.xl, marginBottom: theme.spacing.l, borderWidth: 1, borderColor: theme.colors.ui.border, alignItems: 'center' },
-     previewTitle: { ...typographyStyles.labelTight, color: theme.colors.text.secondary, marginBottom: theme.spacing.m },
-     previewValueContainer: { flexDirection: 'row', alignItems: 'baseline', marginBottom: theme.spacing.s },
-     previewValue: { ...typographyStyles.h2, color: theme.colors.status.rest },
-     previewUnit: { ...typographyStyles.labelTight, color: theme.colors.text.secondary, marginLeft: 4 },
-     previewMethod: { ...typographyStyles.labelTight, color: theme.colors.text.tertiary, fontSize: 10 },
+     sheetContent: { flex: 1, paddingTop: Platform.OS === 'ios' ? 20 : 20 },
+     sheetHeader: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        paddingHorizontal: 24, 
+        paddingVertical: 20,
+        borderBottomWidth: 1, 
+        borderBottomColor: theme.colors.ui.border 
+    },
+     sheetTitle: { fontSize: 18, fontWeight: '900', color: theme.colors.text.primary, letterSpacing: 0.5 },
+     sheetSubtitle: { fontSize: 10, fontWeight: '700', color: theme.colors.text.tertiary, letterSpacing: 1 },
+     closeButton: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: theme.colors.ui.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
+        alignItems: 'center',
+        justifyContent: 'center'
+     },
+     sheetScroll: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
+     inputGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 8 },
+     inputGroup: { marginBottom: 24, flexBasis: '47%', flexGrow: 1 },
+     inputLabel: { fontSize: 10, fontWeight: '800', color: theme.colors.text.tertiary, marginBottom: 8, letterSpacing: 1 },
+     inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.colors.ui.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
+        borderRadius: 16,
+        paddingHorizontal: 12,
+     },
+     inputIcon: { marginRight: 8 },
+     input: { 
+        flex: 1,
+        height: 48,
+        color: theme.colors.text.primary, 
+        fontSize: 16,
+        fontWeight: '600'
+    },
+     textArea: { minHeight: 100, textAlignVertical: 'top', paddingTop: 12, flexBasis: '100%' },
+     sheetActions: { flexDirection: 'row', gap: 16, marginTop: 12, marginBottom: 40 },
+     btnPrimary: { 
+        flex: 2,
+        backgroundColor: theme.colors.status.rest, 
+        height: 56, 
+        borderRadius: 18, 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        shadowColor: theme.colors.status.rest,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4
+    },
+     btnSecondary: { 
+        flex: 1,
+        backgroundColor: theme.colors.ui.glass, 
+        height: 56, 
+        borderRadius: 18, 
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
+        alignItems: 'center', 
+        justifyContent: 'center' 
+    },
+     btnTextPrimary: { fontSize: 14, fontWeight: '900', color: '#FFFFFF', letterSpacing: 1 },
+     previewContainer: { 
+        backgroundColor: 'rgba(99, 102, 241, 0.05)', 
+        borderRadius: 24, 
+        padding: 24, 
+        marginBottom: 32, 
+        borderWidth: 1, 
+        borderColor: 'rgba(99, 102, 241, 0.2)', 
+        alignItems: 'center' 
+    },
+     previewTitle: { fontSize: 10, fontWeight: '800', color: theme.colors.text.tertiary, marginBottom: 12, letterSpacing: 1 },
+     previewValueContainer: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 8 },
+     previewValue: { fontSize: 48, fontWeight: '900', color: theme.colors.status.rest, fontStyle: 'italic' },
+     previewUnit: { fontSize: 20, fontWeight: '900', color: theme.colors.status.rest, marginLeft: 4, opacity: 0.6 },
+     previewMethod: { fontSize: 9, fontWeight: '700', color: theme.colors.text.tertiary, letterSpacing: 0.5 },
 });

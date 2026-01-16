@@ -140,72 +140,72 @@ export default function ExerciseSearchModal({
     );
 
     const renderContent = () => {
-        if (isLoadingExercises) {
-            return (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.colors.status.active} />
-                </View>
-            );
-        }
-
         return (
-            <FlatList
-                data={filteredExercises}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => {
-                    const selected = isSelected(item.id);
-                    return (
-                        <TouchableOpacity 
-                            style={[styles.exerciseCard, selected && styles.exerciseCardSelected]}
-                            onPress={() => handleExercisePress(item.id)}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.exerciseInfoContainer}>
-                                <View style={[styles.exerciseIconPlaceholder, selected && styles.exerciseIconPlaceholderSelected]}>
-                                    <Text style={[styles.exerciseInitial, selected && styles.exerciseInitialSelected]}>
-                                        {item.name.charAt(0).toUpperCase()}
-                                    </Text>
-                                </View>
-                                <View style={styles.exerciseTextContent}>
-                                    <Text style={styles.exerciseName}>{item.name.toUpperCase()}</Text>
-                                    <Text style={styles.exerciseDetail}>
-                                        {item.primary_muscle.toUpperCase()} {item.equipment_type ? `• ${item.equipment_type.toUpperCase()}` : ''}
-                                    </Text>
-                                </View>
-                            </View>
-                            <View style={[styles.addButton, selected && styles.addButtonSelected]}>
-                                {mode === 'multiple' ? (
-                                    <Ionicons 
-                                        name={selected ? "checkmark" : "add"} 
-                                        size={20} 
-                                        color={selected ? "#FFFFFF" : theme.colors.status.active} 
-                                    />
-                                ) : (
-                                    <Ionicons name="add" size={20} color={theme.colors.status.active} />
-                                )}
-                            </View>
-                        </TouchableOpacity>
-                    );
-                }}
-                ItemSeparatorComponent={() => <View style={{height: 12}} />}
-                contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 40 }]}
-                onEndReached={loadMoreExercises}
-                onEndReachedThreshold={0.5}
-                ListHeaderComponent={renderSearchBar}
-                ListFooterComponent={
-                    isLoadingMoreExercises ? (
-                        <View style={styles.footerLoader}>
-                            <ActivityIndicator size="small" color={theme.colors.status.active} />
-                        </View>
-                    ) : null
-                }
-                ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Ionicons name="barbell-outline" size={48} color={theme.colors.text.zinc700} />
-                        <Text style={styles.emptyText}>No exercises found</Text>
+            <View style={{ flex: 1 }}>
+                {renderSearchBar()}
+                {isLoadingExercises ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={theme.colors.status.active} />
                     </View>
-                }
-            />
+                ) : (
+                    <FlatList
+                        data={filteredExercises}
+                        keyExtractor={(item) => item.id.toString()}
+                        renderItem={({ item }) => {
+                            const selected = isSelected(item.id);
+                            return (
+                                <TouchableOpacity 
+                                    style={[styles.exerciseCard, selected && styles.exerciseCardSelected]}
+                                    onPress={() => handleExercisePress(item.id)}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={styles.exerciseInfoContainer}>
+                                        <View style={[styles.exerciseIconPlaceholder, selected && styles.exerciseIconPlaceholderSelected]}>
+                                            <Text style={[styles.exerciseInitial, selected && styles.exerciseInitialSelected]}>
+                                                {item.name.charAt(0).toUpperCase()}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.exerciseTextContent}>
+                                            <Text style={styles.exerciseName}>{item.name.toUpperCase()}</Text>
+                                            <Text style={styles.exerciseDetail}>
+                                                {item.primary_muscle.toUpperCase()} {item.equipment_type ? `• ${item.equipment_type.toUpperCase()}` : ''}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={[styles.addButton, selected && styles.addButtonSelected]}>
+                                        {mode === 'multiple' ? (
+                                            <Ionicons 
+                                                name={selected ? "checkmark" : "add"} 
+                                                size={20} 
+                                                color={selected ? "#FFFFFF" : theme.colors.status.active} 
+                                            />
+                                        ) : (
+                                            <Ionicons name="add" size={20} color={theme.colors.status.active} />
+                                        )}
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        }}
+                        ItemSeparatorComponent={() => <View style={{height: 12}} />}
+                        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 40 }]}
+                        onEndReached={loadMoreExercises}
+                        onEndReachedThreshold={0.5}
+                        ListFooterComponent={
+                            isLoadingMoreExercises ? (
+                                <View style={styles.footerLoader}>
+                                    <ActivityIndicator size="small" color={theme.colors.status.active} />
+                                </View>
+                            ) : null
+                        }
+                        ListEmptyComponent={
+                            <View style={styles.emptyContainer}>
+                                <Ionicons name="barbell-outline" size={48} color={theme.colors.text.zinc700} />
+                                <Text style={styles.emptyText}>No exercises found</Text>
+                            </View>
+                        }
+                    />
+                )}
+            </View>
         );
     };
 

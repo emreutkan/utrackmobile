@@ -1,7 +1,7 @@
 import { BackendType, getBackendPreference } from './Storage';
 
 // Backend configurations
-const LOCAL_IP = '192.168.1.4';
+const LOCAL_IP = '192.168.1.2';
 const EC2_DOMAIN = 'api.utrack.irfanemreutkan.com';
 
 // Get API URLs based on backend preference

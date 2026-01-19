@@ -29,6 +29,8 @@ export default function Workouts() {
     const [refreshing, setRefreshing] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [activeWorkout, setActiveWorkout] = useState<any>(null);
+    const [menuVisible, setMenuVisible] = useState(false);
+    const [selectedWorkout, setSelectedWorkout] = useState<any>(null);
 
     // --- Data Loading ---
     const fetchActive = async () => {
@@ -101,15 +103,26 @@ export default function Workouts() {
                     </View>
                     {!isRestDay && (
                         <View style={styles.cardTopRight}>
-                            <Text style={styles.volumeLabel}>VOLUME</Text>
-                            <Text style={styles.volumeValue}>{formatVolume(volume)}</Text>
+                            <TouchableOpacity 
+                                onPress={() => { setSelectedWorkout(item); setMenuVisible(true); }}
+                                style={styles.moreButton}
+                            >
+                                <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.text.tertiary} />
+                            </TouchableOpacity>
                         </View>
                     )}
                 </View>
 
-                <Text style={styles.workoutTitle} numberOfLines={1}>
-                    {isRestDay ? 'rest day' : (item.title || 'Untitled Workout')}
-                </Text>
+                <View style={styles.titleRow}>
+                    <Text style={styles.workoutTitle} numberOfLines={1}>
+                        {isRestDay ? 'rest day' : (item.title || 'Untitled Workout')}
+                    </Text>
+                    {!isRestDay && (
+                        <View style={styles.volumeBadge}>
+                            <Text style={styles.volumeValue}>{formatVolume(volume)}</Text>
+                        </View>
+                    )}
+                </View>
 
                 {!isRestDay && exercises.length > 0 && (
                     <View style={styles.exercisesList}>
@@ -189,6 +202,65 @@ export default function Workouts() {
                 mode="log"
                 onSuccess={handleModalSuccess}
             />
+
+            <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
+                <TouchableOpacity 
+                    style={styles.modalBackdrop} 
+                    activeOpacity={1} 
+                    onPress={() => setMenuVisible(false)}
+                >
+                    <View style={styles.modalContent}>
+                        <View style={styles.menuContainer}>
+                            <Text style={styles.menuHeader}>Workout Options</Text>
+                            
+                            <TouchableOpacity 
+                                style={styles.menuItem} 
+                                onPress={() => {
+                                    setMenuVisible(false);
+                                    router.push(`/(active-workout)/workoutsummary?workoutId=${selectedWorkout.id}`);
+                                }}
+                            >
+                                <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(99, 102, 241, 0.1)' }]}>
+                                    <Ionicons name="analytics" size={20} color={theme.colors.text.brand} />
+                                </View>
+                                <Text style={styles.menuText}>See Summary</Text>
+                                <Ionicons name="chevron-forward" size={16} color="#545458" />
+                            </TouchableOpacity>
+
+                            <View style={styles.menuDivider} />
+
+                            <TouchableOpacity 
+                                style={styles.menuItem} 
+                                onPress={() => {
+                                    setMenuVisible(false);
+                                    router.push(`/(workouts)/${selectedWorkout.id}`);
+                                }}
+                            >
+                                <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(10, 132, 255, 0.1)' }]}>
+                                    <Ionicons name="create-outline" size={20} color="#0A84FF" />
+                                </View>
+                                <Text style={styles.menuText}>Edit Workout</Text>
+                                <Ionicons name="chevron-forward" size={16} color="#545458" />
+                            </TouchableOpacity>
+
+                            <View style={styles.menuDivider} />
+
+                            <TouchableOpacity 
+                                style={styles.menuItem} 
+                                onPress={() => {
+                                    setMenuVisible(false);
+                                    // Handle delete or other actions if needed
+                                }}
+                            >
+                                <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(255, 69, 58, 0.1)' }]}>
+                                    <Ionicons name="trash-outline" size={20} color="#FF453A" />
+                                </View>
+                                <Text style={[styles.menuText, { color: '#FF453A' }]}>Delete Workout</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </View>
     );
 }
@@ -226,7 +298,7 @@ const styles = StyleSheet.create({
     // Cards
     card: {
         backgroundColor: theme.colors.ui.glass,
-        borderRadius: theme.borderRadius.l,
+        borderRadius: theme.borderRadius.xl,
         padding: theme.spacing.m,
         marginBottom: theme.spacing.m,
         borderWidth: 1,
@@ -235,8 +307,8 @@ const styles = StyleSheet.create({
     cardTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: theme.spacing.m,
+        alignItems: 'center',
+        marginBottom: theme.spacing.s,
     },
     cardTopLeft: {
         flexDirection: 'row',
@@ -245,55 +317,69 @@ const styles = StyleSheet.create({
     },
     dateText: {
         color: theme.colors.text.secondary,
-        fontSize: theme.typography.sizes.xs,
-        fontWeight: '600',
+        fontSize: 11,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     cardTopRight: {
-        alignItems: 'flex-end',
+        flexDirection: 'row',
+        alignItems: 'center',
     },
-    volumeLabel: {
-        fontSize: theme.typography.sizes.label,
-        fontWeight: '600',
-        color: theme.colors.text.secondary,
-        textTransform: 'uppercase',
-        letterSpacing: theme.typography.tracking.labelTight,
-        marginBottom: 4,
+    moreButton: {
+        padding: 4,
+        marginRight: -4,
     },
-    volumeValue: {
-        fontSize: theme.typography.sizes.xxl,
-        fontWeight: '800',
-        color: theme.colors.status.active,
+    titleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: theme.spacing.m,
     },
     workoutTitle: {
         ...typographyStyles.h3,
-        marginBottom: theme.spacing.m,
+        fontSize: 20,
+        flex: 1,
+    },
+    volumeBadge: {
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.2)',
+    },
+    volumeValue: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: theme.colors.text.brand,
     },
     exercisesList: {
         marginBottom: theme.spacing.m,
+        gap: 6,
     },
     exerciseRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: theme.spacing.xs,
     },
     exerciseName: {
-        fontSize: theme.typography.sizes.m,
-        fontWeight: '500',
+        fontSize: 14,
+        fontWeight: '600',
         color: theme.colors.text.secondary,
         flex: 1,
     },
     exerciseSets: {
-        fontSize: theme.typography.sizes.xs,
-        fontWeight: '600',
-        color: theme.colors.text.secondary,
-        textTransform: 'uppercase',
+        fontSize: 10,
+        fontWeight: '800',
+        color: theme.colors.text.tertiary,
     },
     moreExercises: {
-        fontSize: theme.typography.sizes.xs,
+        fontSize: 11,
         color: theme.colors.text.tertiary,
-        marginTop: theme.spacing.xs,
+        marginTop: 4,
         fontStyle: 'italic',
+        fontWeight: '500',
     },
     viewDetailButton: {
         flexDirection: 'row',
@@ -303,11 +389,62 @@ const styles = StyleSheet.create({
         marginTop: theme.spacing.s,
     },
     viewDetailText: {
-        fontSize: theme.typography.sizes.s,
-        fontWeight: '700',
-        color: theme.colors.status.active,
+        fontSize: 11,
+        fontWeight: '800',
+        color: theme.colors.text.brand,
+        letterSpacing: 0.5,
+    },
+
+    // Modal Styles
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: theme.colors.ui.glass,
+        borderRadius: 30,
+        padding: 20,
+        width: '85%',
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
+    },
+    menuContainer: {
+        paddingVertical: 8,
+    },
+    menuHeader: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: theme.colors.text.tertiary,
         textTransform: 'uppercase',
-        letterSpacing: theme.typography.tracking.labelTight,
+        marginBottom: 20,
+        textAlign: 'center',
+        letterSpacing: 1,
+    },
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        gap: 16,
+    },
+    menuIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    menuText: {
+        flex: 1,
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#FFFFFF',
+    },
+    menuDivider: {
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: theme.colors.ui.border,
+        marginVertical: 4,
     },
 
     // Empty State
@@ -326,4 +463,5 @@ const styles = StyleSheet.create({
         fontSize: theme.typography.sizes.s,
         color: theme.colors.text.secondary,
     },
-});     
+});
+     

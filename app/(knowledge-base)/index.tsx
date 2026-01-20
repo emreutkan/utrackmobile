@@ -3,6 +3,7 @@ import { ResearchFilters, TrainingResearch } from '@/api/types';
 import { commonStyles, theme, typographyStyles } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
@@ -16,6 +17,8 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import UpgradeModal from '@/components/UpgradeModal';
+import { useUserStore } from '@/state/userStore';
 
 // --- Constants ---
 const CATEGORIES = [
@@ -87,18 +90,26 @@ const DiagramPlaceholder = ({ category }: { category: string }) => {
 
 export default function KnowledgeBaseScreen() {
     const insets = useSafeAreaInsets();
+    const { user } = useUserStore();
     const [research, setResearch] = useState<TrainingResearch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [filters, setFilters] = useState<ResearchFilters>({
         category: '',
         muscle_group: '',
         exercise_type: ''
     });
 
+    const isPro = user?.is_pro || false;
+
     useEffect(() => {
-        loadResearch();
-    }, []); // Load once, filter locally for speed unless API requires params
+        if (!isPro) {
+            setShowUpgradeModal(true);
+        } else {
+            loadResearch();
+        }
+    }, [isPro]); // Load once, filter locally for speed unless API requires params
 
     const loadResearch = async () => {
         setIsLoading(true);
@@ -233,6 +244,16 @@ export default function KnowledgeBaseScreen() {
                     }
                 />
             )}
+
+            <UpgradeModal 
+                visible={showUpgradeModal}
+                onClose={() => {
+                    setShowUpgradeModal(false);
+                    router.back();
+                }}
+                feature="Research Hub"
+                message="Access evidence-based research articles, training protocols, and science-backed insights to optimize your workouts."
+            />
         </View>
     );
 }

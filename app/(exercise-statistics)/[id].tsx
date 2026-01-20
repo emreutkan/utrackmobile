@@ -17,6 +17,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
+import UpgradeModal from '@/components/UpgradeModal';
+import { useUserStore } from '@/state/userStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_HEIGHT = 220;
@@ -205,16 +207,25 @@ const NeuralBarChart = ({ data, valueKey, secondaryKey, showPercentage = false, 
 
 export default function ExerciseStatisticsScreen() {
     const { id } = useLocalSearchParams();
+    const { user } = useUserStore();
     const [history, setHistory] = useState<Exercise1RMHistory | null>(null);
     const [ranking, setRanking] = useState<ExerciseRanking | null>(null);
     const [recentPerformance, setRecentPerformance] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [rmChartMode, setRmChartMode] = useState<'1RM' | 'PROGRESS'>('1RM');
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const insets = useSafeAreaInsets();
+    
+    const isPro = user?.is_pro || false;
 
     useEffect(() => {
-        if (id) fetchData();
-    }, [id]);
+        if (id) {
+            if (!isPro) {
+                setShowUpgradeModal(true);
+            }
+            fetchData();
+        }
+    }, [id, isPro]);
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -537,6 +548,16 @@ export default function ExerciseStatisticsScreen() {
                     </TouchableOpacity>
                 </View>
             )}
+
+            <UpgradeModal 
+                visible={showUpgradeModal}
+                onClose={() => {
+                    setShowUpgradeModal(false);
+                    router.back();
+                }}
+                feature="Exercise Statistics & Analytics"
+                message="Track your 1RM progression, analyze performance over time, and view detailed set history to optimize your training."
+            />
         </View>
     );
 }

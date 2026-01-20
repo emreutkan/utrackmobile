@@ -3,14 +3,32 @@ import { deleteTemplateWorkout, startTemplateWorkout } from '@/api/Workout';
 import { theme, typographyStyles } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import UpgradeModal from './UpgradeModal';
+import { useUserStore } from '@/state/userStore';
 
 interface TemplatesSectionProps {
     templates: TemplateWorkout[];
     onRefresh?: () => void;
 }
 
+const FREE_TEMPLATE_LIMIT = 3;
+
 export default function TemplatesSection({ templates, onRefresh }: TemplatesSectionProps) {
+    const { user } = useUserStore();
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+    const isPro = user?.is_pro || false;
+    const canCreateTemplate = isPro || templates.length < FREE_TEMPLATE_LIMIT;
+
+    const handleCreatePress = () => {
+        if (!canCreateTemplate) {
+            setShowUpgradeModal(true);
+        } else {
+            router.push('/(templates)/create');
+        }
+    };
+
     const handleTemplatePress = (template: TemplateWorkout) => {
         Alert.alert(
             template.title.toUpperCase(),
@@ -58,12 +76,17 @@ export default function TemplatesSection({ templates, onRefresh }: TemplatesSect
                     <Text style={styles.sectionTitle}>WORKOUT TEMPLATES</Text>
                 </View>
                 <TouchableOpacity 
-                    style={styles.createButton}
-                    onPress={() => router.push('/(templates)/create')}
+                    style={[styles.createButton, !canCreateTemplate && styles.createButtonDisabled]}
+                    onPress={handleCreatePress}
                     activeOpacity={0.7}
                 >
                     <Ionicons name="add" size={20} color="#FFFFFF" />
                     <Text style={styles.createButtonText}>NEW</Text>
+                    {!isPro && (
+                        <View style={styles.limitBadge}>
+                            <Text style={styles.limitText}>{templates.length}/{FREE_TEMPLATE_LIMIT}</Text>
+                        </View>
+                    )}
                 </TouchableOpacity>
             </View>
             
@@ -111,6 +134,13 @@ export default function TemplatesSection({ templates, onRefresh }: TemplatesSect
                     </View>
                 )}
             </ScrollView>
+
+            <UpgradeModal 
+                visible={showUpgradeModal}
+                onClose={() => setShowUpgradeModal(false)}
+                feature="Unlimited Workout Templates"
+                message={`Free users can create up to ${FREE_TEMPLATE_LIMIT} templates. Upgrade to PRO for unlimited template creation.`}
+            />
         </View>
     );
 }
@@ -152,11 +182,26 @@ const styles = StyleSheet.create({
         borderColor: theme.colors.ui.border,
         gap: 4,
     },
+    createButtonDisabled: {
+        opacity: 0.5,
+    },
     createButtonText: {
         fontSize: 10,
         fontWeight: '900',
         color: '#FFFFFF',
         fontStyle: 'italic',
+    },
+    limitBadge: {
+        backgroundColor: theme.colors.status.warning,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 8,
+        marginLeft: 4,
+    },
+    limitText: {
+        fontSize: 8,
+        fontWeight: '900',
+        color: '#000',
     },
     templateList: { 
         paddingHorizontal: theme.spacing.xs,

@@ -20,8 +20,13 @@ export interface GetAccountResponse {
     height: number | null;
     weight: number | null;
     created_at: string;
-    is_pro: boolean;
-    pro_until: string | null; // ISO datetime string
+    is_pro: boolean; // Has PRO access (paid or trial)
+    is_paid_pro: boolean; // Has paid PRO subscription
+    is_trial: boolean; // Has active trial
+    pro_days_remaining: number | null; // Days left on paid subscription
+    trial_days_remaining: number | null; // Days left on trial
+    pro_until: string | null; // Paid subscription expiration date (ISO datetime)
+    trial_until: string | null; // Trial expiration date (ISO datetime)
     subscription_id: string | null;
 }
 

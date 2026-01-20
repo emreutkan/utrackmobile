@@ -377,6 +377,41 @@ export default function AccountScreen() {
                     </TouchableOpacity>
                 </View>
 
+                {/* Subscription Section */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionHeaderText}>SUBSCRIPTION</Text>
+                </View>
+                <View style={styles.settingsContainer}>
+                    <TouchableOpacity 
+                        style={styles.settingCard}
+                        onPress={() => router.push('/(account)/upgrade')}
+                        activeOpacity={0.7}
+                    >
+                        <View style={[styles.iconBox, { backgroundColor: user?.is_pro ? 'rgba(192, 132, 252, 0.1)' : 'rgba(99, 102, 241, 0.1)' }]}>
+                            <Ionicons 
+                                name={user?.is_pro ? "star" : "star-outline"} 
+                                size={20} 
+                                color={user?.is_pro ? theme.colors.status.rest : theme.colors.status.active} 
+                            />
+                        </View>
+                        <View style={styles.settingContent}>
+                            <Text style={styles.settingTitle}>
+                                {user?.is_pro ? (user?.is_trial ? 'FREE TRIAL' : 'PRO MEMBER') : 'FREE PLAN'}
+                            </Text>
+                            <Text style={styles.settingSubtitle}>
+                                {user?.is_trial && user?.trial_days_remaining !== null
+                                    ? `${user.trial_days_remaining} DAYS LEFT`
+                                    : user?.is_paid_pro && user?.pro_days_remaining !== null
+                                    ? `${user.pro_days_remaining} DAYS LEFT`
+                                    : user?.is_pro
+                                    ? 'ACTIVE'
+                                    : 'UPGRADE TO PRO'}
+                            </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
+                    </TouchableOpacity>
+                </View>
+
                 {/* Account Section */}
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionHeaderText}>ACCOUNT</Text>

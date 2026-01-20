@@ -1,7 +1,9 @@
 import { getExerciseRanking } from '@/api/Achievements';
 import { getExercise1RMHistory, getExerciseSetHistory } from '@/api/Exercises';
 import { Exercise1RMHistory, ExerciseRanking } from '@/api/types';
+import UpgradeModal from '@/components/UpgradeModal';
 import { commonStyles, theme, typographyStyles } from '@/constants/theme';
+import { useUserStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -17,8 +19,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
-import UpgradeModal from '@/components/UpgradeModal';
-import { useUserStore } from '@/state/userStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_HEIGHT = 220;

@@ -569,6 +569,15 @@ export default function AuthScreen() {
                                 />
                                 </View>
                             </View>
+                            {!isRegistering && currentStep === 'password' && (
+                                <TouchableOpacity
+                                    style={styles.forgotPasswordLink}
+                                    onPress={() => router.push('/(auth)/request-reset')}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                                </TouchableOpacity>
+                            )}
                             {validating && currentStep === 'password' && (
                                 <View style={styles.validatingContainer}>
                                     <ActivityIndicator size="small" color={theme.colors.text.secondary} />
@@ -848,5 +857,17 @@ const styles = StyleSheet.create({
         color: theme.colors.text.secondary,
         fontSize: 13,
         fontWeight: '400',
+    },
+    forgotPasswordLink: {
+        alignSelf: 'flex-end',
+        marginTop: theme.spacing.s,
+        marginBottom: theme.spacing.s,
+        paddingVertical: theme.spacing.xs,
+        paddingHorizontal: theme.spacing.s,
+    },
+    forgotPasswordText: {
+        color: theme.colors.status.active,
+        fontSize: theme.typography.sizes.s,
+        fontWeight: '500',
     },
 });

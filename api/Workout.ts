@@ -2,6 +2,7 @@ import apiClient from './APIClient';
 // Don't use the full URL here if apiClient has a baseURL
 // import { CREATE_WORKOUT_URL } from './ApiBase'; 
 import { AddExerciseToWorkoutRequest, AvailableYearsResponse, CalendarResponse, CalendarStats, CheckTodayResponse, CreateTemplateWorkoutRequest, CreateWorkoutRequest, CreateWorkoutResponse, GetWorkoutsResponse, RecoveryStatusResponse, StartTemplateWorkoutRequest, TemplateWorkout, UpdateWorkoutRequest, Workout } from './types';
+import { getErrorMessage } from './errorHandler';
 
 export const createWorkout = async (request: CreateWorkoutRequest): Promise<CreateWorkoutResponse | any> => {
     try {
@@ -9,13 +10,13 @@ export const createWorkout = async (request: CreateWorkoutRequest): Promise<Crea
         return response.data;
     } catch (error: any) {
         // If the backend returned a specific error response (like 400)
-        if (error.response) {
+        if (error.response?.data) {
             // Backend returned an error like { "error": "ACTIVE_WORKOUT_EXISTS", "active_workout": 1 }
             // We return this data object so the UI can handle it
             return error.response.data;
         }
         // Network error or something else
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -24,7 +25,7 @@ export const getActiveWorkout = async (): Promise<CreateWorkoutResponse | any> =
         const response = await apiClient.get('/workout/active/');
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -36,7 +37,7 @@ export const getWorkouts = async (page?: number, pageSize?: number): Promise<Get
         const response = await apiClient.get('/workout/list/', { params });
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -54,7 +55,7 @@ export const completeWorkout = async (workoutID: number, data?: { duration?: str
         const response = await apiClient.post(`/workout/${workoutID}/complete/`, data);
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -63,7 +64,7 @@ export const getWorkoutSummary = async (workoutID: number): Promise<any> => {
         const response = await apiClient.get(`/workout/${workoutID}/summary/`);
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -72,7 +73,7 @@ export const deleteWorkout = async (workoutID: number): Promise<any> => {
         const response = await apiClient.delete(`/workout/${workoutID}/delete/`);
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -82,10 +83,10 @@ export const createTemplateWorkout = async (request: CreateTemplateWorkoutReques
         const response = await apiClient.post('/workout/template/create/', request);
         return response.data;
     } catch (error: any) {
-        if (error.response) {
+        if (error.response?.data) {
             return error.response.data;
         }
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -94,7 +95,7 @@ export const getTemplateWorkouts = async (): Promise<TemplateWorkout[] | any> =>
         const response = await apiClient.get('/workout/template/list/');
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -103,7 +104,7 @@ export const deleteTemplateWorkout = async (templateID: number): Promise<any> =>
         const response = await apiClient.delete(`/workout/template/${templateID}/delete/`);
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -112,10 +113,10 @@ export const startTemplateWorkout = async (request: StartTemplateWorkoutRequest)
         const response = await apiClient.post('/workout/template/start/', request);
         return response.data;
     } catch (error: any) {
-        if (error.response) {
+        if (error.response?.data) {
             return error.response.data;
         }
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -125,10 +126,10 @@ export const updateWorkout = async (workoutId: number, request: UpdateWorkoutReq
         const response = await apiClient.patch(`/workout/${workoutId}/update/`, request);
         return response.data;
     } catch (error: any) {
-        if (error.response) {
+        if (error.response?.data) {
             return error.response.data;
         }
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -137,10 +138,10 @@ export const addExerciseToPastWorkout = async (workoutId: number, request: AddEx
         const response = await apiClient.post(`/workout/${workoutId}/add_exercise/`, request);
         return response.data;
     } catch (error: any) {
-        if (error.response) {
+        if (error.response?.data) {
             return error.response.data;
         }
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -154,7 +155,7 @@ export const getRestTimerState = async (): Promise<{
         const response = await apiClient.get('/workout/active/rest-timer/');
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -163,7 +164,7 @@ export const stopRestTimer = async (): Promise<any> => {
         const response = await apiClient.get('/workout/active/rest-timer/stop/');
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -176,7 +177,7 @@ export const getCalendar = async (year: number, month?: number, week?: number): 
         const response = await apiClient.get('/workout/calendar/', { params });
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -185,7 +186,7 @@ export const getAvailableYears = async (): Promise<AvailableYearsResponse | any>
         const response = await apiClient.get('/workout/years/');
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -197,7 +198,7 @@ export const getCalendarStats = async (year: number, month?: number, week?: numb
         const response = await apiClient.get('/workout/calendar/stats/', { params });
         return response.data;
     } catch (error: any) {
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -206,10 +207,10 @@ export const checkToday = async (): Promise<CheckTodayResponse | any> => {
         const response = await apiClient.get('/workout/check-today/');
         return response.data;
     } catch (error: any) {
-        if (error.response) {
+        if (error.response?.data) {
             return error.response.data;
         }
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -218,9 +219,9 @@ export const getRecoveryStatus = async (): Promise<RecoveryStatusResponse | any>
         const response = await apiClient.get('/workout/recovery/status/');
         return response.data;
     } catch (error: any) {
-        if (error.response) {
+        if (error.response?.data) {
             return error.response.data;
         }
-        return error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }

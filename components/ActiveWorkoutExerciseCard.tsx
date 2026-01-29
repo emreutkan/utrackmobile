@@ -434,22 +434,22 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExer
                 </TouchableOpacity>
 
                 {!(exerciseIndex === 0 && nextSetNumber === 1) && (
-                    <TextInput
-                        style={[styles.setInput, styles.addSetInput, (isTracking || isStopped) && styles.disabledInput]}
-                        value={isInitial ? (inputs.restTime || timerText) : formatRestTimeForDisplay(capturedRestTime ?? 0)}
-                        onChangeText={(value) => {
-                            if (isTracking || isStopped) return;
-                            const numericRegex = /^[0-9]*\.?[0-9]*$/;
-                            if (value === '' || numericRegex.test(value)) {
-                                setInputs(p => ({ ...p, restTime: value }));
-                            }
-                        }}
-                        keyboardType="numbers-and-punctuation"
-                        placeholder="Rest"
-                        placeholderTextColor={theme.colors.text.tertiary}
-                        onFocus={onFocus}
-                        editable={isInitial}
-                    />
+                <TextInput
+                    style={[styles.setInput, styles.addSetInput, (isTracking || isStopped) && styles.disabledInput]}
+                    value={isInitial ? (inputs.restTime || timerText) : formatRestTimeForDisplay(capturedRestTime ?? 0)}
+                    onChangeText={(value) => {
+                        if (isTracking || isStopped) return;
+                        const numericRegex = /^[0-9]*\.?[0-9]*$/;
+                        if (value === '' || numericRegex.test(value)) {
+                            setInputs(p => ({ ...p, restTime: value }));
+                        }
+                    }}
+                    keyboardType="numbers-and-punctuation"
+                    placeholder="Rest"
+                    placeholderTextColor={theme.colors.text.tertiary}
+                    onFocus={onFocus}
+                    editable={isInitial}
+                />
                 )}
                 {exerciseIndex === 0 && nextSetNumber === 1 && (
                     <View style={[styles.setInput, styles.addSetInput]} />

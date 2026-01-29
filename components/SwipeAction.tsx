@@ -1,13 +1,14 @@
 import React from 'react';
-import { StyleSheet, Pressable, ViewStyle, Platform } from 'react-native';
+import { StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { 
-    useAnimatedStyle, 
-    interpolate, 
-    Extrapolation, 
+import Animated, {
+    useAnimatedStyle,
+    interpolate,
+    Extrapolation,
     SharedValue,
     withSpring
 } from 'react-native-reanimated';
+import { RectButton } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { theme } from '@/constants/theme';
 
@@ -58,21 +59,19 @@ export const SwipeAction = ({
     };
 
     return (
-        <Pressable 
+        <RectButton
             onPress={handlePress}
-            style={({ pressed }) => [
-                styles.container, 
+            style={[
+                styles.container,
                 { backgroundColor },
-                style,
-                pressed && styles.pressed
+                style
             ]}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            android_ripple={{ color: 'rgba(255, 255, 255, 0.2)', borderless: false }}
+            underlayColor="rgba(255, 255, 255, 0.2)"
         >
             <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
                 <Ionicons name={iconName} size={iconSize} color={color} />
             </Animated.View>
-        </Pressable>
+        </RectButton>
     );
 };
 
@@ -87,9 +86,6 @@ const styles = StyleSheet.create({
     iconContainer: {
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    pressed: {
-        opacity: 0.7,
     },
 });
 

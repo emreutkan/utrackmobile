@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme, typographyStyles, commonStyles } from '@/constants/theme';
 import { getAchievements, getAchievementCategories } from '@/api/Achievements';
 import { UserAchievement, AchievementCategoryStats, AchievementRarity } from '@/api/types';
+import { extractResults, isPaginatedResponse } from '@/api/types/pagination';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -120,15 +121,36 @@ export default function AchievementsScreen() {
     const [categories, setCategories] = useState<AchievementCategoryStats[]>([]);
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [hasMore, setHasMore] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (page: number = 1, pageSize: number = 20) => {
         setIsLoading(true);
         try {
             const [achData, catData] = await Promise.all([
-                getAchievements(activeCategory || undefined),
+                getAchievements(activeCategory || undefined, page, pageSize),
                 getAchievementCategories()
             ]);
-            setAchievements(achData);
+            
+            // Extract results from paginated or non-paginated response
+            const achievementResults = extractResults(achData);
+            
+            // Update pagination state if paginated
+            if (isPaginatedResponse(achData)) {
+                setHasMore(!!achData.next);
+                setCurrentPage(page);
+            } else {
+                setHasMore(false);
+                setCurrentPage(1);
+            }
+            
+            // If page 1, replace; otherwise append
+            if (page === 1) {
+                setAchievements(achievementResults);
+            } else {
+                setAchievements(prev => [...prev, ...achievementResults]);
+            }
+            
             setCategories(catData);
         } catch (error) {
             console.error('Failed to fetch achievements:', error);
@@ -137,8 +159,16 @@ export default function AchievementsScreen() {
         }
     }, [activeCategory]);
 
+    const loadMore = useCallback(() => {
+        if (!isLoading && hasMore) {
+            fetchData(currentPage + 1);
+        }
+    }, [isLoading, hasMore, currentPage, fetchData]);
+
     useEffect(() => {
-        fetchData();
+        setCurrentPage(1);
+        setHasMore(false);
+        fetchData(1);
     }, [fetchData]);
 
     const renderHeader = () => (
@@ -212,6 +242,21 @@ export default function AchievementsScreen() {
                     </View>
                 ) : (
                     <FlatList
+                        onEndReached={loadMore}
+                        onEndReachedThreshold={0.5}
+                        ListFooterComponent={
+                            hasMore && !isLoading ? (
+                                <View style={styles.loadMoreContainer}>
+                                    <TouchableOpacity
+                                        style={styles.loadMoreButton}
+                                        onPress={loadMore}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text style={styles.loadMoreText}>Load More</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : null
+                        }
                         data={achievements}
                         keyExtractor={(item) => item.achievement.id}
                         renderItem={({ item }) => <AchievementCard item={item} />}
@@ -417,5 +462,23 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         marginTop: 16,
         textTransform: 'uppercase',
+    },
+    loadMoreContainer: {
+        padding: theme.spacing.m,
+        alignItems: 'center',
+    },
+    loadMoreButton: {
+        backgroundColor: theme.colors.ui.glass,
+        padding: theme.spacing.m,
+        borderRadius: theme.borderRadius.l,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
+        minWidth: 120,
+    },
+    loadMoreText: {
+        color: theme.colors.text.secondary,
+        fontSize: theme.typography.sizes.m,
+        fontWeight: '600',
     },
 });

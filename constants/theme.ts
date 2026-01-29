@@ -231,6 +231,14 @@ export const typographyStyles = {
     fontWeight: '900',
     color: theme.colors.text.primary,
    } as TextStyle,
+
+   body: {
+    fontSize: theme.typography.sizes.m,
+    fontWeight: '400',
+    color: theme.colors.text.primary,
+    lineHeight: 24,
+   } as TextStyle,
+
   // Color variants
   textIndigo: { color: theme.colors.status.active } as TextStyle,
   textZincDim: { color: palette.zinc500 } as TextStyle,

@@ -8,17 +8,39 @@ import {
     ExerciseRanking, 
     ExerciseLeaderboard 
 } from './types';
+import { PaginatedResponse, extractResults, isPaginatedResponse } from './types/pagination';
 
 /**
  * ACHIEVEMENT ENDPOINTS
  */
 
-export const getAchievements = async (category?: string): Promise<UserAchievement[]> => {
+export const getAchievements = async (category?: string, page?: number, pageSize?: number): Promise<PaginatedResponse<UserAchievement> | UserAchievement[]> => {
     try {
-        const response = await apiClient.get('/achievements/list/', {
-            params: { category }
-        });
-        return response.data;
+        const params: any = {};
+        if (category) params.category = category;
+        if (page !== undefined) params.page = page;
+        if (pageSize !== undefined) params.page_size = pageSize;
+        
+        const response = await apiClient.get('/achievements/list/', { params });
+        const data = response.data;
+        
+        // Handle backward compatibility: if response is array, return as-is
+        if (Array.isArray(data)) {
+            return data;
+        }
+        
+        // If paginated, return paginated response
+        if (isPaginatedResponse<UserAchievement>(data)) {
+            return data;
+        }
+        
+        // Fallback: wrap in paginated format
+        return {
+            count: data.results?.length || 0,
+            next: data.next || null,
+            previous: data.previous || null,
+            results: data.results || []
+        };
     } catch (error) {
         console.error('Failed to get achievements:', error);
         return [];

@@ -1,4 +1,5 @@
 import apiClient from './APIClient';
+import { getErrorMessage, getValidationErrors } from './errorHandler';
 
 export const getExercises = async (query: string = '', page?: number, pageSize?: number) => {
     try {
@@ -54,12 +55,9 @@ export const addSetToExercise = async (workoutExerciseId: number, data: AddSetRe
         const response = await apiClient.post(`/workout/exercise/${workoutExerciseId}/add_set/`, data);
         return response.data;
     } catch (error: any) {
-        // Handle validation errors (400 Bad Request)
-        if (error.response?.status === 400 && error.response?.data) {
-            return { error: true, validationErrors: error.response.data };
-        }
-        // Handle other errors
-        return { error: true, message: error.response?.data?.detail || error.message || 'An unknown error occurred' };
+        const errorMessage = getErrorMessage(error);
+        const validationErrors = getValidationErrors(error);
+        return { error: true, message: errorMessage, validationErrors };
     }
 }
 
@@ -88,12 +86,9 @@ export const updateSet = async (setId: number, data: UpdateSetRequest) => {
         const response = await apiClient.patch(`/workout/set/${setId}/update/`, data);
         return response.data;
     } catch (error: any) {
-        // Handle validation errors (400 Bad Request)
-        if (error.response?.status === 400 && error.response?.data) {
-            return { error: true, validationErrors: error.response.data };
-        }
-        // Handle other errors
-        return { error: true, message: error.response?.data?.detail || error.message || 'An unknown error occurred' };
+        const errorMessage = getErrorMessage(error);
+        const validationErrors = getValidationErrors(error);
+        return { error: true, message: errorMessage, validationErrors };
     }
 }
 

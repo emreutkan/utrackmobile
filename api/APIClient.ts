@@ -2,6 +2,7 @@ import axios from 'axios';
 import { API_URL, REFRESH_URL, getAPI_URL } from './ApiBase';
 import { getAccessToken, getRefreshToken, storeAccessToken, storeRefreshToken, clearTokens } from './Storage';
 import { triggerTokenError } from '@/components/AuthCheck';
+import { parseApiError } from './errorHandler';
 
 // Initialize with default (local) API URL
 const apiClient = axios.create({

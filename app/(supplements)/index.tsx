@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { validateSupplementDosage, validateSupplementFrequency } from '@/utils/validation';
 import {
     ActivityIndicator,
     Alert,
@@ -37,7 +38,12 @@ export default function SupplementsScreen() {
         todayLogsMap,
         viewingLogs,
         isLoadingLogs,
+        userSupplementsHasMore,
+        userSupplementsCount,
+        availableSupplementsHasMore,
         fetchData,
+        loadMoreUserSupplements,
+        loadMoreAvailableSupplements,
         logSupplement,
         addSupplement,
         fetchLogs,
@@ -78,17 +84,34 @@ export default function SupplementsScreen() {
     const handleAddSubmit = async () => {
         if (!newSuppData.base || !newSuppData.dosage) return;
         
+        const dosage = parseFloat(newSuppData.dosage);
+        
+        // Client-side validation
+        const dosageValidation = validateSupplementDosage(dosage);
+        if (!dosageValidation.isValid) {
+            Alert.alert("Validation Error", dosageValidation.errors.join('\n'));
+            return;
+        }
+        
+        const frequencyValidation = validateSupplementFrequency(newSuppData.freq);
+        if (!frequencyValidation.isValid) {
+            Alert.alert("Validation Error", frequencyValidation.errors.join('\n'));
+            return;
+        }
+        
         const result = await addSupplement({
             supplement_id: newSuppData.base.id,
-            dosage: parseFloat(newSuppData.dosage),
+            dosage: dosage,
             frequency: newSuppData.freq,
             time_of_day: newSuppData.time
         });
 
-        if (result) {
+        if (result.success) {
             setModals(m => ({ ...m, add: false }));
             setAddStep(1);
             setNewSuppData({ base: null, dosage: '', freq: 'daily', time: '' });
+        } else if (result.error) {
+            Alert.alert("Error", result.error);
         }
     };
 
@@ -209,6 +232,15 @@ export default function SupplementsScreen() {
                                 {renderItem({ item })}
                             </View>
                         ))}
+                        {userSupplementsHasMore && (
+                            <TouchableOpacity
+                                style={styles.loadMoreButton}
+                                onPress={() => loadMoreUserSupplements()}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.loadMoreText}>Load More</Text>
+                            </TouchableOpacity>
+                        )}
                     </>
                 )}
 
@@ -259,6 +291,17 @@ export default function SupplementsScreen() {
                                     <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
                                 </TouchableOpacity>
                             )}
+                            ListFooterComponent={
+                                availableSupplementsHasMore ? (
+                                    <TouchableOpacity
+                                        style={styles.loadMoreButton}
+                                        onPress={() => loadMoreAvailableSupplements()}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text style={styles.loadMoreText}>Load More</Text>
+                                    </TouchableOpacity>
+                                ) : null
+                            }
                         />
                     ) : (
                         // Step 2: Form
@@ -690,6 +733,21 @@ const styles = StyleSheet.create({
         color: theme.colors.text.primary, 
         fontSize: theme.typography.sizes.m, 
         fontWeight: '600' 
+    },
+    loadMoreButton: {
+        backgroundColor: theme.colors.ui.glass,
+        padding: theme.spacing.m,
+        borderRadius: theme.borderRadius.l,
+        alignItems: 'center',
+        marginTop: theme.spacing.m,
+        marginHorizontal: theme.spacing.m,
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
+    },
+    loadMoreText: {
+        color: theme.colors.text.secondary,
+        fontSize: theme.typography.sizes.m,
+        fontWeight: '600',
     },
     
     loadingContainer: { 

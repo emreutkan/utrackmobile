@@ -1,6 +1,7 @@
 import { calculateBodyFatMen, calculateBodyFatWomen, createMeasurement, getMeasurements } from '@/api/Measurements';
 import { getAccount, getWeightHistory } from '@/api/account';
 import { BodyMeasurement, WeightHistoryEntry } from '@/api/types';
+import { extractResults } from '@/api/types/pagination';
 import { SwipeAction } from '@/components/SwipeAction';
 import { theme, typographyStyles, commonStyles } from '@/constants/theme';
 import { useUserStore } from '@/state/userStore';
@@ -224,7 +225,8 @@ export default function MeasurementsScreen() {
         setIsLoading(true);
         try {
             const [measData, weightData, accountData] = await Promise.all([getMeasurements(), getWeightHistory(), getAccount()]);
-            if (Array.isArray(measData)) setMeasurements(measData);
+            const measurementResults = extractResults(measData);
+            setMeasurements(measurementResults);
             if (weightData?.results) setWeightHistory(weightData.results);
             if (accountData?.weight) setCurrentWeight(accountData.weight);
         } catch (error) {

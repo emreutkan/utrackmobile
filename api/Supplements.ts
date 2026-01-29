@@ -1,4 +1,6 @@
 import apiClient from "@/api/APIClient";
+import { getErrorMessage, getErrorCode, getValidationErrors } from "./errorHandler";
+import { PaginatedResponse, extractResults, isPaginatedResponse } from "./types/pagination";
 
 export interface Supplement {
     id: number;
@@ -49,33 +51,79 @@ export interface TodayLogsResponse {
     count: number;
 }
 
-export const getSupplements = async (): Promise<Supplement[]> => {
+export const getSupplements = async (page?: number, pageSize?: number): Promise<PaginatedResponse<Supplement> | Supplement[]> => {
     try {
-        const response = await apiClient.get('/supplements/list/');
-        return response.data;
+        const params: any = {};
+        if (page !== undefined) params.page = page;
+        if (pageSize !== undefined) params.page_size = pageSize;
+        
+        const response = await apiClient.get('/supplements/list/', { params });
+        const data = response.data;
+        
+        // Handle backward compatibility: if response is array, return as-is
+        if (Array.isArray(data)) {
+            return data;
+        }
+        
+        // If paginated, return paginated response
+        if (isPaginatedResponse<Supplement>(data)) {
+            return data;
+        }
+        
+        // Fallback: wrap in paginated format
+        return {
+            count: data.results?.length || 0,
+            next: data.next || null,
+            previous: data.previous || null,
+            results: data.results || []
+        };
     } catch (error: any) {
         console.error('Error fetching supplements:', error);
         return [];
     }
 }
 
-export const getUserSupplements = async (): Promise<UserSupplement[]> => {
+export const getUserSupplements = async (page?: number, pageSize?: number): Promise<PaginatedResponse<UserSupplement> | UserSupplement[]> => {
     try {
-        const response = await apiClient.get('/supplements/user/list/');
-        return response.data;
+        const params: any = {};
+        if (page !== undefined) params.page = page;
+        if (pageSize !== undefined) params.page_size = pageSize;
+        
+        const response = await apiClient.get('/supplements/user/list/', { params });
+        const data = response.data;
+        
+        // Handle backward compatibility: if response is array, return as-is
+        if (Array.isArray(data)) {
+            return data;
+        }
+        
+        // If paginated, return paginated response
+        if (isPaginatedResponse<UserSupplement>(data)) {
+            return data;
+        }
+        
+        // Fallback: wrap in paginated format
+        return {
+            count: data.results?.length || 0,
+            next: data.next || null,
+            previous: data.previous || null,
+            results: data.results || []
+        };
     } catch (error: any) {
         console.error('Error fetching user supplements:', error);
         return [];
     }
 }
 
-export const addUserSupplement = async (data: CreateUserSupplementRequest): Promise<UserSupplement | null> => {
+export const addUserSupplement = async (data: CreateUserSupplementRequest): Promise<UserSupplement | { error: string; details?: any }> => {
     try {
         const response = await apiClient.post('/supplements/user/add/', data);
         return response.data;
     } catch (error: any) {
         console.error('Error adding user supplement:', error);
-        return null;
+        const errorMessage = getErrorMessage(error);
+        const validationErrors = getValidationErrors(error);
+        return { error: errorMessage, details: validationErrors };
     }
 }
 
@@ -86,10 +134,8 @@ export const logUserSupplement = async (data: LogUserSupplementRequest): Promise
         return response.data;
     } catch (error: any) {
         console.error('Error logging user supplement:', error);
-        if (error.response?.data?.error) {
-            return { error: error.response.data.error };
-        }
-        return { error: error.message || 'An unknown error occurred' };
+        const errorMessage = getErrorMessage(error);
+        return { error: errorMessage };
     }
 }
 

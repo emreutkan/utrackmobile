@@ -1,12 +1,12 @@
 import { TemplateWorkout } from '@/api/types';
 import { deleteTemplateWorkout, startTemplateWorkout } from '@/api/Workout';
 import { theme, typographyStyles } from '@/constants/theme';
+import { useUserStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import UpgradeModal from './UpgradeModal';
-import { useUserStore } from '@/state/userStore';
 
 interface TemplatesSectionProps {
     templates: TemplateWorkout[];
@@ -215,11 +215,6 @@ const styles = StyleSheet.create({
         padding: theme.spacing.l, 
         borderWidth: 1, 
         borderColor: theme.colors.ui.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 4,
     },
     cardHeader: {
         flexDirection: 'row',

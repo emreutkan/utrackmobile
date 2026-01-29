@@ -1,6 +1,7 @@
 import apiClient from './APIClient';
 import { getGOOGLE_LOGIN_URL, LOGIN_URL, REGISTER_URL } from './ApiBase';
 import { storeAccessToken, storeRefreshToken } from './Storage';
+import { getErrorMessage } from './errorHandler';
 
 // login will either return the access and refresh tokens or an error message
 export const login = async (email: string, password: string): Promise<{ access: string, refresh: string } | string>  => {
@@ -16,10 +17,7 @@ export const login = async (email: string, password: string): Promise<{ access: 
             return response.data.detail || 'An unknown error occurred while storing tokens in the secure store';
         }
     } catch (error: any) {
-        if (error.response?.status === 401) {
-            return error.response?.data?.detail || 'Invalid credentials';
-        }
-        return error.response?.data?.detail || error.message || 'An unknown error occurred';
+        return getErrorMessage(error);
     }
 }
 
@@ -146,5 +144,46 @@ export const googleLogin = async (accessToken: string): Promise<{ access: string
             return error.response?.data?.detail || 'Google authentication failed';
         }
         return error.response?.data?.detail || error.message || 'An unknown error occurred';
+    }
+}
+
+/**
+ * Request password reset - sends email with reset link
+ */
+export const requestPasswordReset = async (email: string): Promise<{ message: string } | { error: string }> => {
+    try {
+        const response = await apiClient.post('/user/request-password-reset/', { email });
+        if (response.status === 200) {
+            return response.data;
+        } else {
+            const errorMessage = getErrorMessage({ response: { data: response.data } });
+            return { error: errorMessage };
+        }
+    } catch (error: any) {
+        const errorMessage = getErrorMessage(error);
+        return { error: errorMessage };
+    }
+}
+
+/**
+ * Reset password using uid and token from email link
+ */
+export const resetPassword = async (uid: string, token: string, newPassword: string): Promise<{ message: string } | { error: string; details?: any }> => {
+    try {
+        const response = await apiClient.post('/user/reset-password/', {
+            uid,
+            token,
+            new_password: newPassword
+        });
+        if (response.status === 200) {
+            return response.data;
+        } else {
+            const errorMessage = getErrorMessage({ response: { data: response.data } });
+            return { error: errorMessage };
+        }
+    } catch (error: any) {
+        const errorMessage = getErrorMessage(error);
+        const validationErrors = getValidationErrors(error);
+        return { error: errorMessage, details: validationErrors };
     }
 }

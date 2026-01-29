@@ -1,5 +1,6 @@
 import AuthCheck from '@/components/AuthCheck';
 import BottomNavigator from '@/components/BottomNavigator';
+import MaintenanceScreen from '@/components/MaintenanceScreen';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -7,9 +8,21 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useBackendHealth } from '@/hooks/useBackendHealth';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const { isBackendDown, isChecking } = useBackendHealth();
+
+  // Show maintenance screen if backend is down
+  if (isBackendDown) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <MaintenanceScreen />
+        <StatusBar style="light" />
+      </GestureHandlerRootView>
+    );
+  }
 
   return (
     <AuthCheck>

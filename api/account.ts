@@ -1,6 +1,7 @@
 
 import apiClient from "./APIClient";
 import { getAccountResponse, WeightHistoryResponse } from "./types";
+import { getErrorMessage, getValidationErrors } from "./errorHandler";
 
 export const getAccount = async () : Promise<getAccountResponse > => {
     try {
@@ -20,14 +21,13 @@ export const updateHeight = async (height: number): Promise<{ height: string; me
         const response = await apiClient.post('/user/height/', { height });
         return response.data;
     } catch (error: any) {
-        if (error.response) {
-            return error.response.data;
-        }
-        return error.message || 'An unknown error occurred';
+        const errorMessage = getErrorMessage(error);
+        const validationErrors = getValidationErrors(error);
+        return { error: errorMessage, details: validationErrors };
     }
 }
 
-export const changePassword = async (oldPassword: string, newPassword: string): Promise<{ message: string } | { error: string }> => {
+export const changePassword = async (oldPassword: string, newPassword: string): Promise<{ message: string } | { error: string; details?: any }> => {
     try {
         const response = await apiClient.post('/user/change-password/', {
             old_password: oldPassword,
@@ -36,13 +36,13 @@ export const changePassword = async (oldPassword: string, newPassword: string): 
         if (response.status === 200) {
             return response.data;
         } else {
-            return { error: response.data?.error || 'Failed to change password' };
+            const errorMessage = getErrorMessage({ response: { data: response.data } });
+            return { error: errorMessage };
         }
     } catch (error: any) {
-        if (error.response) {
-            return error.response.data || { error: 'An unknown error occurred' };
-        }
-        return { error: error.message || 'An unknown error occurred' };
+        const errorMessage = getErrorMessage(error);
+        const validationErrors = getValidationErrors(error);
+        return { error: errorMessage, details: validationErrors };
     }
 }
 
@@ -51,10 +51,9 @@ export const updateGender = async (gender: 'male' | 'female'): Promise<{ gender:
         const response = await apiClient.post('/user/gender/', { gender });
         return response.data;
     } catch (error: any) {
-        if (error.response) {
-            return error.response.data;
-        }
-        return error.message || 'An unknown error occurred';
+        const errorMessage = getErrorMessage(error);
+        const validationErrors = getValidationErrors(error);
+        return { error: errorMessage, details: validationErrors };
     }
 }
 
@@ -63,10 +62,9 @@ export const updateWeight = async (weight: number): Promise<{ weight: number; me
         const response = await apiClient.post('/user/weight/', { weight });
         return response.data;
     } catch (error: any) {
-        if (error.response) {
-            return error.response.data;
-        }
-        return error.message || 'An unknown error occurred';
+        const errorMessage = getErrorMessage(error);
+        const validationErrors = getValidationErrors(error);
+        return { error: errorMessage, details: validationErrors };
     }
 }
 
@@ -79,10 +77,9 @@ export const getWeightHistory = async (page: number = 1, pageSize: number = 100)
         const response = await apiClient.get('/user/weight/history/', { params });
         return response.data;
     } catch (error: any) {
-        if (error.response) {
-            return error.response.data;
-        }
-        return error.message || 'An unknown error occurred';
+        const errorMessage = getErrorMessage(error);
+        const validationErrors = getValidationErrors(error);
+        return { error: errorMessage, details: validationErrors };
     }
 }
 
@@ -94,10 +91,9 @@ export const deleteWeightEntry = async (weightId: number, deleteBodyfat: boolean
         const response = await apiClient.delete(url);
         return response.data;
     } catch (error: any) {
-        if (error.response) {
-            return error.response.data;
-        }
-        return error.message || 'An unknown error occurred';
+        const errorMessage = getErrorMessage(error);
+        const validationErrors = getValidationErrors(error);
+        return { error: errorMessage, details: validationErrors };
     }
 }
 

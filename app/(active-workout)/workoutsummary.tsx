@@ -272,7 +272,7 @@ export default function WorkoutSummaryScreen() {
                             )}
                         </View>
 
-                        {(!summary.is_pro || !summary.has_advanced_insights) && (
+                        {!summary.is_pro && (
                             <UpgradePrompt
                                 feature="Advanced Workout Insights"
                                 message="Unlock deeper somatic analysis and 1RM tracking"

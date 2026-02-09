@@ -36,6 +36,13 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "We need permission to read your health data.",
+          "healthUpdatePermission": "We need permission to save workouts to your health profile."
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",

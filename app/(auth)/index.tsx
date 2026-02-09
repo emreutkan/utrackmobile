@@ -1,26 +1,20 @@
-import { checkEmail, CheckEmailResponse, checkName, CheckNameResponse, checkPassword, CheckPasswordResponse, googleLogin, login, register } from '@/api/Auth';
+import { checkEmail, CheckEmailResponse, checkName, checkPassword, googleLogin, login, register } from '@/api/Auth';
+import { getErrorMessage } from '@/api/errorHandler';
 import { theme, typographyStyles } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Google from 'expo-auth-session/providers/google';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Web-compatible alert helper
 const showAlert = (title: string, message: string) => {
-    if (Platform.OS === 'web') {
-        window.alert(`${title}\n\n${message}`);
-    } else {
-        Alert.alert(title, message);
-    }
+    Alert.alert(title, message);
 };
 
 // Handle deep linking for authentication
-WebBrowser.maybeCompleteAuthSession();
 
 export default function AuthScreen() {
     const [email, setEmail] = useState('');
@@ -29,40 +23,39 @@ export default function AuthScreen() {
     const [loading, setLoading] = useState(false);
     const [currentStep, setCurrentStep] = useState<'email' | 'name' | 'password'>('email');
     const [isRegistering, setIsRegistering] = useState(false);
-    
+
 
     // Validation states
     const [emailValidation, setEmailValidation] = useState<CheckEmailResponse | null>(null);
-    const [nameValidation, setNameValidation] = useState<CheckNameResponse | null>(null);
-    const [passwordValidation, setPasswordValidation] = useState<CheckPasswordResponse | null>(null);
+
     const [validating, setValidating] = useState(false);
-    
+
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const tapCount = useRef(0);
     const tapTimeout = useRef<NodeJS.Timeout | null>(null);
-    
+
     // Animation for continue/register button (email step)
     const emailButtonHeight = useSharedValue(0);
     const emailButtonOpacity = useSharedValue(0);
-    
+
     // Animation for continue button (name step)
     const nameButtonHeight = useSharedValue(0);
     const nameButtonOpacity = useSharedValue(0);
-    
+
     // Animation for login/register button (password step)
     const passwordButtonHeight = useSharedValue(0);
     const passwordButtonOpacity = useSharedValue(0);
-    
+
     // Animation for social buttons
     const socialButtonsHeight = useSharedValue(56); // Height of social button + gap
     const socialButtonsOpacity = useSharedValue(1);
-    
+
     // Animation for back button (hide when typing)
     const backButtonWidth = useSharedValue(40);
     const backButtonOpacity = useSharedValue(1);
     const backButtonMarginRight = useSharedValue(2);
-    
+
     const setEmailValue = (text: string) => {
         if (text.length > 0) {
             setEmailValidation(null);
@@ -80,8 +73,8 @@ export default function AuthScreen() {
                 emailButtonOpacity.value = withTiming(0, { duration: 500 });
             }
         }
-    }, [email.length, currentStep]);
-    
+    }, [email.length, currentStep, emailButtonHeight, emailButtonOpacity]);
+
     // Name step: show continue button when name is entered and hide back button
     useEffect(() => {
         if (currentStep === 'name') {
@@ -106,8 +99,8 @@ export default function AuthScreen() {
             backButtonOpacity.value = withTiming(1, { duration: 0 });
             backButtonMarginRight.value = withTiming(2, { duration: 0 });
         }
-    }, [name.length, currentStep]);
-    
+    }, [name.length, currentStep, nameButtonHeight, nameButtonOpacity, backButtonWidth, backButtonOpacity, backButtonMarginRight]);
+
     // Password step: show login/register button when password is entered and hide back button
     useEffect(() => {
         if (currentStep === 'password') {
@@ -129,8 +122,8 @@ export default function AuthScreen() {
                 backButtonMarginRight.value = withTiming(2, { duration: 500 });
             }
         }
-    }, [password.length, currentStep]);
-    
+    }, [password.length, currentStep, passwordButtonHeight, passwordButtonOpacity, backButtonWidth, backButtonOpacity, backButtonMarginRight]);
+
     // Hide social buttons when not on email step or when user is typing email
     useEffect(() => {
         if (currentStep !== 'email' || email.length > 0) {
@@ -140,33 +133,33 @@ export default function AuthScreen() {
             socialButtonsHeight.value = withTiming(56, { duration: 300 });
             socialButtonsOpacity.value = withTiming(1, { duration: 300 });
         }
-    }, [currentStep, email.length]);
+    }, [currentStep, email.length, socialButtonsHeight, socialButtonsOpacity]);
 
-    
+
     const animatedEmailButtonStyle = useAnimatedStyle(() => ({
         height: emailButtonHeight.value,
         opacity: emailButtonOpacity.value,
         overflow: 'hidden',
     }));
-    
+
     const animatedNameButtonStyle = useAnimatedStyle(() => ({
         height: nameButtonHeight.value,
         opacity: nameButtonOpacity.value,
         overflow: 'hidden',
     }));
-    
+
     const animatedPasswordButtonStyle = useAnimatedStyle(() => ({
         height: passwordButtonHeight.value,
         opacity: passwordButtonOpacity.value,
         overflow: 'hidden',
     }));
-    
+
     const     animatedSocialButtonsStyle = useAnimatedStyle(() => ({
         height: socialButtonsHeight.value,
         opacity: socialButtonsOpacity.value,
         marginBottom: 24,
     }));
-    
+
     const animatedBackButtonStyle = useAnimatedStyle(() => ({
         width: backButtonWidth.value,
         opacity: backButtonOpacity.value,
@@ -174,7 +167,7 @@ export default function AuthScreen() {
         overflow: 'hidden',
         pointerEvents: backButtonOpacity.value > 0.5 ? 'auto' : 'none',
     }));
-    
+
     const handleContinueFromEmail = async () => {
         if (email.length === 0) {
             return;
@@ -231,7 +224,6 @@ export default function AuthScreen() {
         // Validate name before proceeding
         setValidating(true);
         const result = await checkName(name);
-        setNameValidation(result);
         setValidating(false);
 
         if (!result.is_valid) {
@@ -241,30 +233,43 @@ export default function AuthScreen() {
 
         setCurrentStep('password');
     };
-    
-    const handleForgotPassword = () => {
-        // TODO: Implement forgot password flow
-        showAlert("Forgot Password", "This feature is coming soon!");
-    };
+
+
 
     // Google Auth Request
     const [request, response, promptAsync] = Google.useAuthRequest({
         webClientId: '344903572266-72t0uji4lhh6htisqb3kq36sslq6jf7j.apps.googleusercontent.com',
         // You need to generate these in Google Cloud Console for the specific platform to avoid "Compliance" errors
-        iosClientId: '344903572266-314v6q9vh2qooo4hqkqp1ornn8098uh6.apps.googleusercontent.com', 
+        iosClientId: '344903572266-314v6q9vh2qooo4hqkqp1ornn8098uh6.apps.googleusercontent.com',
         androidClientId: '344903572266-1kfttptioqaffsf58e5rq5uo2n9s2ho5.apps.googleusercontent.com',
         scopes: ['profile', 'email'],
     });
 
 
     useEffect(() => {
+       const handleGoogleLoginEffect = async (token: string) => {
+        setLoading(true);
+        try {
+            const result = await googleLogin(token);
+            // Allow login if we get an object with an access token, even if refresh is empty string
+            if (typeof result === 'object' && result.access) {
+                router.replace('/(home)');
+            } else {
+                showAlert("Google Login Failed", typeof result === 'string' ? result : 'An unknown error occurred');
+            }
+        } catch (e: any) {
+            showAlert("Error", getErrorMessage(e));
+        } finally {
+            setLoading(false);
+        }
+    };
         if (response?.type === 'success') {
             const { authentication } = response;
             if (authentication?.accessToken) {
-                handleGoogleLogin(authentication.accessToken);
+                handleGoogleLoginEffect(authentication.accessToken);
             }
         }
-    }, [response]);
+    }, [response, router]);
 
     useEffect(() => {
         return () => {
@@ -272,17 +277,17 @@ export default function AuthScreen() {
                 clearTimeout(tapTimeout.current);
             }
         };
-    }, []);
-    
+    }, [tapTimeout]);
+
 
     const handleForceTap = () => {
         tapCount.current += 1;
-        
+
         // Clear existing timeout
         if (tapTimeout.current) {
             clearTimeout(tapTimeout.current);
         }
-        
+
         // If 5 taps, navigate to debug
         if (tapCount.current >= 5) {
             tapCount.current = 0;
@@ -295,22 +300,7 @@ export default function AuthScreen() {
         }
     };
 
-    const handleGoogleLogin = async (token: string) => {
-        setLoading(true);
-        try {
-            const result = await googleLogin(token);
-            // Allow login if we get an object with an access token, even if refresh is empty string
-            if (typeof result === 'object' && result.access) {
-                router.replace('/(home)');
-            } else {
-                showAlert("Google Login Failed", typeof result === 'string' ? result : 'An unknown error occurred');
-            }
-        } catch (e) {
-            showAlert("Error", "An unexpected error occurred during Google login.");
-        } finally {
-            setLoading(false);
-        }
-    };
+
 
     const handleLogin = async () => {
         if (!email || !password) {
@@ -326,7 +316,8 @@ export default function AuthScreen() {
             } else {
                 showAlert("Login Failed", typeof result === 'string' ? result : 'An unknown error occurred');
             }
-        } catch (e) {
+        } catch (e: any) {
+            showAlert("Error", getErrorMessage(e));
             showAlert("Error", "An unexpected error occurred. Please try again.");
         } finally {
             setLoading(false);
@@ -342,7 +333,6 @@ export default function AuthScreen() {
         // Validate password before registering
         setValidating(true);
         const passwordResult = await checkPassword(password);
-        setPasswordValidation(passwordResult);
         setValidating(false);
 
         if (!passwordResult.is_valid) {
@@ -358,7 +348,8 @@ export default function AuthScreen() {
             } else {
                 showAlert("Registration Failed", typeof result === 'string' ? result : 'An unknown error occurred');
             }
-        } catch (e) {
+        } catch (e: any) {
+            showAlert("Error", getErrorMessage(e));
             showAlert("Error", "An unexpected error occurred. Please try again.");
         } finally {
             setLoading(false);
@@ -383,7 +374,7 @@ export default function AuthScreen() {
                 colors={['rgba(99, 101, 241, 0.13)', 'transparent']}
                 style={styles.gradientBg}
             />
-            <KeyboardAvoidingView 
+            <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.content}
             >
@@ -395,7 +386,7 @@ export default function AuthScreen() {
 
                 <View style={styles.middleSection}>
                     <View style={styles.titleContainer}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         onPress={handleForceTap}
                         activeOpacity={0.8}
                     >
@@ -409,7 +400,7 @@ export default function AuthScreen() {
                         {currentStep === 'password' ? 'BUILT FOR YOU' : 'BUILT FOR EXCELLENCE'}
                             </Text>
                 </View>
-      
+
                 <View style={styles.contentContainer}>
                 <View style={styles.inputGroup}>
                     {currentStep === 'email' ? (
@@ -417,11 +408,11 @@ export default function AuthScreen() {
                         <>
                             <View style={[styles.inputWrapper, emailValidation && !emailValidation.is_valid && styles.inputWrapperError]}>
                                 <Ionicons name="mail-outline" size={20} color={theme.colors.text.primary} style={styles.inputIcon} />
-                            <TextInput 
-                                    style={styles.inputTop} 
-                                placeholder="Email" 
+                            <TextInput
+                                    style={styles.inputTop}
+                                placeholder="Email"
                                 placeholderTextColor={theme.colors.text.secondary}
-                                value={email} 
+                                value={email}
                                 onChangeText={setEmailValue}
                                 autoCapitalize="none"
                                 keyboardType="email-address"
@@ -440,7 +431,7 @@ export default function AuthScreen() {
                             <Animated.View style={animatedEmailButtonStyle}>
                                 <View style={styles.seperatorWide} />
                                 <View style={styles.splitButtonContainer}>
-                                    <TouchableOpacity 
+                                    <TouchableOpacity
                                         style={[styles.splitButton, styles.splitButtonLeft]}
                                         onPress={(e) => {
                                             e.preventDefault();
@@ -456,7 +447,7 @@ export default function AuthScreen() {
                                         )}
                                     </TouchableOpacity>
                                     <View style={styles.splitButtonDivider} />
-                                    <TouchableOpacity 
+                                    <TouchableOpacity
                                         style={[styles.splitButton, styles.splitButtonRight, styles.splitButtonPrimary]}
                                         onPress={(e) => {
                                             e.preventDefault();
@@ -475,7 +466,7 @@ export default function AuthScreen() {
                         <>
                             <View style={styles.passwordStepContainer}>
                                 <Animated.View style={animatedBackButtonStyle}>
-                                    <TouchableOpacity 
+                                    <TouchableOpacity
                                         style={styles.backButton}
                                         onPress={() => {
                                             setCurrentStep('email');
@@ -487,11 +478,11 @@ export default function AuthScreen() {
                                         <Ionicons name="chevron-back" size={20} color={theme.colors.text.primary} />
                                     </TouchableOpacity>
                                 </Animated.View>
-                                <TextInput 
-                                    style={styles.inputTop} 
-                                    placeholder="Name" 
+                                <TextInput
+                                    style={styles.inputTop}
+                                    placeholder="Name"
                                     placeholderTextColor={theme.colors.text.secondary}
-                                    value={name} 
+                                    value={name}
                                     onChangeText={setName}
                                     autoCapitalize="words"
                                     returnKeyType="next"
@@ -510,7 +501,7 @@ export default function AuthScreen() {
                             )}
                             <Animated.View style={animatedNameButtonStyle}>
                                 <View style={styles.seperatorWide} />
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={[styles.inputBottom, styles.inputBottomPrimary]}
                                     onPress={(e) => {
                                         e.preventDefault();
@@ -528,11 +519,10 @@ export default function AuthScreen() {
                             </Animated.View>
                         </>
                     ) : (
-                        // Password Step
                         <>
                             <View style={styles.passwordStepContainer}>
                                 <Animated.View style={animatedBackButtonStyle}>
-                                    <TouchableOpacity 
+                                    <TouchableOpacity
                                         style={styles.backButton}
                                         onPress={() => {
                                             if (isRegistering) {
@@ -549,12 +539,12 @@ export default function AuthScreen() {
                                 </Animated.View>
                                 <View style={styles.inputWrapper}>
                                     <Ionicons name="lock-closed-outline" size={20} color={theme.colors.text.primary} style={styles.inputIcon} />
-                                <TextInput 
-                                    style={styles.inputTop} 
-                                    placeholder="Password" 
+                                <TextInput
+                                    style={styles.inputTop}
+                                    placeholder="Password"
                                     placeholderTextColor={theme.colors.text.secondary}
-                                    value={password} 
-                                    onChangeText={setPassword} 
+                                    value={password}
+                                    onChangeText={setPassword}
                                     secureTextEntry
                                     returnKeyType={isRegistering ? "done" : "go"}
                                     onSubmitEditing={() => {
@@ -587,7 +577,7 @@ export default function AuthScreen() {
                             <Animated.View style={animatedPasswordButtonStyle}>
                                 <View style={styles.seperatorWide} />
                                 {isRegistering ? (
-                                    <TouchableOpacity 
+                                    <TouchableOpacity
                                         style={[styles.inputBottom, styles.inputBottomPrimary]}
                                         onPress={(e) => {
                                             e.preventDefault();
@@ -603,7 +593,7 @@ export default function AuthScreen() {
                                         )}
                                     </TouchableOpacity>
                                 ) : (
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                         style={[styles.inputBottom, styles.inputBottomPrimary]}
                                             onPress={(e) => {
                                                 e.preventDefault();
@@ -626,13 +616,13 @@ export default function AuthScreen() {
 
                 <Animated.View style={animatedSocialButtonsStyle}>
                     <View style={styles.socialContainer}>
-                            <TouchableOpacity 
-                                style={styles.socialButton} 
+                            <TouchableOpacity
+                                style={styles.socialButton}
                             onPress={() => handleSocialLogin('Google')}
                             activeOpacity={0.8}
                             disabled={!request}
                         >
-                            {loading && response?.type !== 'success' && request ? ( 
+                            {loading && response?.type !== 'success' && request ? (
                                  <ActivityIndicator size="small" color={theme.colors.text.primary} />
                             ) : (
                                  <>
@@ -643,8 +633,8 @@ export default function AuthScreen() {
                         </TouchableOpacity>
 
                         {Platform.OS === 'ios' && (
-                            <TouchableOpacity 
-                                style={styles.socialButton} 
+                            <TouchableOpacity
+                                style={styles.socialButton}
                                 onPress={() => handleSocialLogin('Apple')}
                                 activeOpacity={0.8}
                             >
@@ -656,7 +646,7 @@ export default function AuthScreen() {
                 </Animated.View>
                 </View>
 
-         
+
             </KeyboardAvoidingView>
         </View>
     );
@@ -732,7 +722,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
         letterSpacing: theme.typography.tracking.wide,
     },
-  
+
     inputGroup: {
         backgroundColor: theme.colors.ui.glass,
         borderRadius: 22,
@@ -747,6 +737,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         backgroundColor: 'transparent',
         minHeight: 56,
+        maxHeight: 60,
     },
     inputWrapperError: {
         borderColor: theme.colors.status.error,

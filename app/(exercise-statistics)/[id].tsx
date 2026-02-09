@@ -207,7 +207,7 @@ const NeuralBarChart = ({ data, valueKey, secondaryKey, showPercentage = false, 
 
 export default function ExerciseStatisticsScreen() {
     const { id } = useLocalSearchParams();
-    const { user } = useUserStore();
+    const { user, fetchUser, isLoading: isLoadingUser } = useUserStore();
     const [history, setHistory] = useState<Exercise1RMHistory | null>(null);
     const [ranking, setRanking] = useState<ExerciseRanking | null>(null);
     const [recentPerformance, setRecentPerformance] = useState<any[]>([]);
@@ -216,16 +216,39 @@ export default function ExerciseStatisticsScreen() {
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const insets = useSafeAreaInsets();
     
-    const isPro = user?.is_pro || false;
+    // Only check isPro when user is loaded
+    const isPro = user !== null ? (user.is_pro || false) : null;
 
+    // Fetch user data on mount if not already loaded
     useEffect(() => {
-        if (id) {
-            if (!isPro) {
-                setShowUpgradeModal(true);
-            }
-            fetchData();
+        if (!user && !isLoadingUser) {
+            fetchUser();
         }
-    }, [id, isPro]);
+    }, [user, isLoadingUser, fetchUser]);
+
+    // Check pro status at page level - block access if not pro
+    useEffect(() => {
+        if (!id) return;
+        
+        // Wait for user data to be loaded
+        if (user === null && !isLoadingUser) {
+            fetchUser();
+            return;
+        }
+        
+        // Only check once user data is available
+        if (user !== null && !isLoadingUser) {
+            if (!user.is_pro) {
+                setShowUpgradeModal(true);
+                setIsLoading(false);
+                return;
+            }
+            // User is pro, fetch data
+            if (id) {
+                fetchData();
+            }
+        }
+    }, [id, user, isLoadingUser, fetchUser]);
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -330,7 +353,11 @@ export default function ExerciseStatisticsScreen() {
                 </TouchableOpacity>
             </View>
 
-            {isLoading ? (
+            {(isLoading || isLoadingUser || !user || isPro === null) ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.colors.status.active} />
+                </View>
+            ) : isPro === false ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={theme.colors.status.active} />
                 </View>

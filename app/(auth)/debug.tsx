@@ -1,21 +1,21 @@
 import { updateApiBaseUrl } from '@/api/ApiBase';
 import { login } from '@/api/Auth';
-import { healthService } from '@/api/Health';
+import { getErrorMessage } from '@/api/errorHandler';
 import { BackendType, getBackendPreference, setBackendPreference } from '@/api/Storage';
 import { debugLoginData } from '@/state/debug';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHealthKit } from '@/api/Health';
 
 export default function DebugView() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [backend, setBackend] = useState<BackendType>('local');
-    const [healthStatus, setHealthStatus] = useState<string>('Not initialized');
-    const [stepsCount, setStepsCount] = useState<number | null>(null);
+    const { hasPermission, steps } = useHealthKit();
 
     useEffect(() => {
         loadBackendPreference();
@@ -43,35 +43,8 @@ export default function DebugView() {
                 Alert.alert("Debug Login Failed", typeof result === 'string' ? result : 'An unknown error occurred');
             }
         } catch (e) {
-            Alert.alert("Error", "An unexpected error occurred during debug login.");
-        }
-    };
-
-    const handleInitializeHealth = async () => {
-        try {
-            setHealthStatus('Initializing...');
-            const success = await healthService.initialize();
-            if (success) {
-                setHealthStatus(`Initialized successfully (${Platform.OS === 'ios' ? 'HealthKit' : 'Google Fit'})`);
-                Alert.alert('Success', `Health service initialized successfully on ${Platform.OS === 'ios' ? 'HealthKit' : 'Google Fit'}`);
-            } else {
-                setHealthStatus('Initialization failed');
-                Alert.alert('Error', 'Failed to initialize health service. Check permissions and try again.');
-            }
-        } catch (error: any) {
-            setHealthStatus(`Error: ${error?.message || 'Unknown error'}`);
-            Alert.alert('Error', error?.message || 'Failed to initialize health service');
-        }
-    };
-
-    const handleGetSteps = async () => {
-        try {
-            setStepsCount(null);
-            const steps = await healthService.getTodaySteps();
-            setStepsCount(steps);
-            Alert.alert('Steps Retrieved', `Today's steps: ${steps.toLocaleString()}`);
-        } catch (error: any) {
-            Alert.alert('Error', error?.message || 'Failed to get steps');
+            console.error('Error during debug login:', e);
+            Alert.alert("Error", getErrorMessage(e));
         }
     };
 
@@ -82,7 +55,7 @@ export default function DebugView() {
                 style={StyleSheet.absoluteFillObject}
             />
             <View style={styles.header}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.backButton}
                     onPress={() => router.back()}
                 >
@@ -91,25 +64,25 @@ export default function DebugView() {
                 <Text style={styles.title}>Debug Menu</Text>
             </View>
 
-            <View style={styles.content}>
+            <ScrollView style={styles.content}>
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Actions</Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={[styles.button, { backgroundColor: '#c084fc', marginBottom: 12 }]}
                         onPress={() => router.push('/hero')}
                     >
                         <Ionicons name="sparkles-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
                         <Text style={styles.buttonText}>Go to Hero Screen</Text>
                     </TouchableOpacity>
-                    
-                    <TouchableOpacity 
+
+                    <TouchableOpacity
                         style={styles.button}
                         onPress={handleDebugLogin}
                     >
                         <Text style={styles.buttonText}>Debug Login</Text>
                     </TouchableOpacity>
-                    
-                    <TouchableOpacity 
+
+                    <TouchableOpacity
                         style={[styles.button, { marginTop: 12, backgroundColor: '#32D74B' }]}
                         onPress={() => router.push('/(home)/loadingHome?fromDebug=true')}
                     >
@@ -120,7 +93,7 @@ export default function DebugView() {
 
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Backend</Text>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={[styles.backendButton, backend === 'ec2' && styles.backendButtonActive]}
                         onPress={() => handleBackendChange('ec2')}
                     >
@@ -130,8 +103,8 @@ export default function DebugView() {
                         {backend === 'ec2' && (
                             <Ionicons name="checkmark-circle" size={20} color="#0A84FF" />
                         )}
-                    </TouchableOpacity>   
-                    <TouchableOpacity 
+                    </TouchableOpacity>
+                    <TouchableOpacity
                         style={[styles.backendButton, backend === 'local' && styles.backendButtonActive]}
                         onPress={() => handleBackendChange('local')}
                     >
@@ -143,7 +116,7 @@ export default function DebugView() {
                         )}
                     </TouchableOpacity>
 
-                
+
                 </View>
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Health & Fitness</Text>
@@ -151,17 +124,17 @@ export default function DebugView() {
                         Platform: {Platform.OS === 'ios' ? 'iOS (HealthKit)' : 'Android (Google Fit)'}
                     </Text>
                     <Text style={[styles.sectionDescription, { marginTop: 4 }]}>
-                        Status: {healthStatus}
+                        Status: {hasPermission ? 'Initialized' : 'Not initialized'}
                     </Text>
-                    {stepsCount !== null && (
+                    {steps !== null && (
                         <Text style={[styles.sectionDescription, { marginTop: 4, color: '#0A84FF' }]}>
-                            Today's Steps: {stepsCount.toLocaleString()}
+                            Today&apos;s Steps: {steps.toLocaleString()}
                         </Text>
                     )}
-                    
-                    <TouchableOpacity 
+
+                    <TouchableOpacity
                         style={styles.button}
-                        onPress={handleInitializeHealth}
+                        onPress={() => {console.log('Initialize HealthKit or Google Fit');}}
                     >
                         <Ionicons name={Platform.OS === 'ios' ? 'heart-outline' : 'fitness-outline'} size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
                         <Text style={styles.buttonText}>
@@ -169,17 +142,17 @@ export default function DebugView() {
                         </Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
+                    <TouchableOpacity
                         style={[styles.button, { marginTop: 12, backgroundColor: '#32D74B' }]}
-                        onPress={handleGetSteps}
+                        onPress={() => {console.log('Get Today&apos;s Steps');}}
                     >
                         <Ionicons name="footsteps-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                        <Text style={styles.buttonText}>Get Today's Steps</Text>
+                        <Text style={styles.buttonText}>Get Today&apos;s Steps</Text>
                     </TouchableOpacity>
                 </View>
 
-           
-            </View>
+
+            </ScrollView>
         </View>
     );
 }

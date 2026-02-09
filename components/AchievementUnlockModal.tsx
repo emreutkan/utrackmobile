@@ -20,11 +20,28 @@ import Animated, {
     useAnimatedStyle,
     useSharedValue,
     withSequence,
-    withDelay
+    withDelay,
+    EntryExitAnimationFunction
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const scaleInSpring: EntryExitAnimationFunction = () => {
+    'worklet';
+    const animations = {
+        opacity: withSpring(1, { damping: 15, stiffness: 150 }),
+        transform: [{ scale: withSpring(1, { damping: 15, stiffness: 150 }) }],
+    };
+    const initialValues = {
+        opacity: 0,
+        transform: [{ scale: 0.8 }],
+    };
+    return {
+        initialValues,
+        animations,
+    };
+};
 
 const RARITY_COLORS: Record<AchievementRarity, string> = {
     common: '#9CA3AF',
@@ -87,7 +104,7 @@ export default function AchievementUnlockModal({ achievements, visible, onClose 
 
                 <Animated.View 
                     key={currentIndex}
-                    entering={ScaleInDown.springify()}
+                    entering={scaleInSpring}
                     style={styles.container}
                 >
                     <LinearGradient

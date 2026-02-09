@@ -90,7 +90,7 @@ const DiagramPlaceholder = ({ category }: { category: string }) => {
 
 export default function KnowledgeBaseScreen() {
     const insets = useSafeAreaInsets();
-    const { user } = useUserStore();
+    const { user, fetchUser, isLoading: isLoadingUser } = useUserStore();
     const [research, setResearch] = useState<TrainingResearch[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -101,15 +101,31 @@ export default function KnowledgeBaseScreen() {
         exercise_type: ''
     });
 
-    const isPro = user?.is_pro || false;
-
+    // Fetch user data on mount if not already loaded
     useEffect(() => {
-        if (!isPro) {
-            setShowUpgradeModal(true);
-        } else {
-            loadResearch();
+        if (!user && !isLoadingUser) {
+            fetchUser();
         }
-    }, [isPro]); // Load once, filter locally for speed unless API requires params
+    }, [user, isLoadingUser, fetchUser]);
+
+    // Check pro status at page level - block access if not pro
+    useEffect(() => {
+        // Wait for user data to be loaded
+        if (user === null && !isLoadingUser) {
+            fetchUser();
+            return;
+        }
+        
+        // Only check once user data is available
+        if (user !== null && !isLoadingUser) {
+            if (!user.is_pro) {
+                setShowUpgradeModal(true);
+                setIsLoading(false);
+            } else {
+                loadResearch();
+            }
+        }
+    }, [user, isLoadingUser, fetchUser]); // Load once, filter locally for speed unless API requires params
 
     const loadResearch = async () => {
         setIsLoading(true);
@@ -225,7 +241,11 @@ export default function KnowledgeBaseScreen() {
                 </View>
             </View>
 
-            {isLoading ? (
+            {(isLoading || isLoadingUser || !user) ? (
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color="#0A84FF" />
+                </View>
+            ) : user && !user.is_pro ? (
                 <View style={styles.center}>
                     <ActivityIndicator size="large" color="#0A84FF" />
                 </View>

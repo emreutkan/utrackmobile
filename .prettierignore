@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build / cache
+dist/
+.expo/
+*.lock
+
+# Generated / config
+package-lock.json
+*.min.js
+*.min.css
+
+# Storybook / docs
+.rnstorybook/
+.storybook/
+
+# Assets (no need to format)
+assets/

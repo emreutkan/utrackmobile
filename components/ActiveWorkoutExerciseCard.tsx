@@ -4,7 +4,7 @@ import { theme } from '@/constants/theme';
 import { useActiveWorkoutStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useRestTimer } from './RestTimerBar';
 import { SwipeAction } from './SwipeAction';
@@ -14,7 +14,6 @@ import { ExerciseMenuModal } from './shared/ExerciseMenuModal';
 import { InsightsModal } from './shared/InsightsModal';
 import { SetsHeader } from './shared/SetsHeader';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // SetRow Component
 const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose, onUpdate, onInputFocus, onShowStatistics, exerciseId }: any) => {
@@ -304,7 +303,7 @@ const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose, onU
 };
 
 // AddSetRow Component with TUT tracking
-const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExerciseId, hasSets, onFocus, exerciseIndex }: any) => {
+const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExerciseId, hasSets, onFocus, exerciseIndex, onTrackingChange }: any) => {
     const [inputs, setInputs] = useState({ weight: '', reps: '', rir: '', restTime: '', isWarmup: false });
     const [isTrackingTUT, setIsTrackingTUT] = useState(false);
     const [tutStartTime, setTutStartTime] = useState<number | null>(null);
@@ -368,6 +367,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExer
             
             await stopRestTimer();
             setIsTrackingTUT(true);
+            onTrackingChange?.(true);
             setTutStartTime(Date.now());
             setCurrentTUT(0);
             setHasStopped(false);
@@ -379,6 +379,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExer
     const handleStopSet = async () => {
         if (!isTrackingTUT || tutStartTime === null) return;
         setIsTrackingTUT(false);
+        onTrackingChange?.(false);
         const finalTUT = Math.floor((Date.now() - tutStartTime) / 1000);
         setTutStartTime(null);
         setCurrentTUT(finalTUT);
@@ -409,6 +410,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExer
         setCurrentTUT(0);
         setHasStopped(false);
         setCapturedRestTime(null);
+        onTrackingChange?.(false);
     };
 
     if (isLocked) return null;
@@ -416,10 +418,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExer
     return (
         <>
             <View style={styles.statusIndicatorContainer}>
-                <View style={[styles.statusDot, isTracking && { backgroundColor: theme.colors.status.error }, isStopped && { backgroundColor: theme.colors.status.active }]} />
-                <Text style={[styles.statusIndicatorText, isTracking && { color: theme.colors.status.error }, isStopped && { color: theme.colors.status.active }]}>
-                    {isInitial ? 'PREPARING SET' : isTracking ? 'PERFORMING SET...' : 'SET FINISHED - LOG RESULTS'}
-                </Text>
+             
             </View>
 
             <View style={[styles.setRow, styles.addSetRowContainer, isTracking && styles.addSetRowTracking, isStopped && styles.addSetRowStopped]}>
@@ -477,7 +476,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExer
                 />
 
                 <TextInput
-                    style={[styles.setInput, styles.addSetInput, (isInitial || isTracking) && styles.disabledInput]}
+                    style={[styles.setInput, styles.addSetInput, (isInitial ) && styles.disabledInput, isTracking && styles.trackingInput]}
                     value={inputs.reps}
                     onChangeText={(value) => {
                         if (isInitial || isTracking) return;
@@ -496,51 +495,51 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExer
                     editable={isStopped}
                 />
 
-                <TextInput
-                    style={[styles.setInput, styles.addSetInput, (isInitial || isTracking) && styles.disabledInput]}
-                    value={inputs.rir}
-                    onChangeText={(value) => {
-                        if (isInitial || isTracking) return;
-                        const numericRegex = /^[0-9]*$/;
-                        if (value === '' || numericRegex.test(value)) {
-                            const num = value === '' ? 0 : parseInt(value);
-                            if (num <= 100) {
-                                setInputs(p => ({ ...p, rir: value }));
+                {isTracking ? (
+                    <View style={[styles.setInput, styles.addSetInput, styles.tutRowInput]}>
+                        <Text style={styles.tutRowText}>{formatTUT(currentTUT)}</Text>
+                    </View>
+                ) : (
+                    <TextInput
+                        style={[styles.setInput, styles.addSetInput, (isInitial || isTracking) && styles.disabledInput]}
+                        value={inputs.rir}
+                        onChangeText={(value) => {
+                            if (isInitial || isTracking) return;
+                            const numericRegex = /^[0-9]*$/;
+                            if (value === '' || numericRegex.test(value)) {
+                                const num = value === '' ? 0 : parseInt(value);
+                                if (num <= 100) {
+                                    setInputs(p => ({ ...p, rir: value }));
+                                }
                             }
-                        }
-                    }}
-                    keyboardType="numeric"
-                    placeholder="RIR"
-                    placeholderTextColor={theme.colors.text.tertiary}
-                    onFocus={onFocus}
-                    editable={isStopped}
-                />
+                        }}
+                        keyboardType="numeric"
+                        placeholder="RIR"
+                        placeholderTextColor={theme.colors.text.tertiary}
+                        onFocus={onFocus}
+                        editable={isStopped}
+                    />
+                )}
             </View>
 
-            {(isTracking || isStopped) && (
-                <View style={[styles.tutTimerContainer, isStopped && styles.tutTimerContainerStopped]}>
+            {isStopped && (
+                <View style={[styles.tutTimerContainer, styles.tutTimerContainerStopped]}>
                     <Text style={styles.tutTimerLabel}>TIME UNDER TENSION</Text>
                     <View style={styles.tutInputContainer}>
-                        {isTracking ? (
-                            <Text style={styles.tutDisplayText}>{formatTUT(currentTUT)}</Text>
-                        ) : (
-                            <>
-                                <TextInput
-                                    style={styles.tutInput}
-                                    value={currentTUT.toString()}
-                                    onChangeText={(text) => {
-                                        const num = parseInt(text) || 0;
-                                        if (num >= 0 && num <= 600) {
-                                            setCurrentTUT(num);
-                                        }
-                                    }}
-                                    keyboardType="numeric"
-                                    placeholder="0"
-                                    placeholderTextColor={theme.colors.text.tertiary}
-                                />
-                                <Text style={styles.tutInputSuffix}>s</Text>
-                            </>
-                        )}
+                        <TextInput
+                            style={styles.tutInput}
+                            value={currentTUT.toString()}
+                            onChangeText={(text) => {
+                                const num = parseInt(text) || 0;
+                                if (num >= 0 && num <= 600) {
+                                    setCurrentTUT(num);
+                                }
+                            }}
+                            keyboardType="numeric"
+                            placeholder="0"
+                            placeholderTextColor={theme.colors.text.tertiary}
+                        />
+                        <Text style={styles.tutInputSuffix}>s</Text>
                     </View>
                 </View>
             )}
@@ -598,6 +597,7 @@ export const ActiveWorkoutExerciseCard = ({ workoutExercise, isLocked, onToggleL
     const [showHistory, setShowHistory] = useState(false);
     const [setHistory, setSetHistory] = useState<any[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const [isTrackingTUT, setIsTrackingTUT] = useState(false);
 
     useEffect(() => {
         if (showHistory) {
@@ -728,7 +728,7 @@ export const ActiveWorkoutExerciseCard = ({ workoutExercise, isLocked, onToggleL
 
                 {(sets.length > 0 || !isLocked) && (
                     <View style={styles.setsContainer}>
-                        <SetsHeader columns={['SET', 'REST', 'WEIGHT', 'REPS', 'RIR']} />
+                        <SetsHeader columns={['SET', 'REST', 'WEIGHT', 'REPS', 'RIR']} showTut={isTrackingTUT} />
                         
                         {sets.map((set: any, index: number) => {
                             const setKey = `set-${set.id || index}`;
@@ -766,6 +766,7 @@ export const ActiveWorkoutExerciseCard = ({ workoutExercise, isLocked, onToggleL
                                 onInputFocus?.();
                             }}
                             exerciseIndex={exerciseIndex ?? 0}
+                            onTrackingChange={setIsTrackingTUT}
                         />
                     </View>
                 )}
@@ -917,32 +918,21 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
     },
     statusIndicatorContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginBottom: 8,
-        paddingHorizontal: 4,
+
+        marginTop: theme.spacing.xl,
+        borderColor: theme.colors.ui.border,
     },
-    statusDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: theme.colors.text.tertiary,
-    },
-    statusIndicatorText: {
-        fontSize: 9,
-        fontWeight: '900',
-        color: theme.colors.text.tertiary,
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-    },
+ 
     disabledInput: {
+        display: 'none',
+    },
+    trackingInput: {
         opacity: 0.4,
+
+        display: 'flex',
     },
     addSetRowTracking: {
         borderStyle: 'solid',
-        borderColor: theme.colors.status.error,
-        backgroundColor: 'rgba(255, 59, 48, 0.05)',
     },
     addSetRowStopped: {
         borderStyle: 'solid',
@@ -1001,6 +991,20 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '800',
         marginLeft: 4,
+    },
+    tutRowInput: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'transparent',
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.status.error,
+    },
+    tutRowText: {
+        color: theme.colors.status.error,
+        fontSize: 16,
+        fontWeight: '900',
+        fontStyle: 'italic',
+        fontVariant: ['tabular-nums'],
     },
     historyToggleButton: {
         flexDirection: 'row',

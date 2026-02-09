@@ -1,3 +1,9 @@
+// Mock the winter runtime requirement
+jest.mock('expo/src/winter/runtime.native.ts', () => ({}), { virtual: true });
+jest.mock('expo/src/winter/installGlobal.ts', () => ({
+  __ExpoImportMetaRegistry: {},
+}), { virtual: true });
+
 // Mock expo modules before they're imported
 jest.mock('expo', () => ({
   __esModule: true,

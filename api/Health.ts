@@ -1,198 +1,58 @@
+import HealthKitModule, {
+  HealthValue,
+  HealthKitPermissions,
+} from 'react-native-health';
+import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 
-let AppleHealthKit: any = null;
-let GoogleFit: any = null;
+// react-native-health uses CJS; Metro may expose it as default or as the module
+const AppleHealthKit =
+  (HealthKitModule as any)?.default ?? HealthKitModule;
 
-// Lazy load the health libraries
-if (Platform.OS === 'ios') {
-    try {
-        AppleHealthKit = require('react-native-health').default;
-    } catch (e) {
-        console.log('react-native-health not available');
+const permissions: HealthKitPermissions = {
+  permissions: {
+    read: [AppleHealthKit?.Constants?.Permissions?.Steps ?? 'Steps'],
+    write: [],
+  },
+};
+
+export const useHealthKit = () => {
+  const [hasPermission, setHasPermission] = useState(false);
+  const [steps, setSteps] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') {
+      return;
     }
-}
-
-if (Platform.OS === 'android') {
-    try {
-        GoogleFit = require('react-native-google-fit').default;
-    } catch (e) {
-        console.log('react-native-google-fit not available');
+    if (!AppleHealthKit?.initHealthKit) {
+      console.warn(
+        'HealthKit native module not available (e.g. Expo Go). Use a dev build for iOS.'
+      );
+      return;
     }
-}
 
-export interface HealthSteps {
-    steps: number;
-    date: string;
-}
+    AppleHealthKit.initHealthKit(permissions, (error: string) => {
+      if (error) {
+        console.error('Error initializing HealthKit:', error);
+        setHasPermission(false);
+        return;
+      }
+      setHasPermission(true);
 
-class HealthService {
-    private isInitialized = false;
+      const options = {
+        startDate: new Date().toISOString(),
+        endDate: new Date().toISOString(),
+      };
 
-    async initialize(): Promise<boolean> {
-        if (this.isInitialized) return true;
-
-        try {
-            if (Platform.OS === 'ios' && AppleHealthKit) {
-                return new Promise((resolve) => {
-                    const permissions = {
-                        permissions: {
-                            read: [AppleHealthKit.Constants.Permissions.StepCount],
-                            write: [] // Add empty write if only reading
-                        },
-                    };
-
-                    AppleHealthKit.initHealthKit(permissions, (error: any) => {
-                        if (error) {
-                            console.warn('HealthKit initialization failed. If you are in Expo Go, this is expected. You must use a Development Client:', error);
-                            this.isInitialized = false;
-                            resolve(false);
-                        } else {
-                            console.log('HealthKit initialized successfully');
-                            this.isInitialized = true;
-                            resolve(true);
-                        }
-                    });
-                });
-            } else if (Platform.OS === 'android' && GoogleFit) {
-                // Check if GoogleFit.Scopes exists
-                if (!GoogleFit.Scopes || !GoogleFit.Scopes.FITNESS_ACTIVITY_READ) {
-                    console.warn('GoogleFit.Scopes not available. Check if react-native-google-fit is correctly installed.');
-                    this.isInitialized = false;
-                    return false;
-                }
-                
-                const options = {
-                    scopes: [
-                        GoogleFit.Scopes.FITNESS_ACTIVITY_READ,
-                        GoogleFit.Scopes.FITNESS_LOCATION_READ, // Sometimes needed for steps
-                    ],
-                };
-
-                const authResult = await GoogleFit.authorize(options);
-                if (authResult.success) {
-                    console.log('Google Fit authorized successfully');
-                    this.isInitialized = true;
-                    // Start checking for steps
-                    GoogleFit.startRecording((res: any) => {
-                        console.log('Google Fit recording started:', res);
-                    });
-                    return true;
-                } else {
-                    console.warn('Google Fit authorization failed:', authResult.message);
-                    this.isInitialized = false;
-                    return false;
-                }
-            }
-            console.warn('Health services not available for this platform or libraries missing.');
-            this.isInitialized = false;
-            return false;
-        } catch (error) {
-            console.error('Health service initialization error:', error);
-            this.isInitialized = false;
-            return false;
+      AppleHealthKit.getStepCount(options, (err: string, result: HealthValue) => {
+        if (err) {
+          console.error('Error getting step count:', err);
+          return;
         }
-    }
+        setSteps(result.value);
+      });
+    });
+  }, []);
 
-    async checkPermissionStatus(): Promise<boolean> {
-        try {
-            if (Platform.OS === 'ios' && AppleHealthKit) {
-                return new Promise((resolve) => {
-                    const permissions = {
-                        permissions: {
-                            read: [AppleHealthKit.Constants.Permissions.StepCount],
-                        },
-                    };
-
-                    AppleHealthKit.initHealthKit(permissions, (error: any) => {
-                        if (error) {
-                            resolve(false);
-                        } else {
-                            this.isInitialized = true;
-                            resolve(true);
-                        }
-                    });
-                });
-            } else if (Platform.OS === 'android' && GoogleFit) {
-                // For Android, try to get steps which will fail if not authorized
-                try {
-                    const today = new Date();
-                    const startOfDay = new Date(today);
-                    startOfDay.setHours(0, 0, 0, 0);
-                    const endOfDay = new Date(today);
-                    endOfDay.setHours(23, 59, 59, 999);
-
-                    const options = {
-                        startDate: startOfDay.toISOString(),
-                        endDate: endOfDay.toISOString(),
-                    };
-
-                    const res = await GoogleFit.getDailyStepCountSamples(options);
-                    // If we can get data, we're authorized
-                    this.isInitialized = true;
-                    return true;
-                } catch (e) {
-                    // If it fails, we're not authorized
-                    return false;
-                }
-            }
-            return false;
-        } catch (error) {
-            return false;
-        }
-    }
-
-    resetInitialization() {
-        this.isInitialized = false;
-    }
-
-    async getTodaySteps(): Promise<number> {
-        try {
-            if (!this.isInitialized) {
-                const initialized = await this.initialize();
-                if (!initialized) return 0;
-            }
-
-            const today = new Date();
-            const startOfDay = new Date(today);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(today);
-            endOfDay.setHours(23, 59, 59, 999);
-
-            if (Platform.OS === 'ios' && AppleHealthKit) {
-                return new Promise((resolve) => {
-                    const options = {
-                        startDate: startOfDay.toISOString(),
-                        endDate: endOfDay.toISOString(),
-                    };
-
-                    AppleHealthKit.getStepCount(options, (err: any, results: any) => {
-                        if (err) {
-                            console.log('Error fetching step count:', err);
-                            resolve(0);
-                        } else {
-                            resolve(results?.value || 0);
-                        }
-                    });
-                });
-            } else if (Platform.OS === 'android' && GoogleFit) {
-                const options = {
-                    startDate: startOfDay.toISOString(),
-                    endDate: endOfDay.toISOString(),
-                };
-
-                const res = await GoogleFit.getDailyStepCountSamples(options);
-                if (res && res.length > 0 && res[0].steps) {
-                    return res[0].steps.reduce((acc: number, curr: any) => acc + (curr.value || 0), 0);
-                }
-                return 0;
-            }
-            return 0;
-        } catch (error) {
-            console.log('Error getting steps:', error);
-            return 0;
-        }
-    }
-}
-
-export const healthService = new HealthService();
-
+  return { hasPermission, steps };
+};

@@ -1,8 +1,7 @@
+import { triggerTokenError } from '@/components/AuthCheck';
 import axios from 'axios';
 import { API_URL, REFRESH_URL, getAPI_URL } from './ApiBase';
-import { getAccessToken, getRefreshToken, storeAccessToken, storeRefreshToken, clearTokens } from './Storage';
-import { triggerTokenError } from '@/components/AuthCheck';
-import { parseApiError } from './errorHandler';
+import { clearTokens, getAccessToken, getRefreshToken, storeAccessToken, storeRefreshToken } from './Storage';
 
 // Initialize with default (local) API URL
 const apiClient = axios.create({
@@ -13,16 +12,14 @@ const apiClient = axios.create({
     timeout: 10000,
 });
 
-// Update baseURL on initialization with actual preference
-// Wrap in try-catch to prevent errors during Metro bundling
 try {
     getAPI_URL().then(url => {
         apiClient.defaults.baseURL = url;
     }).catch(() => {
-        // Silently fail during module initialization
+        console.error("Error getting API URL");
     });
-} catch (e) {
-    // Silently fail during module initialization
+} catch (e: any) {
+    console.error("Error getting API URL:", e);
 }
 
 export default apiClient;
@@ -35,11 +32,11 @@ apiClient.interceptors.request.use(async (config) => {
     if (config.baseURL !== correctBaseURL) {
         config.baseURL = correctBaseURL;
     }
-    
+
     const accessToken = await getAccessToken();
     // Construct full URL - if url already starts with http/https, use it as-is
-    const fullUrl = config.url?.startsWith('http') 
-        ? config.url 
+    const fullUrl = config.url?.startsWith('http')
+        ? config.url
         : (config.baseURL ? `${config.baseURL}${config.url}` : config.url);
     console.log("Request to:", fullUrl);
     if (accessToken) {
@@ -113,7 +110,7 @@ apiClient.interceptors.response.use(
                 const apiUrl = await getAPI_URL();
                 const refreshUrl = `${apiUrl}${REFRESH_URL}`;
                 const response = await axios.post(refreshUrl, { refresh: refreshToken });
-                
+
                 if (response.status === 200) {
                     const newAccessToken = response.data.access;
                     const newRefreshToken = response.data.refresh; // Capture new refresh token if rotated
@@ -122,17 +119,17 @@ apiClient.interceptors.response.use(
                     if (newRefreshToken) {
                         await storeRefreshToken(newRefreshToken); // Save the new refresh token
                     }
-                    
+
                     // Update the header of the original request
                     originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-                    
+
                     processQueue(null, newAccessToken);
                     isRefreshing = false;
 
                     // Retry the original request
                     return apiClient(originalRequest);
                 }
-                
+
                 throw new Error("Refresh failed");
             } catch (refreshError: any) {
                 // Refresh failed (token expired or invalid) - logout immediately

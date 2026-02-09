@@ -1,4 +1,4 @@
-import { MuscleRecovery } from '@/api/types';
+import { MuscleRecovery } from '@/api/types/index';
 import { theme, typographyStyles } from '@/constants/theme';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -10,24 +10,23 @@ interface MuscleRecoverySectionProps {
 
 
 
-const MuscleRecoveryCard = ({ 
-    muscle, 
-    status 
-}: { 
-    muscle: string; 
+const MuscleRecoveryCard = ({
+    muscle,
+    status
+}: {
+    muscle: string;
     status: MuscleRecovery;
 }) => {
     const pct = Number(status.recovery_percentage);
     const hoursLeft = Number(status.hours_until_recovery);
     const isReady = status.is_recovered || pct >= 90;
-    
+
     // Determine colors based on recovery percentage
     // Purple for most cases, green for low recovery, pink for very high
-    let percentageColor: string;
- 
+
 
     const timeText = isReady ? 'Ready' : `${Math.round(hoursLeft)}H TO 100%`;
-    const displayName = muscle.replace(/_/g, ' ').split(' ').map(w => 
+    const displayName = muscle.replace(/_/g, ' ').split(' ').map((w: string) =>
         w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
     ).join(' ');
 
@@ -47,14 +46,14 @@ const MuscleRecoveryCard = ({
                         {pct.toFixed(0)}%
                     </Text>
                     <View style={styles.progressBar}>
-                        <View 
+                        <View
                             style={[
-                                styles.progressFill, 
-                                { 
+                                styles.progressFill,
+                                {
                                     width: `${pct}%`,
                                     backgroundColor: '#60A5FA' // Light blue
                                 }
-                            ]} 
+                            ]}
                         />
                     </View>
                 </View>
@@ -63,9 +62,9 @@ const MuscleRecoveryCard = ({
     );
 };
 
-export default function MuscleRecoverySection({ 
-    recoveryStatus, 
-    onPress 
+export default function MuscleRecoverySection({
+    recoveryStatus,
+    onPress
 }: MuscleRecoverySectionProps) {
     // Get top 3 recovering muscles, sorted by hours until recovery
     // Show muscles that are not fully recovered (recovery_percentage < 100)
@@ -83,8 +82,8 @@ export default function MuscleRecoverySection({
     }
 
     return (
-        <TouchableOpacity 
-            style={styles.container} 
+        <TouchableOpacity
+            style={styles.container}
             onPress={onPress}
             activeOpacity={onPress ? 0.7 : 1}
         >
@@ -92,12 +91,12 @@ export default function MuscleRecoverySection({
                 <Text style={typographyStyles.h3}>MUSCLE RECOVERY</Text>
                 <Text style={typographyStyles.labelMuted}>ANALYTICS</Text>
             </View>
-            
+
             <View style={styles.cardsContainer}>
                 {recovering.map(([muscle, status]) => (
-                    <MuscleRecoveryCard 
-                        key={muscle} 
-                        muscle={muscle} 
+                    <MuscleRecoveryCard
+                        key={muscle}
+                        muscle={muscle}
                         status={status}
                     />
                 ))}
@@ -144,7 +143,7 @@ const styles = StyleSheet.create({
         flex: 1,
         gap: theme.spacing.xs,
     },
- 
+
     cardRight: {
         alignItems: 'flex-end',
         minWidth: 80,

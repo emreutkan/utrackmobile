@@ -1,8 +1,6 @@
-import { theme } from '@/constants/theme';
 import { useActiveWorkoutStore } from '@/state/userStore';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RestTimerBar from './RestTimerBar';
 import WorkoutDetailsView from './WorkoutDetailsView';
@@ -28,15 +26,12 @@ interface WorkoutDetailViewProps {
 export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEditMode = false, isViewOnly = false, onAddExercise, onRemoveExercise, onAddSet, onDeleteSet, onUpdateSet, onCompleteWorkout, onShowStatistics }: WorkoutDetailViewProps) {
     const insets = useSafeAreaInsets();
     const [exercises, setExercises] = useState(workout?.exercises || []);
-    
+
     // Use global store for rest timer state (read-only, updated from backend)
-    const { 
-        lastSetTimestamp, 
+    const {
+        lastSetTimestamp,
         lastExerciseCategory
     } = useActiveWorkoutStore();
-
-    // Move useRef to the top level, before any conditional returns
-    const flatListRef = useRef<any>(null);
 
     useEffect(() => {
         if (workout?.exercises) {
@@ -49,17 +44,6 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
         onAddSet?.(exerciseId, data);
     };
 
-    // Swipe Logic for closing swipeables
-    const swipeableRefs = useRef<Map<string, any>>(new Map());
-    const currentlyOpenSwipeable = useRef<string | null>(null);
-
-    const closeCurrentSwipeable = useCallback(() => {
-        if (currentlyOpenSwipeable.current) {
-            const ref = swipeableRefs.current.get(currentlyOpenSwipeable.current);
-            ref?.close();
-            currentlyOpenSwipeable.current = null;
-        }
-    }, []);
 
     if (!workout) {
         return (
@@ -73,26 +57,29 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
         // This will be handled by WorkoutExerciseDetailsView
     };
 
+    // Check if there's at least one exercise with at least one set
+
     return (
-        <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-            <LinearGradient
-                colors={['rgba(99, 101, 241, 0.13)', 'transparent']}
-                style={StyleSheet.absoluteFillObject}
-            />
-            {isViewOnly && !isActive ? (
-                <ScrollView 
-                    style={{ flex: 1 }}
-                    contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
-                    showsVerticalScrollIndicator={false}
+        <View style={{ flex: 1, backgroundColor: '#000000',  }}>
+            <View style={[styles.container,
+                isActive ? { paddingTop: insets.top, paddingBottom: insets.bottom } : { paddingBottom: insets.bottom }]}>
+                <KeyboardAvoidingView
+                    style={{ flex: 1 } }
+                    behavior={Platform.OS === "ios" ? "padding" : undefined}
+                    keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
                 >
                     {!isEditMode && (
-                        <WorkoutDetailsView 
-                            workout={workout} 
-                            elapsedTime={elapsedTime} 
-                            isActive={isActive} 
+                        <WorkoutDetailsView
+                            workout={workout}
+                            elapsedTime={elapsedTime}
+                            isActive={isActive}
                         />
                     )}
-                    
+
+                    {isActive && !isEditMode && (
+                        <RestTimerBar lastSetTimestamp={lastSetTimestamp} category={lastExerciseCategory} />
+                    )}
+
                     <WorkoutExerciseDetailsView
                         workout={workout}
                         exercises={exercises}
@@ -107,65 +94,28 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
                         onShowStatistics={onShowStatistics}
                         onInputFocus={handleInputFocus}
                     />
-                </ScrollView>
-            ) : (
-                <View style={[styles.container, 
-                    isActive ? { paddingTop: insets.top, paddingBottom: insets.bottom } : { paddingBottom: insets.bottom }]}>
-                    <KeyboardAvoidingView 
-                        style={{ flex: 1 } }
-                        behavior={Platform.OS === "ios" ? "padding" : undefined}
-                        keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
-                    >
-                        {!isEditMode && (
-                            <WorkoutDetailsView 
-                                workout={workout} 
-                                elapsedTime={elapsedTime} 
-                                isActive={isActive} 
-                            />
-                        )}
-                        
-                        {isActive && !isEditMode && (
-                            <RestTimerBar lastSetTimestamp={lastSetTimestamp} category={lastExerciseCategory} />
-                        )}
+                </KeyboardAvoidingView>
+            </View>
 
-                        <WorkoutExerciseDetailsView
-                            workout={workout}
-                            exercises={exercises}
-                            setExercises={setExercises}
-                            isActive={isActive}
-                            isEditMode={isEditMode}
-                            isViewOnly={isViewOnly}
-                            onRemoveExercise={onRemoveExercise}
-                            onAddSet={handleAddSet}
-                            onDeleteSet={onDeleteSet}
-                            onUpdateSet={onUpdateSet}
-                            onShowStatistics={onShowStatistics}
-                            onInputFocus={handleInputFocus}
-                        />
-                    </KeyboardAvoidingView>
-                </View>
-            )}
+
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        paddingHorizontal: theme.spacing.m,
+        paddingHorizontal: 16,
         flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    scrollContent: {
-        paddingHorizontal: 0,
+        backgroundColor: '#000000',
     },
     text: {
-        color: theme.colors.text.primary,
-        fontSize: theme.typography.sizes.xxl,
+        color: '#FFFFFF',
+        fontSize: 24,
         fontWeight: '700',
     },
     workoutHeader: {
-        paddingBottom: theme.spacing.m,
-        borderBottomColor: theme.colors.ui.border,
+        paddingBottom: 16,
+        borderBottomColor: '#1C1C1E',
     },
     workoutHeaderTop: {
         flexDirection: 'row',
@@ -177,58 +127,58 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
         justifyContent: 'flex-start',
         alignItems: 'flex-start',
-        gap: theme.spacing.s,
-        paddingBottom: theme.spacing.m,
+        gap: 8,
+        paddingBottom: 16,
     },
     workoutTitle: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 34,
         fontWeight: '700',
     },
     workoutDate: {
-        color: theme.colors.text.secondary,
+        color: '#63666F',
         fontSize: 17,
         fontWeight: '400',
         textTransform: 'none',
     },
     workoutDuration: {
-        color: theme.colors.status.warning,
+        color: 'orange',
         fontSize: 18,
         fontWeight: '500',
         fontVariant: ['tabular-nums'],
     },
     workoutStatsContainer: {
-        gap: theme.spacing.m,
+        gap: 16,
     },
     horizontalStatsRow: {
         flexDirection: 'row',
-        gap: theme.spacing.m,
-        marginBottom: theme.spacing.m,
+        gap: 16,
+        marginBottom: 16,
     },
     horizontalStatItem: {
         flex: 1,
     },
     horizontalStatLabel: {
-        color: theme.colors.text.secondary,
+        color: '#8E8E93',
         fontSize: 13,
         fontWeight: '300',
-        marginBottom: theme.spacing.s,
+        marginBottom: 8,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     horizontalStatValue: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 17,
         fontWeight: '400',
     },
     compactStatRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: theme.spacing.m,
-        marginBottom: theme.spacing.m,
+        gap: 16,
+        marginBottom: 16,
     },
     compactStatLabel: {
-        color: theme.colors.text.secondary,
+        color: '#8E8E93',
         fontSize: 13,
         fontWeight: '300',
         textTransform: 'uppercase',
@@ -236,50 +186,50 @@ const styles = StyleSheet.create({
         minWidth: 64,
     },
     statItem: {
-        marginBottom: theme.spacing.m,
+        marginBottom: 16,
     },
     statLabel: {
-        color: theme.colors.text.secondary,
+        color: '#8E8E93',
         fontSize: 13,
         fontWeight: '300',
-        marginBottom: theme.spacing.s,
+        marginBottom: 8,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     statValue: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 24,
         fontWeight: '700',
     },
     muscleTagsContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: theme.spacing.s,
+        gap: 8,
         flex: 1,
     },
     muscleTag: {
-        backgroundColor: theme.colors.ui.glassStrong,
-        paddingHorizontal: theme.spacing.s,
-        paddingVertical: theme.spacing.s,
+        backgroundColor: '#2C2C2E',
+        paddingHorizontal: 8,
+        paddingVertical: 8,
         borderRadius: 8,
     },
     muscleTagText: {
-        color: theme.colors.text.tertiary,
+        color: '#A1A1A6',
         fontSize: 13,
         fontWeight: '300',
     },
     secondaryMuscleTag: {
-        backgroundColor: theme.colors.ui.glass,
+        backgroundColor: '#1C1C1E',
         opacity: 0.8,
     },
     secondaryMuscleTagText: {
-        color: theme.colors.text.secondary,
+        color: '#8E8E93',
         fontSize: 12,
         fontWeight: '300',
     },
     intensityBadge: {
-        paddingHorizontal: theme.spacing.m,
-        paddingVertical: theme.spacing.s,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
         borderRadius: 8,
         alignSelf: 'flex-start',
     },
@@ -293,27 +243,28 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255, 59, 48, 0.15)',
     },
     intensityText: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 13,
         fontWeight: '300',
     },
     notesText: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 17,
         lineHeight: 24,
-        marginTop: theme.spacing.s,
+        marginTop: 8,
     },
     content: {
         flex: 1,
+
     },
     section: {
         marginBottom: 24,
     },
     sectionTitle: {
-        color: theme.colors.text.secondary,
+        color: '#8E8E93',
         fontSize: 13,
         fontWeight: '300',
-        marginBottom: theme.spacing.m,
+        marginBottom: 16,
     },
     placeholderContainer: {
         alignItems: 'center',
@@ -321,30 +272,31 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 40,
         paddingTop: 96,
-        paddingBottom: 96, 
+        paddingBottom: 96,
         alignSelf: 'center',
     },
     placeholderText: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 17,
         textAlign: 'center',
-        marginTop: theme.spacing.m,
+        marginTop: 16,
         fontWeight: '400',
         opacity: 0.5,
         maxWidth: 200,
         lineHeight: 24,
-        paddingHorizontal: theme.spacing.xl,
-        paddingVertical: theme.spacing.xl,
+        paddingHorizontal: 24,
+        paddingVertical: 24,
         borderWidth: 1,
-        borderColor: theme.colors.ui.border,
+        borderColor: '#2C2C2E',
         borderRadius: 22,
-        backgroundColor: theme.colors.ui.glass,
+        backgroundColor: '#1C1C1E',
     },
+
     exerciseCard: {
-        backgroundColor: theme.colors.ui.glass,
+        backgroundColor: '#1C1C1E',
         borderRadius: 22,
-        marginBottom: theme.spacing.m,
-        padding: theme.spacing.m,
+        marginBottom: 16,
+        padding: 16,
         shadowColor: '#000000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
@@ -361,10 +313,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: theme.spacing.s,
+        marginBottom: 8,
     },
     exerciseName: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 17,
         fontWeight: '400',
         flex: 1,
@@ -380,12 +332,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     menuModalContent: {
-        backgroundColor: theme.colors.ui.glassStrong,
+        backgroundColor: '#1C1C1E',
         borderRadius: 22,
-        padding: theme.spacing.m,
+        padding: 16,
         minWidth: 200,
         borderWidth: 1,
-        borderColor: theme.colors.ui.border,
+        borderColor: '#2C2C2E',
         shadowColor: '#000000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
@@ -395,22 +347,22 @@ const styles = StyleSheet.create({
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: theme.spacing.m,
-        paddingHorizontal: theme.spacing.m,
-        gap: theme.spacing.m,
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        gap: 16,
     },
     menuItemDelete: {
         borderTopWidth: 1,
-        borderTopColor: theme.colors.ui.border,
-        marginTop: theme.spacing.s,
+        borderTopColor: '#2C2C2E',
+        marginTop: 8,
     },
     menuItemText: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 17,
         fontWeight: '400',
     },
     menuItemTextDelete: {
-        color: theme.colors.status.error,
+        color: '#FF3B30',
     },
     exerciseInfoRow: {
         flexDirection: 'row',
@@ -421,35 +373,36 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         flexWrap: 'wrap',
-        gap: theme.spacing.s,
+        gap: 8,
         flex: 1,
     },
     exerciseTag: {
-        backgroundColor: theme.colors.ui.glassStrong,
-        paddingHorizontal: theme.spacing.s,
+        backgroundColor: '#2C2C2E', // Dark grey background for chip
+        paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 6,
     },
     primaryMuscleTag: {
+        // Slightly brighter for primary muscle distinction
     },
     exerciseTagText: {
-        color: theme.colors.text.tertiary,
+        color: '#A1A1A6', // Slightly brighter for primary muscle/equipment
         fontSize: 12,
         fontWeight: '500',
     },
     lockedTag: {
-        opacity: 0.85, 
-        backgroundColor: theme.colors.ui.glassStrong, 
+        opacity: 0.85, // Less dimming for better visibility
+        backgroundColor: '#2C2C2E', // Ensure background is visible
     },
     lockedTagText: {
-        color: theme.colors.text.tertiary, 
-        opacity: 1, 
+        color: '#A1A1A6', // Lighter grey for better contrast (4.5:1 ratio)
+        opacity: 1, // Override parent opacity for text
     },
     addSetButton: {
-        marginTop: theme.spacing.s,
-        backgroundColor: 'transparent', 
+        marginTop: 12,
+        backgroundColor: 'transparent', // Ghost button style
         borderWidth: 1,
-        borderColor: theme.colors.status.active, 
+        borderColor: '#6366F1', // Muted indigo border
         borderRadius: 8,
         paddingVertical: 10,
         alignItems: 'center',
@@ -457,87 +410,87 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
     },
     addSetButtonText: {
-        color: theme.colors.status.active, 
+        color: '#6366F1', // Muted indigo text
         fontSize: 15,
         fontWeight: '600',
     },
     deleteAction: {
-        backgroundColor: theme.colors.status.error,
+        backgroundColor: '#FF3B30',
         justifyContent: 'center',
         alignItems: 'center',
         width: 80,
         height: '100%',
         borderRadius: 12,
-        marginLeft: theme.spacing.s,
+        marginLeft: 8,
     },
     lockAction: {
-        backgroundColor: theme.colors.status.active,
+        backgroundColor: '#0A84FF',
         justifyContent: 'center',
         alignItems: 'center',
         width: 80,
         height: '100%',
         borderRadius: 12,
-        marginRight: theme.spacing.s,
+        marginRight: 8,
     },
     setsContainer: {
-        marginTop: theme.spacing.s,
-        paddingTop: theme.spacing.s,
+        marginTop: 12,
+        paddingTop: 12,
         borderTopWidth: 1,
-        borderTopColor: theme.colors.ui.border,
+        borderTopColor: '#2C2C2E',
     },
     setsHeader: {
         flex: 1,
         flexDirection: 'row',
-        marginBottom: theme.spacing.s,
+        marginBottom: 8,
         paddingLeft: 4,
     },
     setHeaderText: {
         flex: 1,
-        color: theme.colors.text.secondary,
+        color: '#8E8E93',
         fontSize: 12,
         fontWeight: '600',
         textAlign: 'center',
     },
     setRow: {
         flexDirection: 'row',
-        paddingBottom: theme.spacing.s,
+        paddingBottom: 8,
         paddingTop: 4,
         paddingHorizontal: 0,
         alignItems: 'center',
-        backgroundColor: theme.colors.ui.glass,
+        backgroundColor: '#1C1C1E',
     },
     setText: {
         flex: 1,
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 16,
         textAlign: 'center',
         fontVariant: ['tabular-nums'],
-        lineHeight: 20, 
+        lineHeight: 20, // Ensure consistent line height for vertical alignment
         ...Platform.select({
-            android: { includeFontPadding: false }, 
+            android: { includeFontPadding: false }, // Remove extra padding on Android
         }),
     },
     setInput: {
         flex: 1,
         textAlign: 'center',
-        textAlignVertical: 'center', 
-        color: theme.colors.text.primary,
+        textAlignVertical: 'center', // Center text vertically
+        color: '#FFFFFF',
         fontSize: 16,
         fontVariant: ['tabular-nums'],
-        backgroundColor: 'transparent', 
+        backgroundColor: 'transparent', // Remove solid background
         borderBottomWidth: 1,
-        borderBottomColor: theme.colors.ui.border, 
-        paddingVertical: 8, 
-        paddingBottom: 4, 
+        borderBottomColor: '#3A3A3C', // Light grey underline
+        paddingVertical: 8, // Reduced to align text closer to underline
+        paddingBottom: 4, // Extra bottom padding to push text down
         marginHorizontal: 4,
         minHeight: 44,
-        lineHeight: 20, 
+        lineHeight: 20, // Match setText line height
         ...Platform.select({
-            android: { includeFontPadding: false }, 
+            android: { includeFontPadding: false }, // Remove extra padding on Android
         }),
     },
     deleteSetAction: {
-        backgroundColor: theme.colors.status.error,
+        backgroundColor: '#FF3B30',
         justifyContent: 'center',
         alignItems: 'center',
         width: 60,
@@ -545,14 +498,14 @@ const styles = StyleSheet.create({
         borderRadius: 0,
     },
     restTimerContainer: {
-        paddingBottom: theme.spacing.m,
+        paddingBottom: 16,
         paddingTop: 12,
     },
     restTimerBarBg: {
         height: 6,
-        backgroundColor: theme.colors.ui.border,
+        backgroundColor: '#2C2C2E',
         borderRadius: 3,
-        marginBottom: theme.spacing.s,
+        marginBottom: 8,
         overflow: 'hidden',
     },
     restTimerBarFill: {
@@ -565,12 +518,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     restTimerLabel: {
-        color: theme.colors.text.secondary,
+        color: '#8E8E93',
         fontSize: 14,
         fontWeight: '500',
     },
     restTimerValue: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 14,
         fontWeight: '600',
         fontVariant: ['tabular-nums'],
@@ -580,7 +533,7 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        paddingHorizontal: theme.spacing.m,
+        paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 50,
         marginHorizontal: 10,
@@ -592,14 +545,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     fabButton: {
-        backgroundColor: theme.colors.status.active,
+        backgroundColor: '#0A84FF',
         padding: 10,
         borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
     },
     completeWorkoutButton: {
-        backgroundColor: theme.colors.status.active, 
+        backgroundColor: '#8B5CF6', // Muted purple
         flex: 1,
         paddingVertical: 16,
         paddingHorizontal: 24,
@@ -609,26 +562,26 @@ const styles = StyleSheet.create({
         marginRight: 12,
     },
     completeWorkoutButtonText: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 18,
         fontWeight: '700',
         letterSpacing: 0.5,
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: theme.colors.background,
+        backgroundColor: '#000000',
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingBottom: theme.spacing.m,
+        paddingBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: theme.colors.ui.border,
+        borderBottomColor: '#1C1C1E',
     },
     modalTitle: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 20,
         fontWeight: '700',
         flex: 1,
@@ -647,40 +600,42 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     infoSectionTitle: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '600',
-        marginBottom: theme.spacing.s,
+        marginBottom: 8,
     },
     infoSectionText: {
-        color: theme.colors.text.secondary,
+        color: '#8E8E93',
         fontSize: 15,
         lineHeight: 22,
     },
     infoRow: {
         flexDirection: 'row',
         gap: 12,
-        marginTop: theme.spacing.s,
+        marginTop: 8,
     },
     infoBadge: {
-        backgroundColor: theme.colors.ui.glass,
+        backgroundColor: '#1C1C1E',
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: theme.colors.ui.border,
+        borderColor: '#2C2C2E',
     },
     infoBadgeLabel: {
-        color: theme.colors.text.secondary,
+        color: '#8E8E93',
         fontSize: 11,
         fontWeight: '500',
         marginBottom: 4,
         textTransform: 'uppercase',
     },
     infoBadgeValue: {
-        color: theme.colors.text.primary,
+        color: '#FFFFFF',
         fontSize: 14,
         fontWeight: '600',
         textTransform: 'capitalize',
     },
 });
+
+

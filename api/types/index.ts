@@ -7,8 +7,8 @@ export * from './measurements';
 export * from './recovery';
 export * from './calendar';
 export * from './supplements';
-export * from './restTimer';
+
 export * from './workoutSummary';
-export * from './knowledge';
+
 export * from './volume';
 export * from './achievements';

@@ -1,31 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { 
-    View, 
-    Text, 
-    StyleSheet, 
-    Modal, 
-    TouchableOpacity, 
-    Dimensions,
-    Platform
+import {
+    View,
+    Text,
+    StyleSheet,
+    Modal,
+    TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme, typographyStyles } from '@/constants/theme';
-import { UnnotifiedAchievement, AchievementRarity } from '@/api/types';
-import Animated, { 
-    FadeIn, 
-    FadeOut, 
-    ScaleInDown, 
+import { theme } from '@/constants/theme';
+import { UnnotifiedAchievement, AchievementRarity } from '@/api/types/index';
+import Animated, {
+    FadeIn,
+    FadeOut,
     RotateInUpLeft,
     withSpring,
-    useAnimatedStyle,
-    useSharedValue,
-    withSequence,
-    withDelay,
+
     EntryExitAnimationFunction
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const scaleInSpring: EntryExitAnimationFunction = () => {
     'worklet';
@@ -60,7 +53,7 @@ interface AchievementUnlockModalProps {
 export default function AchievementUnlockModal({ achievements, visible, onClose }: AchievementUnlockModalProps) {
     const [currentIndex, setCurrentSetIndex] = useState(0);
     const current = achievements[currentIndex];
-    
+
     // Reset index when modal becomes visible
     useEffect(() => {
         if (visible) setCurrentSetIndex(0);
@@ -94,15 +87,15 @@ export default function AchievementUnlockModal({ achievements, visible, onClose 
             onRequestClose={onClose}
         >
             <View style={styles.overlay}>
-                <Animated.View 
-                    entering={FadeIn} 
+                <Animated.View
+                    entering={FadeIn}
                     exiting={FadeOut}
                     style={StyleSheet.absoluteFillObject}
                 >
                     <View style={styles.blurBg} />
                 </Animated.View>
 
-                <Animated.View 
+                <Animated.View
                     key={currentIndex}
                     entering={scaleInSpring}
                     style={styles.container}
@@ -111,21 +104,21 @@ export default function AchievementUnlockModal({ achievements, visible, onClose 
                         colors={[`${rarityColor}20`, 'transparent']}
                         style={styles.gradient}
                     />
-                    
+
                     <View style={styles.content}>
                         <Animated.View entering={RotateInUpLeft.delay(300)}>
                             <View style={[styles.iconContainer, { borderColor: rarityColor }]}>
-                                <Ionicons 
-                                    name={getIcon(current.achievement.icon) as any} 
-                                    size={48} 
-                                    color={rarityColor} 
+                                <Ionicons
+                                    name={getIcon(current.achievement.icon) as any}
+                                    size={48}
+                                    color={rarityColor}
                                 />
                             </View>
                         </Animated.View>
 
                         <Text style={styles.unlockText}>ACHIEVEMENT UNLOCKED</Text>
                         <Text style={styles.name}>{current.achievement.name.toUpperCase()}</Text>
-                        
+
                         <View style={[styles.rarityBadge, { backgroundColor: `${rarityColor}20`, borderColor: rarityColor }]}>
                             <Text style={[styles.rarityText, { color: rarityColor }]}>
                                 {current.achievement.rarity.toUpperCase()}
@@ -139,7 +132,7 @@ export default function AchievementUnlockModal({ achievements, visible, onClose 
                             <Text style={styles.pointsText}>+{current.achievement.points} POINTS</Text>
                         </View>
 
-                        <TouchableOpacity 
+                        <TouchableOpacity
                             style={[styles.button, { backgroundColor: rarityColor }]}
                             onPress={handleNext}
                             activeOpacity={0.8}

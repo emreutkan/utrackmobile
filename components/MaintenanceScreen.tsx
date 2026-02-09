@@ -32,7 +32,7 @@ export default function MaintenanceScreen() {
                         <View style={styles.spacer} />
                         <View style={styles.statusContainer}>
                             <Ionicons name="construct-outline" size={24} color={theme.colors.status.warning} />
-                            <Text style={styles.statusTitle}>We're on maintenance</Text>
+                            <Text style={styles.statusTitle}>We&apos;re on maintenance</Text>
                         </View>
                         <Text style={styles.statusMessage}>
                             Our servers are temporarily unavailable.{'\n'}

@@ -2,8 +2,8 @@ import { getExercises } from '@/api/Exercises';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ExerciseSearchModalProps {
@@ -34,25 +34,7 @@ export default function ExerciseSearchModal({
     const [hasMoreExercises, setHasMoreExercises] = useState(false);
     const [exercisePage, setExercisePage] = useState(1);
     const insets = useSafeAreaInsets();
-
-    // Load exercises when modal opens or search query changes
-    useEffect(() => {
-        if (!visible) {
-            setExercises([]);
-            setExercisePage(1);
-            setHasMoreExercises(false);
-            setSearchQuery('');
-            return;
-        }
-
-        const delayDebounceFn = setTimeout(() => {
-            loadExercises(true);
-        }, 300);
-
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, visible]);
-
-    const loadExercises = async (reset = false) => {
+ const loadExercises = useCallback(async (reset = false) => {
         if (reset) {
             setIsLoadingExercises(true);
             setExercisePage(1);
@@ -86,7 +68,25 @@ export default function ExerciseSearchModal({
             setIsLoadingExercises(false);
             setIsLoadingMoreExercises(false);
         }
-    };
+    }, [searchQuery, exercisePage ]);
+
+    // Load exercises when modal opens or search query changes
+    useEffect(() => {
+        if (!visible) {
+            setExercises([]);
+            setExercisePage(1);
+            setHasMoreExercises(false);
+            setSearchQuery('');
+            return;
+        }
+
+        const delayDebounceFn = setTimeout(() => {
+            loadExercises(true);
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery, visible, loadExercises]);
+
 
     const loadMoreExercises = () => {
         if (hasMoreExercises && !isLoadingMoreExercises && !isLoadingExercises) {
@@ -154,7 +154,7 @@ export default function ExerciseSearchModal({
                         renderItem={({ item }) => {
                             const selected = isSelected(item.id);
                             return (
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={[styles.exerciseCard, selected && styles.exerciseCardSelected]}
                                     onPress={() => handleExercisePress(item.id)}
                                     activeOpacity={0.7}
@@ -174,10 +174,10 @@ export default function ExerciseSearchModal({
                                     </View>
                                     <View style={[styles.addButton, selected && styles.addButtonSelected]}>
                                         {mode === 'multiple' ? (
-                                            <Ionicons 
-                                                name={selected ? "checkmark" : "add"} 
-                                                size={20} 
-                                                color={selected ? "#FFFFFF" : theme.colors.status.active} 
+                                            <Ionicons
+                                                name={selected ? "checkmark" : "add"}
+                                                size={20}
+                                                color={selected ? "#FFFFFF" : theme.colors.status.active}
                                             />
                                         ) : (
                                             <Ionicons name="add" size={20} color={theme.colors.status.active} />

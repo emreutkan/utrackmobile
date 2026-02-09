@@ -8,14 +8,14 @@ interface TrainingIntensityCardProps {
     caloriesBurned?: number; // Calories burned (replaces progress)
 }
 
-export default function TrainingIntensityCard({ 
+export default function TrainingIntensityCard({
     intensityScore = 0,
     totalVolume = 0,
     caloriesBurned = 0
 }: TrainingIntensityCardProps) {
     // Convert score 0-10 to percentage 0-100%
     const intensityPercentage = Math.round(intensityScore * 10);
-    
+
     // Calculate intensity bars based on score
     const getIntensityBars = () => {
         const score = intensityScore;
@@ -33,9 +33,9 @@ export default function TrainingIntensityCard({
                     <View style={styles.intensityHeader}>
                     <View style={styles.intensityBars}>
                         {bars.map((opacity, index) => (
-                            <View 
-                                key={index} 
-                                style={[styles.bar, { opacity }]} 
+                            <View
+                                key={index}
+                                style={[styles.bar, { opacity }]}
                             />
                         ))}
 
@@ -43,10 +43,10 @@ export default function TrainingIntensityCard({
                     <Text style={styles.intensityLabel}>TRAINING INTENSITY</Text>
 
                     </View>
-                 
+
                     <View style={styles.intensityTextContainer}>
                         <Text style={styles.intensityValue}>{intensityPercentage}%</Text>
-                        <Text style={styles.intensitySubtitle}>Effort level of today's workout</Text>
+                        <Text style={styles.intensitySubtitle}>Effort level of today&apos;s workout</Text>
                     </View>
                 </View>
                 <View style={styles.intensityIcon}>
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     intensityBars: {
         flexDirection: 'row',
         gap: 4,
-        
+
     },
     bar: {
         width: 4,

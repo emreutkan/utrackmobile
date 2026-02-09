@@ -39,7 +39,7 @@ export default function WorkoutDetailsView({ workout, elapsedTime, isActive }: W
         return `${formatted}KG`;
     };
 
-    const workoutTitle = workout?.title 
+    const workoutTitle = workout?.title
         ? workout.title.toUpperCase()
         : 'WORKOUT';
 

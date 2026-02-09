@@ -13,46 +13,6 @@ export interface BodyMeasurement {
     updated_at: string;
 }
 
-export interface CreateMeasurementRequest {
-    height: number;
-    weight: number;
-    waist: number;
-    neck: number;
-    hips?: number;  // Required for women
-    gender?: "male" | "female";  // Optional - uses user's gender from database if not provided
-    notes?: string;
-}
-
-export interface CalculateBodyFatMenRequest {
-    height: number;
-    weight: number;
-    waist: number;
-    neck: number;
-    gender?: "male" | "female";  // Optional - uses user's gender from database if not provided
-}
-
-export interface CalculateBodyFatWomenRequest {
-    height: number;
-    weight: number;
-    waist: number;
-    neck: number;
-    hips: number;
-    gender?: "male" | "female";  // Optional - uses user's gender from database if not provided
-}
-
-export interface CalculateBodyFatResponse {
-    body_fat_percentage: number;
-    measurements: {
-        height_cm: number;
-        weight_kg: number;
-        waist_cm: number;
-        neck_cm: number;
-        hips_cm?: number;  // Only for women
-    };
-    gender_used: "male" | "female";
-    method: string;
-}
-
 // Weight History Types
 export interface WeightHistoryEntry {
     id: number;

@@ -218,7 +218,7 @@ export default function Workouts() {
                                 style={styles.menuItem} 
                                 onPress={() => {
                                     setMenuVisible(false);
-                                    router.push(`/(active-workout)/workoutsummary?workoutId=${selectedWorkout.id}`);
+                                    router.push(`/(workout-summary)/workoutsummary?workoutId=${selectedWorkout.id}`);
                                 }}
                             >
                                 <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(99, 102, 241, 0.1)' }]}>

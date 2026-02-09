@@ -71,14 +71,14 @@ const TabButton = ({ tab, isActive, onPress }: TabButtonProps) => {
             damping: 15,
             stiffness: 150,
         });
-    }, [isActive]);
+    }, [isActive, activeProgress]);
 
     const animatedContainerStyle = useAnimatedStyle(() => {
-        // Base width is 48 (icon + padding). 
+        // Base width is 48 (icon + padding).
         // Expanded width is 48 + textWidth + extra padding for text.
         // We ensure textWidth is at least 40 to prevent collapse before measurement.
         const expandedWidth = 48 + (textWidth.value || 40) + theme.spacing.m;
-        
+
         return {
             width: interpolate(activeProgress.value, [0, 1], [48, expandedWidth]),
             backgroundColor: `rgba(255, 255, 255, ${activeProgress.value})`,
@@ -113,15 +113,15 @@ const TabButton = ({ tab, isActive, onPress }: TabButtonProps) => {
             <Animated.View style={[styles.tabButton, animatedContainerStyle]}>
                 <View style={styles.tabContent}>
                     <Animated.View style={animatedIconStyle}>
-                        {tab.icon({ 
-                            size: isActive ? 24 : 20, 
-                            color: isActive ? theme.colors.status.active : theme.colors.text.secondary 
+                        {tab.icon({
+                            size: isActive ? 24 : 20,
+                            color: isActive ? theme.colors.status.active : theme.colors.text.secondary
                         })}
                     </Animated.View>
-                    
+
                     <Animated.View style={[styles.textContainer, animatedTextStyle]}>
-                        <Text 
-                            numberOfLines={1} 
+                        <Text
+                            numberOfLines={1}
                             style={[styles.tabLabel, isActive && { color: theme.colors.status.active }]}
                             onLayout={handleTextLayout}
                         >
@@ -144,9 +144,9 @@ export default function BottomNavigator() {
 
     // 1. Determine Visibility
     // Hide on Auth screens, specific flows, loading states, or workout detail pages
-    const isWorkoutDetailPage = (pathname.includes('/workouts/') && pathname.split('/workouts/')[1]?.length > 0 && !pathname.endsWith('/workouts')) || 
+    const isWorkoutDetailPage = (pathname.includes('/workouts/') && pathname.split('/workouts/')[1]?.length > 0 && !pathname.endsWith('/workouts')) ||
                                 (segments.some(s => String(s) === '(workouts)') && segments.length > 2);
-    const shouldHide = segments.some(s => 
+    const shouldHide = segments.some(s =>
         ['(auth)', 'auth', 'hero', 'active-workout', '(active-workout)', 'recovery-status', '(recovery-status)', 'templates', '(templates)', 'loadingHome', 'permissions', '(permissions)', 'knowledge-base', '(knowledge-base)', 'volume-analysis', '(volume-analysis)'].includes(String(s))
     ) || pathname.includes('/auth') || pathname.includes('/hero') || pathname.includes('/active-workout') || pathname.includes('/recovery-status') || pathname.includes('/templates') || pathname.includes('/permissions') || pathname.includes('/knowledge-base') || pathname.includes('/volume-analysis') || isWorkoutDetailPage;
 
@@ -157,10 +157,10 @@ export default function BottomNavigator() {
     // or checks the primary segment name.
     const activeTab = tabs.find(t => {
         // Clean route string: '/(home)' -> 'home'
-        const cleanRoute = t.route.replace(/\W/g, ''); 
+        const cleanRoute = t.route.replace(/\W/g, '');
         // Check current segment: ['(home)', 'index'] -> '(home)'
         const currentSegment = segments[0]?.replace(/\W/g, '') || '';
-        
+
         return currentSegment === cleanRoute || pathname.startsWith(t.route);
     }) || tabs[0]; // Default to first tab (Home)
 

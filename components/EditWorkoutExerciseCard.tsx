@@ -1,7 +1,7 @@
 import { getExerciseSetHistory, updateSet } from '@/api/Exercises';
 import { theme } from '@/constants/theme';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { SwipeAction } from './SwipeAction';
 import { formatRestTimeForDisplay, formatRestTimeForInput, formatValidationErrors, formatWeight, parseRestTime, validateSetData } from './shared/ExerciseCardUtils';
@@ -10,8 +10,6 @@ import { ExerciseMenuModal } from './shared/ExerciseMenuModal';
 import { InsightsModal } from './shared/InsightsModal';
 import { SetsHeader } from './shared/SetsHeader';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IS_WEB_SMALL = Platform.OS === 'web' && SCREEN_WIDTH <= 750;
 
 // ============================================================================
 // 2. COMPONENTS
@@ -22,13 +20,13 @@ const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose, onU
     const [showInsights, setShowInsights] = useState(false);
     const hasBadInsights = set.insights?.bad && Object.keys(set.insights.bad).length > 0;
 
-    const getInitialValues = () => ({
+    const getInitialValues = useCallback(() => ({
         weight: set.weight?.toString() || '',
         reps: set.reps?.toString() || '',
         rir: set.reps_in_reserve?.toString() || '',
         restTime: set.rest_time_before_set ? formatRestTimeForInput(set.rest_time_before_set) : '',
         tut: set.total_tut?.toString() || ''
-    });
+    }), [set.weight, set.reps, set.reps_in_reserve, set.rest_time_before_set, set.total_tut]);
 
     const [localValues, setLocalValues] = useState(getInitialValues());
     const originalValuesRef = React.useRef(getInitialValues());
@@ -53,8 +51,8 @@ const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose, onU
 
         const newValues = getInitialValues();
         const currentStored = originalValuesRef.current;
-        
-        const backendChanged = 
+
+        const backendChanged =
             newValues.weight !== currentStored.weight ||
             newValues.reps !== currentStored.reps ||
             newValues.rir !== currentStored.rir ||
@@ -62,7 +60,7 @@ const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose, onU
             newValues.tut !== currentStored.tut;
 
         if (backendChanged) {
-            const localMatchesOriginal = 
+            const localMatchesOriginal =
                 localValues.weight === currentStored.weight &&
                 localValues.reps === currentStored.reps &&
                 localValues.rir === currentStored.rir &&
@@ -72,20 +70,20 @@ const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose, onU
             if (localMatchesOriginal) {
                 setLocalValues(newValues);
             }
-            
+
             originalValuesRef.current = newValues;
             currentValuesRef.current = newValues;
         }
-    }, [set.id, set.weight, set.reps, set.reps_in_reserve, set.rest_time_before_set, set.total_tut]);
+    }, [set.id, set.weight, set.reps, set.reps_in_reserve, set.rest_time_before_set, set.total_tut, localValues, originalValuesRef, currentValuesRef, isUpdatingRef, getInitialValues]);
 
     const handleBlur = (field: string) => {
         const currentValue = currentValuesRef.current[field as keyof typeof currentValuesRef.current];
         const original = originalValuesRef.current[field as keyof typeof originalValuesRef.current];
-        
+
         if (currentValue === original) return;
 
         const updateData: any = {};
-        
+
         if (field === 'weight') {
             const numValue = currentValue ? parseFloat(currentValue) : null;
             const originalNum = original ? parseFloat(original) : null;
@@ -122,7 +120,7 @@ const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose, onU
             if (onUpdate) {
                 isUpdatingRef.current = true;
                 originalValuesRef.current = { ...currentValuesRef.current };
-                
+
                 Promise.resolve(onUpdate(set.id, updateData)).then(() => {
                     setTimeout(() => {
                         isUpdatingRef.current = false;
@@ -328,7 +326,7 @@ const SetRow = ({ set, index, onDelete, isLocked, swipeRef, onOpen, onClose, onU
                     )}
                 </View>
             </ReanimatedSwipeable>
-            
+
             <InsightsModal
                 visible={showInsights}
                 onClose={() => setShowInsights(false)}
@@ -362,7 +360,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExer
 
     const handleAdd = () => {
         const restTimeSeconds = inputs.restTime ? parseRestTime(inputs.restTime) : 0;
-        
+
         const setData = {
             weight: parseFloat(inputs.weight) || 0,
             reps: inputs.reps ? parseInt(inputs.reps) : 0,
@@ -377,7 +375,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExer
             Alert.alert('Validation Error', validation.errors.join('\n'));
             return;
         }
-        
+
         onAdd(setData);
 
         setInputs({ weight: inputs.weight, reps: '', rir: '', restTime: '', tut: '', isWarmup: false });
@@ -503,25 +501,14 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, workoutExer
 // Main Component
 export const EditWorkoutExerciseCard = ({ workoutExercise, isLocked, onToggleLock, onRemove, onAddSet, onDeleteSet, swipeControl, onInputFocus, onShowInfo, onShowStatistics, drag }: any) => {
     const exercise = workoutExercise.exercise || (workoutExercise.name ? workoutExercise : null);
-    if (!exercise) return null;
 
-    const idToLock = workoutExercise.id;
-    const exerciseKey = `exercise-${idToLock}`;
-    const sets = workoutExercise.sets || [];
-    const lastSet = sets.length > 0 ? sets[sets.length - 1] : null;
-    const nextSetNumber = sets.length + 1;
-    const [showMenu, setShowMenu] = useState(false);
-    const [showHistory, setShowHistory] = useState(false);
+    const [showMenu, setShowMenu] = useState<boolean>(false);
+    const [showHistory, setShowHistory] = useState<boolean>(false);
     const [setHistory, setSetHistory] = useState<any[]>([]);
-    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
 
-    useEffect(() => {
-        if (showHistory) {
-            loadHistory();
-        }
-    }, [showHistory]);
-
-    const loadHistory = async () => {
+    const loadHistory = useCallback(async () => {
+        if (!exercise) return;
         setIsLoadingHistory(true);
         try {
             const data = await getExerciseSetHistory(exercise.id);
@@ -535,7 +522,21 @@ export const EditWorkoutExerciseCard = ({ workoutExercise, isLocked, onToggleLoc
         } finally {
             setIsLoadingHistory(false);
         }
-    };
+    }, [exercise]);
+
+    useEffect(() => {
+        if (showHistory) {
+            loadHistory();
+        }
+    }, [showHistory, loadHistory]);
+
+    if (!exercise) return null;
+
+    const idToLock = workoutExercise.id;
+    const exerciseKey = `exercise-${idToLock}`;
+    const sets = workoutExercise.sets || [];
+    const lastSet = sets.length > 0 ? sets[sets.length - 1] : null;
+    const nextSetNumber = sets.length + 1;
 
     const handleUpdateSet = async (setId: number, data: any) => {
         const validation = validateSetData(data);
@@ -546,7 +547,7 @@ export const EditWorkoutExerciseCard = ({ workoutExercise, isLocked, onToggleLoc
 
         try {
             const result = await updateSet(setId, data);
-            
+
             if (result && typeof result === 'object' && result.error) {
                 if (result.validationErrors) {
                     const errorMessage = formatValidationErrors(result.validationErrors);
@@ -558,7 +559,7 @@ export const EditWorkoutExerciseCard = ({ workoutExercise, isLocked, onToggleLoc
                 }
                 return;
             }
-            
+
             if (result && typeof result === 'string') {
                 Alert.alert('Update Failed', result);
             }
@@ -649,7 +650,7 @@ export const EditWorkoutExerciseCard = ({ workoutExercise, isLocked, onToggleLoc
                 {(sets.length > 0 || !isLocked) && (
                     <View style={styles.setsContainer}>
                         <SetsHeader columns={['SET', 'REST', 'WEIGHT', 'REPS', 'RIR']} showTut={true} />
-                        
+
                         {sets.map((set: any, index: number) => {
                             const setKey = `set-${set.id || index}`;
                             return (
@@ -673,7 +674,7 @@ export const EditWorkoutExerciseCard = ({ workoutExercise, isLocked, onToggleLoc
                             );
                         })}
 
-                        <AddSetRow 
+                        <AddSetRow
                             lastSet={lastSet}
                             nextSetNumber={nextSetNumber}
                             index={sets.length}
@@ -689,7 +690,7 @@ export const EditWorkoutExerciseCard = ({ workoutExercise, isLocked, onToggleLoc
                     </View>
                 )}
             </View>
-            
+
             <ExerciseMenuModal
                 visible={showMenu}
                 onClose={() => setShowMenu(false)}

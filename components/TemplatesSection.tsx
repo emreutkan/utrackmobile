@@ -1,4 +1,4 @@
-import { TemplateWorkout } from '@/api/types';
+import { TemplateWorkout } from '@/api/types/index';
 import { deleteTemplateWorkout, startTemplateWorkout } from '@/api/Workout';
 import { theme, typographyStyles } from '@/constants/theme';
 import { useUserStore } from '@/state/userStore';
@@ -17,7 +17,7 @@ const FREE_TEMPLATE_LIMIT = 3;
 
 export default function TemplatesSection({ templates, onRefresh }: TemplatesSectionProps) {
     const { user } = useUserStore();
-    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+    const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
     const isPro = user?.is_pro || false;
     const canCreateTemplate = isPro || templates.length < FREE_TEMPLATE_LIMIT;
 
@@ -51,13 +51,13 @@ export default function TemplatesSection({ templates, onRefresh }: TemplatesSect
                             "Are you sure you want to delete this template?",
                             [
                                 { text: "Cancel", style: "cancel" },
-                                { 
-                                    text: "Delete", 
-                                    style: "destructive", 
+                                {
+                                    text: "Delete",
+                                    style: "destructive",
                                     onPress: async () => {
                                         await deleteTemplateWorkout(template.id);
                                         onRefresh?.();
-                                    } 
+                                    }
                                 }
                             ]
                         );
@@ -75,7 +75,7 @@ export default function TemplatesSection({ templates, onRefresh }: TemplatesSect
                     <View style={styles.headerIndicator} />
                     <Text style={styles.sectionTitle}>WORKOUT TEMPLATES</Text>
                 </View>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={[styles.createButton, !canCreateTemplate && styles.createButtonDisabled]}
                     onPress={handleCreatePress}
                     activeOpacity={0.7}
@@ -89,18 +89,18 @@ export default function TemplatesSection({ templates, onRefresh }: TemplatesSect
                     )}
                 </TouchableOpacity>
             </View>
-            
-            <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
+
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.templateList}
                 snapToInterval={280 + theme.spacing.m}
                 decelerationRate="fast"
             >
                 {templates.map(tpl => (
-                    <TouchableOpacity 
-                        key={tpl.id} 
-                        style={styles.templateCard} 
+                    <TouchableOpacity
+                        key={tpl.id}
+                        style={styles.templateCard}
                         onPress={() => handleTemplatePress(tpl)}
                         activeOpacity={0.9}
                     >
@@ -126,7 +126,7 @@ export default function TemplatesSection({ templates, onRefresh }: TemplatesSect
                         </View>
                     </TouchableOpacity>
                 ))}
-                
+
                 {templates.length === 0 && (
                     <View style={styles.emptyCard}>
                         <Ionicons name="duplicate-outline" size={32} color={theme.colors.text.zinc700} />
@@ -135,7 +135,7 @@ export default function TemplatesSection({ templates, onRefresh }: TemplatesSect
                 )}
             </ScrollView>
 
-            <UpgradeModal 
+            <UpgradeModal
                 visible={showUpgradeModal}
                 onClose={() => setShowUpgradeModal(false)}
                 feature="Unlimited Workout Templates"
@@ -149,12 +149,12 @@ const styles = StyleSheet.create({
     container: {
         marginVertical: theme.spacing.m,
     },
-    sectionHeader: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: theme.spacing.m, 
-        paddingHorizontal: theme.spacing.xs 
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: theme.spacing.m,
+        paddingHorizontal: theme.spacing.xs
     },
     headerLeft: {
         flexDirection: 'row',
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.status.active,
         borderRadius: 2,
     },
-    sectionTitle: { 
+    sectionTitle: {
         ...typographyStyles.labelMuted,
         color: theme.colors.text.primary,
     },
@@ -203,17 +203,17 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         color: '#000',
     },
-    templateList: { 
+    templateList: {
         paddingHorizontal: theme.spacing.xs,
         gap: theme.spacing.m,
         paddingBottom: 8,
     },
-    templateCard: { 
-        width: 280, 
-        backgroundColor: theme.colors.ui.glass, 
-        borderRadius: theme.borderRadius.xl, 
-        padding: theme.spacing.l, 
-        borderWidth: 1, 
+    templateCard: {
+        width: 280,
+        backgroundColor: theme.colors.ui.glass,
+        borderRadius: theme.borderRadius.xl,
+        padding: theme.spacing.l,
+        borderWidth: 1,
         borderColor: theme.colors.ui.border,
     },
     cardHeader: {
@@ -222,12 +222,12 @@ const styles = StyleSheet.create({
         gap: 12,
         marginBottom: theme.spacing.l,
     },
-    templateIcon: { 
-        width: 44, 
-        height: 44, 
-        borderRadius: 14, 
-        backgroundColor: 'rgba(99, 102, 241, 0.1)', 
-        alignItems: 'center', 
+    templateIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
         borderColor: 'rgba(99, 102, 241, 0.2)',
@@ -235,9 +235,9 @@ const styles = StyleSheet.create({
     headerInfo: {
         flex: 1,
     },
-    templateName: { 
-        fontSize: 16, 
-        fontWeight: '900', 
+    templateName: {
+        fontSize: 16,
+        fontWeight: '900',
         color: '#FFFFFF',
         fontStyle: 'italic',
         letterSpacing: 0.5,

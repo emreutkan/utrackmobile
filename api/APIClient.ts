@@ -15,12 +15,8 @@ const apiClient = axios.create({
 try {
     getAPI_URL().then(url => {
         apiClient.defaults.baseURL = url;
-    }).catch(() => {
-        console.error("Error getting API URL");
-    });
-} catch (e: any) {
-    console.error("Error getting API URL:", e);
-}
+    }).catch(() => {});
+} catch (e: any) {}
 
 export default apiClient;
 
@@ -35,15 +31,8 @@ apiClient.interceptors.request.use(async (config) => {
 
     const accessToken = await getAccessToken();
     // Construct full URL - if url already starts with http/https, use it as-is
-    const fullUrl = config.url?.startsWith('http')
-        ? config.url
-        : (config.baseURL ? `${config.baseURL}${config.url}` : config.url);
-    console.log("Request to:", fullUrl);
     if (accessToken) {
-        console.log("Attaching Access Token:", accessToken.substring(0, 10) + "...");
         config.headers.Authorization = `Bearer ${accessToken}`;
-    } else {
-        console.log("No Access Token found in storage");
     }
     return config;
 });
@@ -70,15 +59,6 @@ apiClient.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        // Log network errors for debugging
-        if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-            const fullUrl = originalRequest.url?.startsWith('http')
-                ? originalRequest.url
-                : (originalRequest.baseURL ? `${originalRequest.baseURL}${originalRequest.url}` : originalRequest.url);
-            console.error("Network Error - Could not reach:", fullUrl);
-            console.error("Error details:", error.message, error.code);
-        }
-
         // Check if the error is 401 and we haven't already tried to refresh
         if (error.response?.status === 401 && !originalRequest._retry) {
             if (isRefreshing) {
@@ -98,8 +78,6 @@ apiClient.interceptors.response.use(
             try {
                 const refreshToken = await getRefreshToken();
                 if (!refreshToken) {
-                    // No refresh token at all - just reject, don't trigger error (AuthCheck handles it)
-                    console.log("No refresh token found - rejecting request");
                     await clearTokens();
                     // Don't trigger token error here - AuthCheck already handles no-token case
                     throw new Error("NO_REFRESH_TOKEN");
@@ -132,8 +110,6 @@ apiClient.interceptors.response.use(
 
                 throw new Error("Refresh failed");
             } catch (refreshError: any) {
-                // Refresh failed (token expired or invalid) - logout immediately
-                console.log("Refresh token expired or invalid - clearing tokens");
                 await clearTokens();
                 // Only trigger if it's an actual auth error (401/403), not network errors
                 if (refreshError?.response?.status === 401 || refreshError?.response?.status === 403) {

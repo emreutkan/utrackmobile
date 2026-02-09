@@ -4,7 +4,7 @@ import { SwipeAction } from '@/components/SwipeAction';
 import { useActiveWorkoutStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Dimensions, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { ActiveWorkoutExerciseCard } from './ActiveWorkoutExerciseCard';
@@ -26,7 +26,7 @@ const IS_WEB_SMALL = Platform.OS === 'web' && SCREEN_WIDTH <= 750;
 // SetRow Component
 const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMode, swipeRef, onOpen, onClose, onUpdate, onInputFocus, onShowStatistics, exerciseId }: any) => {
     const [showInsights, setShowInsights] = useState(false);
-    
+
     // Check if set has bad insights
     const hasBadInsights = set.insights?.bad && Object.keys(set.insights.bad).length > 0;
     const formatRestTimeForInput = (seconds: number) => {
@@ -37,12 +37,13 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
         return s > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${m}`;
     };
 
-    const getInitialValues = () => ({
+    const getInitialValues = useCallback(() =>  ({
         weight: set.weight?.toString() || '',
         reps: set.reps?.toString() || '',
         rir: set.reps_in_reserve?.toString() || '',
-        restTime: set.rest_time_before_set ? formatRestTimeForInput(set.rest_time_before_set) : ''
-    });
+        restTime: set.rest_time_before_set ? formatRestTimeForInput(set.rest_time_before_set) : '',
+        tut: set.total_tut?.toString() || ''
+    }), [set.weight, set.reps, set.reps_in_reserve, set.rest_time_before_set, set.total_tut]);
 
     const [localValues, setLocalValues] = useState(getInitialValues());
     const originalValuesRef = React.useRef(getInitialValues());
@@ -53,7 +54,7 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
     // AddSetRow is visible when: !isViewOnly && (!isLocked || isEditMode)
     // But we also want sets editable when workout is active (isActive = true)
     // In active workouts, sets should always be editable regardless of lock status
-    
+
     const isEditable = !isViewOnly && (isActive || !isLocked || isEditMode);
 
     // Track the set ID to detect when we're looking at a different set
@@ -79,19 +80,20 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
         // Same set ID - check if backend values differ from what we have stored
         const newValues = getInitialValues();
         const currentStored = originalValuesRef.current;
-        
+
         // Only update if backend values changed from what we last stored
         // This means the backend was updated (maybe by another device or a refresh)
-        const backendChanged = 
+        const backendChanged =
             newValues.weight !== currentStored.weight ||
             newValues.reps !== currentStored.reps ||
             newValues.rir !== currentStored.rir ||
-            newValues.restTime !== currentStored.restTime;
+            newValues.restTime !== currentStored.restTime ||
+            newValues.tut !== currentStored.tut;
 
         if (backendChanged) {
             // Backend has new values - update refs but preserve user's current edits if they differ
             // Only update localValues if user hasn't made changes (local matches original)
-            const localMatchesOriginal = 
+            const localMatchesOriginal =
                 localValues.weight === currentStored.weight &&
                 localValues.reps === currentStored.reps &&
                 localValues.rir === currentStored.rir &&
@@ -101,12 +103,12 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                 // User hasn't edited, safe to update from backend
                 setLocalValues(newValues);
             }
-            
+
             // Always update refs to reflect backend state
             originalValuesRef.current = newValues;
             currentValuesRef.current = newValues;
         }
-    }, [set.id, set.weight, set.reps, set.reps_in_reserve, set.rest_time_before_set]);
+    }, [set.id, set.weight, set.reps, set.reps_in_reserve, set.rest_time_before_set, localValues, originalValuesRef, currentValuesRef, isUpdatingRef, getInitialValues]);
 
     const parseRestTime = (input: string): number => {
         if (!input) return 0;
@@ -120,14 +122,14 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
     const handleBlur = (field: string) => {
         const currentValue = currentValuesRef.current[field as keyof typeof currentValuesRef.current];
         const original = originalValuesRef.current[field as keyof typeof originalValuesRef.current];
-        
+
         // Check if value has changed
         if (currentValue === original) {
             return; // No change, don't update
         }
 
         const updateData: any = {};
-        
+
         if (field === 'weight') {
             const numValue = currentValue ? parseFloat(currentValue) : null;
             const originalNum = original ? parseFloat(original) : null;
@@ -156,14 +158,13 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
 
         if (Object.keys(updateData).length > 0) {
             if (onUpdate) {
-                console.log('Calling onUpdate with setId:', set.id, 'updateData:', updateData);
                 // Mark that we're updating to prevent useEffect from resetting values
                 isUpdatingRef.current = true;
-                
+
                 // Update originalValuesRef immediately to reflect the change we're about to save
                 // This prevents the useEffect from resetting values when the workout refreshes
                 originalValuesRef.current = { ...currentValuesRef.current };
-                
+
                 // Call onUpdate - it's async, and when it completes, the workout will refresh
                 // Wrap in Promise.resolve to handle both sync and async returns
                 Promise.resolve(onUpdate(set.id, updateData)).then(() => {
@@ -172,7 +173,6 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                         isUpdatingRef.current = false;
                     }, 1000);
                 }).catch((error) => {
-                    console.error('Update failed:', error);
                     // Revert originalValuesRef if update failed - restore from set prop
                     const revertedValues = getInitialValues();
                     originalValuesRef.current = revertedValues;
@@ -180,11 +180,7 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                     setLocalValues(revertedValues);
                     isUpdatingRef.current = false;
                 });
-            } else {
-                console.warn('onUpdate is not defined! Set updates will not be saved.');
             }
-        } else {
-            console.log('No update data to send or values unchanged');
         }
     };
 
@@ -266,7 +262,7 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                         style={[styles.setInput]}
                         value={localValues.restTime}
                         onChangeText={(value) => {
-                            setLocalValues(prev => ({ ...prev, restTime: value }));
+                            setLocalValues((prev: any) => ({ ...prev, restTime: value }));
                             currentValuesRef.current.restTime = value;
                         }}
                         onFocus={() => {
@@ -290,16 +286,16 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                         onChangeText={(value) => {
                             // Replace : and , with .
                             let sanitized = value.replace(/[:,]/g, '.');
-                            
+
                             // Only allow numbers and one decimal point
                             const numericRegex = /^[0-9]*\.?[0-9]*$/;
-                            
+
                             if (sanitized === '' || numericRegex.test(sanitized)) {
-                                setLocalValues(prev => ({ ...prev, weight: sanitized }));
+                                setLocalValues((prev: any) => ({ ...prev, weight: sanitized }));
                                 currentValuesRef.current.weight = sanitized;
                             } else {
                                 // If invalid, clear the input
-                                setLocalValues(prev => ({ ...prev, weight: '' }));
+                                setLocalValues((prev: any) => ({ ...prev, weight: '' }));
                                 currentValuesRef.current.weight = '';
                             }
                         }}
@@ -322,7 +318,7 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                         style={[styles.setInput]}
                         value={localValues.reps}
                         onChangeText={(value) => {
-                            setLocalValues(prev => ({ ...prev, reps: value }));
+                            setLocalValues((prev: any) => ({ ...prev, reps: value }));
                             currentValuesRef.current.reps = value;
                         }}
                         onFocus={() => {
@@ -344,7 +340,7 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                         style={[styles.setInput]}
                         value={localValues.rir}
                         onChangeText={(value) => {
-                            setLocalValues(prev => ({ ...prev, rir: value }));
+                            setLocalValues((prev: any) => ({ ...prev, rir: value }));
                             currentValuesRef.current.rir = value;
                         }}
                         onFocus={() => {
@@ -362,7 +358,7 @@ const SetRow = ({ set, index, onDelete, isLocked, isViewOnly, isActive, isEditMo
                     <Text style={[styles.setText, {}]}>{set.reps_in_reserve != null ? set.reps_in_reserve.toString() : '-'}</Text>
                 )}
             </View>
-            
+
             <InsightsModal
                 visible={showInsights}
                 onClose={() => setShowInsights(false)}
@@ -518,13 +514,13 @@ const RestTimePicker = ({ value, onValueChange, onFocus, editable = true }: { va
     const [showPicker, setShowPicker] = useState(false);
     const [tempMinutes, setTempMinutes] = useState(value?.minutes || 0);
     const [tempSeconds, setTempSeconds] = useState(value?.seconds || 0);
-    
+
     // Get rest timer values from the hook
     const { lastSetTimestamp, lastExerciseCategory } = useActiveWorkoutStore();
     const { timerText } = useRestTimer(lastSetTimestamp, lastExerciseCategory);
 
 
-    
+
     useEffect(() => {
         if (value) {
             setTempMinutes(value.minutes);
@@ -534,7 +530,7 @@ const RestTimePicker = ({ value, onValueChange, onFocus, editable = true }: { va
             setTempSeconds(0);
         }
     }, [value]);
-    
+
     const minuteOptions = Array.from({ length: 11 }, (_, i) => i); // 0-10
     const secondOptions = Array.from({ length: 61 }, (_, i) => i); // 0-60
 
@@ -561,9 +557,6 @@ const RestTimePicker = ({ value, onValueChange, onFocus, editable = true }: { va
                     setTempSeconds(value?.seconds || 0);
                     setShowPicker(true);
                     onFocus();
-                    console.log('value', value);
-                    console.log('tempMinutes', tempMinutes);
-                    console.log('tempSeconds', tempSeconds);
                 }}
             >
                 <Text style={[styles.setText, { color: value ? '#FFFFFF' : '#8E8E93' }]}>
@@ -716,14 +709,13 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
         try {
             // Stop rest timer
             await stopRestTimer();
-            
+
             // Start TUT tracking
             setIsTrackingTUT(true);
             setTutStartTime(Date.now());
             setCurrentTUT(0);
             setHasStopped(false);
         } catch (error) {
-            console.error('Failed to stop rest timer:', error);
         }
     };
 
@@ -753,7 +745,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
             const restTime: any = await getRestTimerState();
             restTimeSeconds = restTime.elapsed_seconds || 0;
         }
-        
+
         // Prepare set data - include TUT if available (user may have manually edited it)
         const setData = {
             weight: parseFloat(inputs.weight) || 0,
@@ -770,7 +762,7 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
             Alert.alert('Validation Error', validation.errors.join('\n'));
             return;
         }
-        
+
         onAdd(setData);
 
         // Reset everything after adding set
@@ -813,10 +805,10 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
                         if (isTracking) return; // Don't allow editing while tracking
                         // Replace : and , with .
                         let sanitized = t.replace(/[:,]/g, '.');
-                        
+
                         // Only allow numbers and one decimal point
                         const numericRegex = /^[0-9]*\.?[0-9]*$/;
-                        
+
                         if (sanitized === '' || numericRegex.test(sanitized)) {
                             setInputs(p => ({ ...p, weight: sanitized }));
                         } else {
@@ -927,6 +919,8 @@ const AddSetRow = ({ lastSet, nextSetNumber, index, onAdd, isLocked, isEditMode,
 // ExerciseCard Component
 export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly, onToggleLock, onRemove, onAddSet, onDeleteSet, swipeControl, onInputFocus, onShowInfo, onShowStatistics, isActive, drag, onUpdateSet, exerciseIndex }: any) => {
     const exercise = workoutExercise.exercise || (workoutExercise.name ? workoutExercise : null);
+    const [showMenu, setShowMenu] = useState<boolean>(false);
+
     if (!exercise) return null;
 
     // Simple view-only mode - use separate component
@@ -978,11 +972,8 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
     const sets = workoutExercise.sets || [];
     const lastSet = sets.length > 0 ? sets[sets.length - 1] : null;
     const nextSetNumber = sets.length + 1;
-    const [showMenu, setShowMenu] = useState(false);
 
     const handleUpdateSet = async (setId: number, data: any) => {
-        console.log('handleUpdateSet called with setId:', setId, 'data:', data);
-        
         // Validate before sending (only validate fields that are being updated)
         const validation = validateSetData(data);
         if (!validation.isValid) {
@@ -992,8 +983,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
 
         try {
             const result = await updateSet(setId, data);
-            console.log('updateSet API response:', result, 'type:', typeof result);
-            
+
             // Check if result has validation errors
             if (result && typeof result === 'object' && result.error) {
                 if (result.validationErrors) {
@@ -1006,28 +996,20 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                 }
                 return;
             }
-            
+
             // Success - result is an object with set data
             if (result && typeof result === 'object' && !result.error) {
-                console.log('Update successful, calling onUpdateSet callback');
                 if (onUpdateSet) {
                     onUpdateSet(setId, result);
                 }
             } else if (result && typeof result === 'string') {
-                // Error - result is an error message string
-                console.error('Update failed with error message:', result);
                 Alert.alert('Update Failed', result);
             } else if (result) {
-                // Unexpected format but might be valid - try to use it
-                console.log('Update result in unexpected format, but attempting callback');
                 if (onUpdateSet) {
                     onUpdateSet(setId, result);
                 }
-            } else {
-                console.warn('Update returned null/undefined result');
             }
         } catch (error) {
-            console.error('Failed to update set - exception:', error);
             Alert.alert('Update Error', 'Failed to update set. Please try again.');
         }
     };
@@ -1082,7 +1064,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                 <View style={styles.exerciseRow}>
                 <TouchableOpacity
                     onLongPress={drag}
-                    disabled={isActive} 
+                    disabled={isActive}
                     delayLongPress={Platform.OS === 'android' ? 300 : 200}
                     activeOpacity={0.7}
                     style={{ flex: 1 }}
@@ -1098,7 +1080,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                                     </>
                                 )}
                             </Text>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                                 onPress={() => setShowMenu(true)}
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                 style={styles.exerciseMenuButton}
@@ -1115,7 +1097,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                                     </View>
                                 )}
                                 {exercise.secondary_muscles && (
-                                    Array.isArray(exercise.secondary_muscles) 
+                                    Array.isArray(exercise.secondary_muscles)
                                         ? exercise.secondary_muscles.map((muscle: string, idx: number) => (
                                             <View key={idx} style={styles.exerciseTag}>
                                                 <Text style={styles.secondaryMuscleTagText}>{muscle}</Text>
@@ -1139,7 +1121,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                 </View>
 
                 {(sets.length > 0 || !isLocked) && (
-                    <View 
+                    <View
                         style={styles.setsContainer}
                         onStartShouldSetResponder={() => true}
                         onMoveShouldSetResponder={() => false}
@@ -1148,7 +1130,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                         }}
                     >
                         <SetsHeader columns={['SET', 'REST', 'WEIGHT', 'REPS', 'RIR']} />
-                        
+
                         {sets.map((set: any, index: number) => {
                             const setKey = `set-${set.id || index}`;
                             return (
@@ -1175,7 +1157,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                             );
                         })}
 
-                        <AddSetRow 
+                        <AddSetRow
                             lastSet={lastSet}
                             nextSetNumber={nextSetNumber}
                             index={sets.length}
@@ -1194,7 +1176,7 @@ export const ExerciseCard = ({ workoutExercise, isLocked, isEditMode, isViewOnly
                     </View>
                 )}
             </View>
-            
+
             <ExerciseMenuModal
                 visible={showMenu}
                 onClose={() => setShowMenu(false)}
@@ -1239,8 +1221,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
     },
-    exerciseInfo: { 
-        flex: 1 
+    exerciseInfo: {
+        flex: 1
     },
     exerciseNameRow: {
         flexDirection: 'row',

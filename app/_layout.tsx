@@ -15,10 +15,10 @@ export default function RootLayout() {
     <AuthCheck>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack 
-            screenOptions={{ 
+          <Stack
+            screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: 'black' }
+              contentStyle: { backgroundColor: 'black' },
             }}
           >
             <Stack.Screen name="hero" />
@@ -33,7 +33,6 @@ export default function RootLayout() {
             <Stack.Screen name="(recovery-status)" />
             <Stack.Screen name="(calculations)" />
             <Stack.Screen name="(exercise-statistics)" />
-            <Stack.Screen name="(knowledge-base)" />
             <Stack.Screen name="(templates)" />
             <Stack.Screen name="(volume-analysis)" />
           </Stack>

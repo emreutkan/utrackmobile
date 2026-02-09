@@ -1,4 +1,4 @@
-import { CalendarDay } from '@/api/types';
+import { CalendarDay } from '@/api/types/index';
 import { theme, typographyStyles } from '@/constants/theme';
 import { useDateStore } from '@/state/userStore';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -12,19 +12,19 @@ export default function CalendarStrip({ calendarData, onPress }: CalendarStripPr
     const today = useDateStore((state) => state.today);
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - ((today.getDay() + 6) % 7)); // Start on Monday
-    
+
     // Get current week number and month
     const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
     const currentMonth = monthNames[today.getMonth()];
     const weekNumber = Math.ceil((today.getDate() + new Date(today.getFullYear(), today.getMonth(), 1).getDay()) / 7);
-    
+
     return (
         <View style={styles.calendarStrip}>
             <View style={styles.calendarHeader}>
                 <Text style={typographyStyles.labelMuted}>OVERVIEW</Text>
                 <Text style={styles.calendarWeek}>{currentMonth}, WEEK {weekNumber.toString().padStart(2, '0')}</Text>
             </View>
-            
+
             <View style={styles.calendarRow}>
                 {Array.from({ length: 7 }).map((_, i) => {
                     const d = new Date(startOfWeek);
@@ -33,10 +33,10 @@ export default function CalendarStrip({ calendarData, onPress }: CalendarStripPr
                     const dateStr = d.toISOString().split('T')[0];
                     const dayData = calendarData.find(cd => cd.date === dateStr);
                     const hasActivity = dayData?.has_workout || dayData?.is_rest_day;
-                    
+
                     return (
-                        <TouchableOpacity 
-                            key={i} 
+                        <TouchableOpacity
+                            key={i}
                             style={[styles.dayCell, isToday && styles.dayCellActive]}
                             onPress={onPress}
                             activeOpacity={0.7}
@@ -50,7 +50,7 @@ export default function CalendarStrip({ calendarData, onPress }: CalendarStripPr
                             <View style={styles.dayDotContainer}>
                                 {hasActivity && (
                                     <View style={[
-                                        styles.dayDot, 
+                                        styles.dayDot,
                                         isToday ? styles.dayDotActive : (dayData?.has_workout ? styles.dayDotWorkout : styles.dayDotRest)
                                     ]} />
                                 )}
@@ -64,9 +64,9 @@ export default function CalendarStrip({ calendarData, onPress }: CalendarStripPr
 }
 
 const styles = StyleSheet.create({
-    calendarStrip: { 
-        marginVertical: theme.spacing.l, 
- 
+    calendarStrip: {
+        marginVertical: theme.spacing.l,
+
     },
     calendarHeader: {
         flexDirection: 'row',
@@ -87,12 +87,12 @@ const styles = StyleSheet.create({
         color: theme.colors.status.rest,
         textTransform: 'uppercase',
     },
-    calendarRow: { 
-        flexDirection: 'row', 
+    calendarRow: {
+        flexDirection: 'row',
         gap: theme.spacing.xs,
     },
-    dayCell: { 
-        alignItems: 'center', 
+    dayCell: {
+        alignItems: 'center',
         flex: 1,
         paddingVertical: theme.spacing.m,
         borderRadius: theme.borderRadius.xxl,
@@ -101,14 +101,14 @@ const styles = StyleSheet.create({
     dayCellActive: {
         backgroundColor: theme.colors.status.rest,
     },
-    dayName: { 
+    dayName: {
         fontSize: theme.typography.sizes.label,
-        color: theme.colors.text.secondary, 
-        marginBottom: theme.spacing.s, 
+        color: theme.colors.text.secondary,
+        marginBottom: theme.spacing.s,
         textTransform: 'uppercase',
         fontWeight: '600',
     },
-    dayNameActive: { 
+    dayNameActive: {
         color: theme.colors.text.primary,
         fontWeight: '700',
     },

@@ -82,15 +82,12 @@ export default function WorkoutExerciseDetailsView({
     };
 
     const toggleLock = (exerciseId: number) => {
-        console.log('toggleLock', exerciseId);
         setLockedExerciseIds(prev => {
             const next = new Set(prev);
             if (next.has(exerciseId)) {
                 next.delete(exerciseId);
-                console.log('exercise unlocked', exerciseId);
             } else {
                 next.add(exerciseId);
-                console.log('exercise locked', exerciseId);
             }
             return next;
         });
@@ -181,12 +178,7 @@ export default function WorkoutExerciseDetailsView({
                                 onDragEnd={async ({ data }: { data: any }) => {
                                     setExercises(data);
                                     const exerciseOrders = data.map((item: any, index: number) => ({ id: item.id, order: index + 1 }));
-                                    const response = await updateExerciseOrder(workout.id, exerciseOrders);
-                                    if (response) {
-                                        console.log('Exercise order updated successfully');
-                                    } else {
-                                        console.log('Failed to update exercise order');
-                                    }
+                                    await updateExerciseOrder(workout.id, exerciseOrders);
                                 }}
                                 keyExtractor={(item) => item.id.toString()}
                                 renderItem={renderItems}

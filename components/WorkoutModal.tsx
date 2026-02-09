@@ -96,9 +96,9 @@ function RestDayCard({ title = 'Rest Day' }: RestDayCardProps) {
                 <View style={trainingIntensityStyles.upperLeft}>
                     <View style={trainingIntensityStyles.intensityBars}>
                         {[0.2, 0.2, 0.2].map((opacity, index) => (
-                            <View 
-                                key={index} 
-                                style={[trainingIntensityStyles.bar, { opacity, backgroundColor: theme.colors.status.rest }]} 
+                            <View
+                                key={index}
+                                style={[trainingIntensityStyles.bar, { opacity, backgroundColor: theme.colors.status.rest }]}
                             />
                         ))}
                     </View>
@@ -162,7 +162,7 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
                 onClose();
                 setWorkoutTitle('');
                 if (onSuccess) onSuccess();
-                
+
                 // Slight delay to allow modal to close smoothly before navigation
                 setTimeout(() => {
                     if (mode === 'log') {
@@ -172,8 +172,9 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
                     }
                 }, 100);
             }
-        } catch (e) {
+        } catch (error) {
             Alert.alert("Error", mode === 'log' ? "Failed to log workout." : "Failed to start workout.");
+            console.error(error);
         }
     };
 
@@ -181,10 +182,10 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
     const buttonText = mode === 'create' ? 'Start Session' : 'Save Log';
 
     return (
-        <Modal 
-            visible={visible} 
-            transparent 
-            animationType="slide" 
+        <Modal
+            visible={visible}
+            transparent
+            animationType="slide"
             onRequestClose={onClose}
         >
             <KeyboardAvoidingView
@@ -220,8 +221,8 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
 
                         {mode === 'log' && (
                             <View style={styles.dateSection}>
-                                <TouchableOpacity 
-                                    style={[styles.dateButton, showDatePicker && styles.dateButtonActive]} 
+                                <TouchableOpacity
+                                    style={[styles.dateButton, showDatePicker && styles.dateButtonActive]}
                                     onPress={toggleDatePicker}
                                 >
                                     <View style={styles.dateRow}>
@@ -233,10 +234,10 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
                                         <Text style={styles.timeText}>
                                             {date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                                         </Text>
-                                        <Ionicons 
-                                            name="chevron-forward" 
-                                            size={16} 
-                                            color={theme.colors.text.tertiary} 
+                                        <Ionicons
+                                            name="chevron-forward"
+                                            size={16}
+                                            color={theme.colors.text.tertiary}
                                             style={{ transform: [{ rotate: showDatePicker ? '90deg' : '0deg' }] }}
                                         />
                                     </View>

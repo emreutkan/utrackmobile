@@ -6,7 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 const getRestStatus = (elapsed: number, category: string) => {
     // Default to isolation if not specified
     const isCompound = category?.toLowerCase() === 'compound';
-    
+
     // Thresholds in seconds
     const phase1Limit = isCompound ? 90 : 60;  // Red light limit
     const phase2Limit = isCompound ? 180 : 90; // Yellow light limit
@@ -57,7 +57,7 @@ export const useRestTimer = (lastSetTimestamp: number | null, category?: string)
             const now = Date.now();
             const elapsed = Math.max(0, Math.floor((now - lastSetTimestamp) / 1000));
             setElapsedSeconds(elapsed);
-            
+
             // Get current status to determine goals
             const currentStatus = getRestStatus(elapsed, category || 'isolation');
             setStatus(currentStatus);
@@ -110,7 +110,7 @@ export default function RestTimerBar({ lastSetTimestamp, category }: RestTimerBa
                 </View>
                 <Text style={styles.timerText}>{timerText}</Text>
             </View>
-            
+
             <View style={styles.barContainer}>
                 <View style={styles.barBg}>
                     <View style={[styles.barFill, { width: `${progress * 100}%`, backgroundColor: status.color }]} />

@@ -22,7 +22,6 @@ export default function ActiveWorkoutScreen() {
     const fetchActiveWorkout = useCallback(async () => {
         const workout = await getActiveWorkout();
             setActiveWorkout(workout);
-            console.log("Active Workout:", workout);
     }, []);
 
     const fetchRestTimerState = useCallback(async () => {
@@ -200,7 +199,7 @@ export default function ActiveWorkoutScreen() {
                             setLastExerciseCategory('isolation');
                             // Navigate to workout summary with the workout ID
                             // Use the active workout ID since completeWorkout may not return full workout data
-                            router.replace(`/(active-workout)/workoutsummary?workoutId=${activeWorkout.id}`);
+                            router.replace(`/(workout-summary)/workoutsummary?workoutId=${activeWorkout.id}`);
                         } catch (error) {
                             console.error("Failed to complete workout:", error);
                             Alert.alert("Error", "Failed to complete workout. Please try again.");

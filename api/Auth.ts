@@ -34,10 +34,7 @@ export const register = async (email: string, password: string, gender?: string,
         if (height !== undefined && height !== null) {
             payload.height = height;
         }
-        console.log("Register payload:", JSON.stringify(payload));
         const response = await apiClient.post(REGISTER_URL, payload);
-        console.log("Register response status:", response.status);
-        console.log("Register response data:", JSON.stringify(response.data));
 
         // Accept both 200 and 201 status codes
         if (response.status === 200 || response.status === 201) {
@@ -51,8 +48,6 @@ export const register = async (email: string, password: string, gender?: string,
         }
         return response.data.detail || 'An unknown error occurred while storing tokens in the secure store';
     } catch (error: any) {
-        console.error("Register error:", error);
-        console.error("Register error response:", error.response?.data);
         if (error.response?.status === 401) {
             return error.response?.data?.detail || 'Invalid credentials';
         }
@@ -120,14 +115,8 @@ export const checkName = async (name: string): Promise<CheckNameResponse | any> 
 
 export const googleLogin = async (accessToken: string): Promise<{ access: string, refresh: string } | string> => {
     try {
-        // Log the token being sent
-        console.log("Sending Google Access Token:", accessToken);
-
         const googleLoginUrl = await getGOOGLE_LOGIN_URL();
         const response = await apiClient.post(googleLoginUrl, { access_token: accessToken });
-
-        console.log("Google Login Response Status:", response.status);
-        console.log("Google Login Response Data:", JSON.stringify(response.data));
 
         if (response.status === 200) {
             await storeAccessToken(response.data.access);
@@ -139,8 +128,7 @@ export const googleLogin = async (accessToken: string): Promise<{ access: string
             return response.data.detail || 'An unknown error occurred during Google login';
         }
     } catch (error: any) {
-        console.error("Google Login Error:", error);
-         if (error.response?.status === 401) {
+        if (error.response?.status === 401) {
             return error.response?.data?.detail || 'Google authentication failed';
         }
         return error.response?.data?.detail || error.message || 'An unknown error occurred';

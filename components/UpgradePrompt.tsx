@@ -10,8 +10,8 @@ interface UpgradePromptProps {
     compact?: boolean;
 }
 
-export default function UpgradePrompt({ 
-    feature, 
+export default function UpgradePrompt({
+    feature,
     message,
     upgradeUrl = "/(account)/upgrade",
     compact = false
@@ -22,7 +22,7 @@ export default function UpgradePrompt({
 
     if (compact) {
         return (
-            <TouchableOpacity 
+            <TouchableOpacity
                 style={styles.compactCard}
                 onPress={handleUpgrade}
                 activeOpacity={0.8}
@@ -36,14 +36,13 @@ export default function UpgradePrompt({
     }
 
     return (
-        <TouchableOpacity 
+        <TouchableOpacity
             style={styles.card}
             onPress={handleUpgrade}
             activeOpacity={0.8}
         >
             <View style={styles.header}>
-       
-                <View style={styles.textContainer}>
+                <View>
                     <Text style={styles.featureName}>{feature}</Text>
                     {message && (
                         <Text style={styles.message}>{message}</Text>
@@ -54,7 +53,7 @@ export default function UpgradePrompt({
                 <Text style={styles.badgeText}>PRO</Text>
             </View>
         </TouchableOpacity>
-    );
+        )
 }
 
 const styles = StyleSheet.create({
@@ -88,7 +87,6 @@ const styles = StyleSheet.create({
     },
 
     textContainer: {
-        flex: 1,
         ...typographyStyles.labelMuted,
     },
     featureName: {
@@ -127,5 +125,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: theme.colors.text.primary,
     },
+
+
 });
 

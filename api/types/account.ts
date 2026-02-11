@@ -1,4 +1,11 @@
-// Account & User Types
+export const ME_URL = '/user/me/';
+export const HEIGHT_URL = '/user/height/';
+export const CHANGE_PASSWORD_URL = '/user/change-password/';
+export const GENDER_URL = '/user/gender/';
+export const WEIGHT_URL = '/user/weight/';
+export const WEIGHT_HISTORY_URL = '/user/weight/history/';
+export const DELETE_WEIGHT_URL = '/user/weight/';
+export const EXPORT_DATA_URL = '/user/export-data/';
 export interface GetAccountResponse {
   id: string;
   email: string;
@@ -17,9 +24,11 @@ export interface GetAccountResponse {
   subscription_id: string | null;
 }
 
-// Alias for backward compatibility
-export type getAccountResponse = GetAccountResponse;
-
+export interface ExportDataResponse {
+  download_url: string;
+  expires_at?: string;
+  message?: string;
+}
 export interface UserStatistics {
   total_workouts: number;
   total_workout_duration: number;

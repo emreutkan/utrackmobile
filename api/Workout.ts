@@ -1,7 +1,5 @@
 import apiClient from './APIClient';
-// Don't use the full URL here if apiClient has a baseURL
-// import { CREATE_WORKOUT_URL } from './ApiBase';
-import {
+import type {
   AddExerciseToWorkoutRequest,
   AvailableYearsResponse,
   CalendarResponse,
@@ -10,141 +8,115 @@ import {
   CreateTemplateWorkoutRequest,
   CreateWorkoutRequest,
   CreateWorkoutResponse,
-  GetWorkoutsResponse,
   RecoveryStatusResponse,
+  RestTimerStopResponse,
   StartTemplateWorkoutRequest,
   TemplateWorkout,
   UpdateWorkoutRequest,
   Workout,
-} from './types';
-import { getErrorMessage } from './errorHandler';
-
+  CompleteWorkoutRequest,
+  CompleteWorkoutResponse,
+  CreateTemplateWorkoutResponse,
+  StartTemplateWorkoutResponse,
+  WorkoutSummaryResponse,
+} from './types/workout';
+import {
+  CREATE_WORKOUT_URL,
+  GET_ACTIVE_WORKOUT_URL,
+  GET_WORKOUT_URL,
+  GET_WORKOUTS_URL,
+  UPDATE_WORKOUT_URL,
+  ADD_EXERCISE_TO_WORKOUT_URL,
+  COMPLETE_WORKOUT_URL,
+  DELETE_WORKOUT_URL,
+  WORKOUT_SUMMARY_URL,
+  TEMPLATE_CREATE_URL,
+  TEMPLATE_LIST_URL,
+  TEMPLATE_DELETE_URL,
+  TEMPLATE_START_URL,
+  REST_TIMER_URL,
+  REST_TIMER_STOP_URL,
+  CALENDAR_URL,
+  AVAILABLE_YEARS_URL,
+  CALENDAR_STATS_URL,
+  CHECK_TODAY_URL,
+  RECOVERY_STATUS_URL,
+} from './types/workout';
+import type { PaginatedResponse } from './types/pagination';
 export const createWorkout = async (
   request: CreateWorkoutRequest
 ): Promise<CreateWorkoutResponse | any> => {
-  try {
-    const response = await apiClient.post('/workout/create/', request);
-    return response.data;
-  } catch (error: any) {
-    // If the backend returned a specific error response (like 400)
-    if (error.response?.data) {
-      // Backend returned an error like { "error": "ACTIVE_WORKOUT_EXISTS", "active_workout": 1 }
-      // We return this data object so the UI can handle it
-      return error.response.data;
-    }
-    // Network error or something else
-    return getErrorMessage(error);
-  }
+  const response = await apiClient.post(CREATE_WORKOUT_URL, { json: request });
+  return response.json();
 };
 
 export const getActiveWorkout = async (): Promise<CreateWorkoutResponse | any> => {
-  try {
-    const response = await apiClient.get('/workout/active/');
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+  const response = await apiClient.get(GET_ACTIVE_WORKOUT_URL);
+  return response.json();
 };
 
 export const getWorkouts = async (
   page?: number,
   pageSize?: number
-): Promise<GetWorkoutsResponse | any> => {
-  try {
-    const params: any = {};
-    if (page !== undefined) params.page = page;
-    if (pageSize !== undefined) params.page_size = pageSize;
-    const response = await apiClient.get('/workout/list/', { params });
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+): Promise<PaginatedResponse<Workout>> => {
+  const searchParams: Record<string, number> = {};
+  if (page !== undefined) searchParams.page = page;
+  if (pageSize !== undefined) searchParams.page_size = pageSize;
+  const response = await apiClient.get(GET_WORKOUTS_URL, { searchParams });
+  return response.json();
 };
 
-export const getWorkout = async (workoutID: number): Promise<Workout | any> => {
-  try {
-    const response = await apiClient.get(`/workout/list/${workoutID}/`);
-    return response.data;
-  } catch (error: any) {
-    return error.message || 'An unknown error occurred';
-  }
+export const getWorkout = async (workoutId: number): Promise<Workout> => {
+  const url = GET_WORKOUT_URL.replace(':id', String(workoutId));
+  const response = await apiClient.get(url);
+  return response.json();
 };
 
 export const completeWorkout = async (
-  workoutID: number,
-  data?: { duration?: string; intensity?: number; notes?: string }
-): Promise<any> => {
-  try {
-    const response = await apiClient.post(`/workout/${workoutID}/complete/`, data);
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+  workoutId: number,
+  request: CompleteWorkoutRequest
+): Promise<CompleteWorkoutResponse> => {
+  const url = COMPLETE_WORKOUT_URL.replace(':id', String(workoutId));
+  const response = await apiClient.post(url, { json: request });
+  return response.json();
 };
 
-export const getWorkoutSummary = async (workoutID: number): Promise<any> => {
-  try {
-    const response = await apiClient.get(`/workout/${workoutID}/summary/`);
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+export const getWorkoutSummary = async (
+  workoutId: number
+): Promise<WorkoutSummaryResponse> => {
+  const url = WORKOUT_SUMMARY_URL.replace(':id', String(workoutId));
+  const response = await apiClient.get(url);
+  return response.json();
 };
 
-export const deleteWorkout = async (workoutID: number): Promise<any> => {
-  try {
-    const response = await apiClient.delete(`/workout/${workoutID}/delete/`);
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+export const deleteWorkout = async (workoutId: number): Promise<void> => {
+  const url = DELETE_WORKOUT_URL.replace(':id', String(workoutId));
+  await apiClient.delete(url);
 };
 
 // Template Workout API Functions
 export const createTemplateWorkout = async (
   request: CreateTemplateWorkoutRequest
-): Promise<TemplateWorkout | any> => {
-  try {
-    const response = await apiClient.post('/workout/template/create/', request);
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.data) {
-      return error.response.data;
-    }
-    return getErrorMessage(error);
-  }
+): Promise<CreateTemplateWorkoutResponse> => {
+  const response = await apiClient.post(TEMPLATE_CREATE_URL, { json: request });
+  return response.json();
 };
 
-export const getTemplateWorkouts = async (): Promise<TemplateWorkout[] | any> => {
-  try {
-    const response = await apiClient.get('/workout/template/list/');
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+export const getTemplateWorkouts = async (): Promise<PaginatedResponse<TemplateWorkout>> => {
+  const response = await apiClient.get(TEMPLATE_LIST_URL);
+  return response.json();
 };
 
-export const deleteTemplateWorkout = async (templateID: number): Promise<any> => {
-  try {
-    const response = await apiClient.delete(`/workout/template/${templateID}/delete/`);
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+export const deleteTemplateWorkout = async (templateId: number): Promise<void> => {
+  const url = TEMPLATE_DELETE_URL.replace(':id', String(templateId));
+  await apiClient.delete(url);
 };
 
 export const startTemplateWorkout = async (
   request: StartTemplateWorkoutRequest
-): Promise<Workout | any> => {
-  try {
-    const response = await apiClient.post('/workout/template/start/', request);
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.data) {
-      return error.response.data;
-    }
-    return getErrorMessage(error);
-  }
+): Promise<StartTemplateWorkoutResponse> => {
+  const response = await apiClient.post(TEMPLATE_START_URL, { json: request });
+  return response.json();
 };
 
 // Edit Workout API Functions
@@ -152,30 +124,19 @@ export const updateWorkout = async (
   workoutId: number,
   request: UpdateWorkoutRequest
 ): Promise<Workout | any> => {
-  try {
-    const response = await apiClient.patch(`/workout/${workoutId}/update/`, request);
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.data) {
-      return error.response.data;
-    }
-    return getErrorMessage(error);
-  }
+  const response = await apiClient.patch(UPDATE_WORKOUT_URL.replace(':id', workoutId.toString()), {
+    json: request,
+  });
+  return response.json();
 };
 
 export const addExerciseToPastWorkout = async (
   workoutId: number,
   request: AddExerciseToWorkoutRequest
-): Promise<any> => {
-  try {
-    const response = await apiClient.post(`/workout/${workoutId}/add_exercise/`, request);
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.data) {
-      return error.response.data;
-    }
-    return getErrorMessage(error);
-  }
+): Promise<Workout> => {
+  const url = ADD_EXERCISE_TO_WORKOUT_URL.replace(':id', String(workoutId));
+  const response = await apiClient.post(url, { json: request });
+  return response.json();
 };
 
 export const getRestTimerState = async (): Promise<
@@ -187,21 +148,13 @@ export const getRestTimerState = async (): Promise<
     }
   | any
 > => {
-  try {
-    const response = await apiClient.get('/workout/active/rest-timer/');
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+  const response = await apiClient.get(REST_TIMER_URL);
+  return response.json();
 };
 
-export const stopRestTimer = async (): Promise<any> => {
-  try {
-    const response = await apiClient.get('/workout/active/rest-timer/stop/');
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+export const stopRestTimer = async (): Promise<RestTimerStopResponse> => {
+  const response = await apiClient.post(REST_TIMER_STOP_URL);
+  return response.json();
 };
 
 // Calendar API Functions
@@ -210,62 +163,31 @@ export const getCalendar = async (
   month?: number,
   week?: number
 ): Promise<CalendarResponse | any> => {
-  try {
-    const params: any = { year };
-    if (month !== undefined) params.month = month;
-    if (week !== undefined) params.week = week;
-    const response = await apiClient.get('/workout/calendar/', { params });
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+  const response = await apiClient.get(CALENDAR_URL, { searchParams: { year, month, week } });
+  return response.json();
 };
 
 export const getAvailableYears = async (): Promise<AvailableYearsResponse | any> => {
-  try {
-    const response = await apiClient.get('/workout/years/');
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+  const response = await apiClient.get(AVAILABLE_YEARS_URL);
+  return response.json();
 };
 
 export const getCalendarStats = async (
-  year: number,
-  month?: number,
-  week?: number
+  period: { year: number; month?: number | null; week?: number | null }
 ): Promise<CalendarStats | any> => {
-  try {
-    const params: any = { year };
-    if (month !== undefined) params.month = month;
-    if (week !== undefined) params.week = week;
-    const response = await apiClient.get('/workout/calendar/stats/', { params });
-    return response.data;
-  } catch (error: any) {
-    return getErrorMessage(error);
-  }
+  const searchParams: Record<string, number> = { year: period.year };
+  if (period.month != null) searchParams.month = period.month;
+  if (period.week != null) searchParams.week = period.week;
+  const response = await apiClient.get(CALENDAR_STATS_URL, { searchParams });
+  return response.json();
 };
 
 export const checkToday = async (): Promise<CheckTodayResponse | any> => {
-  try {
-    const response = await apiClient.get('/workout/check-today/');
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.data) {
-      return error.response.data;
-    }
-    return getErrorMessage(error);
-  }
+  const response = await apiClient.get(CHECK_TODAY_URL);
+  return response.json();
 };
 
 export const getRecoveryStatus = async (): Promise<RecoveryStatusResponse | any> => {
-  try {
-    const response = await apiClient.get('/workout/recovery/status/');
-    return response.data;
-  } catch (error: any) {
-    if (error.response?.data) {
-      return error.response.data;
-    }
-    return getErrorMessage(error);
-  }
+  const response = await apiClient.get(RECOVERY_STATUS_URL);
+  return response.json();
 };

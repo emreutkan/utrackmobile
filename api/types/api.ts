@@ -1,0 +1,11 @@
+export const CREATE_WORKOUT_URL = `/workout/create/`;
+export const GET_WORKOUTS_URL = `/workout/`;
+export const GET_WORKOUT_URL = `/workout/:id/`;
+export const CREATE_TEMPLATE_WORKOUT_URL = `/workout/template/create/`;
+export const GET_TEMPLATE_WORKOUTS_URL = `/workout/template/`;
+export const GET_TEMPLATE_WORKOUT_URL = `/workout/template/:id/`;
+export const CREATE_PAST_WORKOUT_URL = `/workout/past/create/`;
+export const GET_PAST_WORKOUTS_URL = `/workout/past/`;
+export const GET_PAST_WORKOUT_URL = `/workout/past/:id/`;
+export const CREATE_REST_TIMER_URL = `/workout/rest-timer/create/`;
+export const GET_REST_TIMER_URL = `/workout/rest-timer/:id/`;

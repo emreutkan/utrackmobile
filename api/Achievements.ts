@@ -26,81 +26,76 @@ export const getAchievements = async (
   page?: number,
   pageSize?: number
 ): Promise<PaginatedResponse<UserAchievement> | UserAchievement[]> => {
-  const params: any = {};
-  if (category) params.category = category;
-  if (page !== undefined) params.page = page;
-  if (pageSize !== undefined) params.page_size = pageSize;
+  const searchParams: Record<string, string> = {};
+  if (category) searchParams.category = category;
+  if (page !== undefined) searchParams.page = page.toString();
+  if (pageSize !== undefined) searchParams.page_size = pageSize.toString();
 
-  const response = await apiClient.get(ACHIEVEMENTS_URL, { params });
-  return response.data;
+  const response = await apiClient.get(ACHIEVEMENTS_URL, { searchParams });
+  return response.json();
 };
 
 export const getEarnedAchievements = async (): Promise<UserAchievement[]> => {
   const response = await apiClient.get(EARNED_ACHIEVEMENTS_URL);
-  return response.data;
+  return response.json();
 };
 
 export const getAchievementCategories = async (): Promise<AchievementCategoryStats[]> => {
   const response = await apiClient.get(ACHIEVEMENT_CATEGORIES_URL);
-  return response.data;
+  return response.json();
 };
 
 export const getUnnotifiedAchievements = async (): Promise<UnnotifiedAchievement[]> => {
   const response = await apiClient.get(UNNOTIFIED_ACHIEVEMENTS_URL);
-  return response.data;
+  return response.json();
 };
 
 export const markAchievementsSeen = async (achievementIds?: string[]): Promise<void> => {
   await apiClient.post(MARK_ACHIEVEMENTS_SEEN_URL, {
-    achievement_ids: achievementIds,
+    json: { achievement_ids: achievementIds },
   });
 };
 
-export const getPersonalRecords = async (): Promise<any[]> => {
+export const getPersonalRecords = async (): Promise<PaginatedResponse<PersonalRecord>> => {
   const response = await apiClient.get(PERSONAL_RECORDS_URL);
-  return response.data;
+  return response.json();
 };
 
-export const getExercisePR = async (
-  exerciseId: string | number
-): Promise<PersonalRecord | null> => {
+export const getExercisePR = async (exerciseId: string | number): Promise<PersonalRecord> => {
   const response = await apiClient.get(`${EXERCISE_PR_URL}${exerciseId}/`);
-  return response.data;
+  return response.json();
 };
 
-export const getUserStatistics = async (): Promise<UserStatistics | null> => {
+export const getUserStatistics = async (): Promise<UserStatistics> => {
   const response = await apiClient.get(USER_STATISTICS_URL);
-  return response.data;
+  return response.json();
 };
 
 export const forceRecalculateStats = async (): Promise<{
   status: string;
   new_achievements: number;
   stats: UserStatistics;
-} | null> => {
+}> => {
   const response = await apiClient.post(RECALCULATE_STATS_URL);
-  return response.data;
+  return response.json();
 };
 
-export const getExerciseRanking = async (
-  exerciseId: string | number
-): Promise<ExerciseRanking | null> => {
+export const getExerciseRanking = async (exerciseId: string | number): Promise<ExerciseRanking> => {
   const response = await apiClient.get(`${RANKING_URL}${exerciseId}/`);
-  return response.data;
+  return response.json();
 };
 
 export const getAllRankings = async (): Promise<ExerciseRanking[]> => {
   const response = await apiClient.get(RANKINGS_URL);
-  return response.data;
+  return response.json();
 };
 
 export const getLeaderboard = async (
   exerciseId: string | number,
   limit: number = 10,
   stat: 'weight' | 'one_rm' = 'one_rm'
-): Promise<ExerciseLeaderboard | null> => {
-  const response = await apiClient.get(`${LEADERBOARD_URL}${exerciseId}/`, {
-    params: { limit, stat },
-  });
-  return response.data;
+): Promise<ExerciseLeaderboard> => {
+  const searchParams: Record<string, string> = { limit: limit.toString(), stat };
+  const response = await apiClient.get(`${LEADERBOARD_URL}${exerciseId}/`, { searchParams });
+  return response.json();
 };

@@ -1,16 +1,23 @@
 import ky from 'ky';
-import { API_URL, REFRESH_URL, getAPI_URL } from './ApiBase';
-import {
-  clearTokens,
-  getAccessToken,
-  getRefreshToken,
-  storeAccessToken,
-  storeRefreshToken,
-} from './Storage';
+import { getAccessToken, getRefreshToken, storeAccessToken, getBackendPreference } from './Storage';
 
-// Initialize with default (local) API URL
+// Backend configurations
+const LOCAL_IP = '192.168.1.2';
+const EC2_DOMAIN = 'api.utrack.irfanemreutkan.com';
+let SELECTED_BACKEND = `http://${LOCAL_IP}:8000/api`;
+
+// Get API URLs based on backend preference
+export const getAPI_URL = async (): Promise<string> => {
+  const backend = await getBackendPreference();
+  if (backend === 'local') {
+    SELECTED_BACKEND = `http://${LOCAL_IP}:8000/api`;
+  } else {
+    SELECTED_BACKEND = `http://${EC2_DOMAIN}/api`;
+  }
+  return SELECTED_BACKEND;
+};
 const apiClient = ky.create({
-  prefixUrl: API_URL,
+  prefixUrl: await getAPI_URL(),
   hooks: {
     beforeRequest: [
       (request) => {

@@ -193,7 +193,7 @@ export default function ActiveWorkoutScreen() {
                             const startTime = new Date(activeWorkout.created_at).getTime();
                             const durationSeconds = Math.floor(Math.max(0, now - startTime) / 1000);
 
-                            await completeWorkout(activeWorkout.id, { duration: durationSeconds.toString() });
+                            await completeWorkout(activeWorkout.id, { duration: durationSeconds });
                             // Clear rest timer state when workout is completed
                             setLastSetTimestamp(null);
                             setLastExerciseCategory('isolation');

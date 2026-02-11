@@ -1,6 +1,6 @@
 import { login, register, checkEmail, checkPassword } from '../Auth';
 import apiClient from '../APIClient';
-import * as Storage from '../Storage';
+import * as Storage from '../../hooks/Storage';
 
 // Mock dependencies
 jest.mock('../APIClient');

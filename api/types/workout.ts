@@ -1,5 +1,5 @@
 // ============== Exercise (nested in workout) ==============
-export interface Exercise {
+export type Exercise = {
   id: number;
   name: string;
   description: string | null;
@@ -13,10 +13,10 @@ export interface Exercise {
   equipment_type: string | null;
   category: string;
   difficulty_level: string | null;
-}
+};
 
 // ============== Set insights (optional from backend) ==============
-export interface SetInsightItem {
+export type SetInsightItem = {
   reason: string;
   current_reps?: number;
   current_tut?: number;
@@ -25,15 +25,15 @@ export interface SetInsightItem {
   set_position?: number;
   total_sets?: number;
   optimal_sets?: string;
-}
+};
 
-export interface SetInsights {
+export type SetInsights = {
   good: Record<string, SetInsightItem>;
   bad: Record<string, SetInsightItem>;
-}
+};
 
 // ============== Exercise set ==============
-export interface ExerciseSet {
+export type ExerciseSet = {
   id: number;
   workout_exercise: number;
   set_number: number;
@@ -46,20 +46,20 @@ export interface ExerciseSet {
   concentric_time: number | null;
   total_tut: number | null;
   insights?: SetInsights | null;
-}
+};
 
 // ============== Workout exercise ==============
-export interface WorkoutExercise {
+export type WorkoutExercise = {
   id: number;
   workout: number;
   exercise: Exercise;
   order: number;
   sets: ExerciseSet[];
   one_rep_max: number | null;
-}
+};
 
 // ============== Workout ==============
-export interface Workout {
+export type Workout = {
   id: number;
   title: string;
   datetime: string;
@@ -77,61 +77,61 @@ export interface Workout {
   secondary_muscles_worked: string[];
   muscle_recovery_pre_workout: Record<string, number>;
   cns_load: number;
-}
+};
 
 // ============== Create workout ==============
-export interface CreateWorkoutRequest {
+export type CreateWorkoutRequest = {
   title?: string;
   workout_date?: string;
   date?: string;
   is_done?: boolean;
   is_rest_day?: boolean;
-}
+};
 
-export interface CreateWorkoutResponse {
+export type CreateWorkoutResponse = {
   id: number;
   title: string;
-}
+};
 
 // ============== List workouts (paginated) ==============
-export interface GetWorkoutsResponse {
+export type GetWorkoutsResponse = {
   count: number;
   next: string | null;
   previous: string | null;
   results: Workout[];
-}
+};
 
 // ============== Update workout ==============
-export interface UpdateWorkoutRequest {
+export type UpdateWorkoutRequest = {
   title?: string;
   date?: string;
   duration?: number;
   intensity?: 'low' | 'medium' | 'high';
   notes?: string;
   is_done?: boolean;
-}
+};
 
 // ============== Add exercise to workout ==============
-export interface AddExerciseToWorkoutRequest {
+export type AddExerciseToWorkoutRequest = {
   exercise_id: number;
-}
+};
 
 // ============== Complete workout ==============
-export interface CompleteWorkoutRequest {
+export type CompleteWorkoutRequest = {
   duration?: number;
   intensity?: 'low' | 'medium' | 'high';
   notes?: string;
-}
+};
 
 export type CompleteWorkoutResponse = Workout;
 
 // ============== Update exercise order ==============
-export interface UpdateExerciseOrderRequest {
+export type UpdateExerciseOrderRequest = {
   exercise_orders: { id: number; order: number }[];
-}
+};
 
 // ============== Check today ==============
-export interface CheckTodayResponse {
+export type CheckTodayResponse = {
   workout_performed: boolean;
   active_workout?: boolean;
   is_rest?: boolean;
@@ -139,23 +139,23 @@ export interface CheckTodayResponse {
   date?: string;
   message?: string;
   workout?: Workout;
-}
+};
 
 // ============== Rest timer ==============
-export interface RestTimerStateResponse {
+export type RestTimerStateResponse = {
   last_set_timestamp: string | null;
   last_exercise_category: string | null;
   elapsed_seconds: number;
   is_paused: boolean;
   rest_status?: Record<string, unknown>;
-}
+};
 
-export interface RestTimerStopResponse extends RestTimerStateResponse {
+export type RestTimerStopResponse = RestTimerStateResponse & {
   message: string;
-}
+};
 
 // ============== Calendar ==============
-export interface CalendarDay {
+export type CalendarDay = {
   date: string;
   day: number;
   weekday: number;
@@ -163,9 +163,9 @@ export interface CalendarDay {
   is_rest_day: boolean;
   workout_count: number;
   rest_day_count: number;
-}
+};
 
-export interface CalendarResponse {
+export type CalendarResponse = {
   calendar: CalendarDay[];
   period: {
     year: number;
@@ -174,13 +174,13 @@ export interface CalendarResponse {
     start_date: string;
     end_date: string;
   };
-}
+};
 
-export interface AvailableYearsResponse {
+export type AvailableYearsResponse = {
   years: number[];
-}
+};
 
-export interface CalendarStats {
+export type CalendarStats = {
   total_workouts: number;
   total_rest_days: number;
   days_not_worked: number;
@@ -192,16 +192,16 @@ export interface CalendarStats {
     start_date: string;
     end_date: string;
   };
-}
+};
 
 // ============== Template workout ==============
-export interface TemplateWorkoutExercise {
+export type TemplateWorkoutExercise = {
   id: number;
   exercise: Exercise;
   order: number;
-}
+};
 
-export interface TemplateWorkout {
+export type TemplateWorkout = {
   id: number;
   title: string;
   exercises: TemplateWorkoutExercise[];
@@ -210,23 +210,23 @@ export interface TemplateWorkout {
   notes: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
-export interface CreateTemplateWorkoutRequest {
+export type CreateTemplateWorkoutRequest = {
   title: string;
   exercises: number[];
   notes?: string | null;
-}
+};
 
-export interface StartTemplateWorkoutRequest {
+export type StartTemplateWorkoutRequest = {
   template_workout_id: number;
-}
+};
 
 export type CreateTemplateWorkoutResponse = TemplateWorkout;
 export type StartTemplateWorkoutResponse = Workout;
 
 // ============== Workout summary ==============
-export interface WorkoutSummaryInsight {
+export type WorkoutSummaryInsight = {
   type: 'recovery' | '1rm';
   message: string;
   pre_recovery?: number;
@@ -234,9 +234,9 @@ export interface WorkoutSummaryInsight {
   previous_1rm?: number | null;
   difference?: number | null;
   percent_change?: number | null;
-}
+};
 
-export interface WorkoutSummaryResponse {
+export type WorkoutSummaryResponse = {
   workout_id: number;
   score: number;
   positives: Record<string, WorkoutSummaryInsight>;
@@ -251,10 +251,10 @@ export interface WorkoutSummaryResponse {
   };
   is_pro: boolean;
   has_advanced_insights: boolean;
-}
+};
 
 // ============== Recovery status ==============
-export interface MuscleRecoveryItem {
+export type MuscleRecoveryItem = {
   id: number | null;
   muscle_group: string;
   fatigue_score: number;
@@ -267,9 +267,9 @@ export interface MuscleRecoveryItem {
   recovery_percentage: number;
   created_at: string | null;
   updated_at: string | null;
-}
+};
 
-export interface CNSRecoveryItem {
+export type CNSRecoveryItem = {
   id: number | null;
   cns_load: number;
   recovery_hours: number;
@@ -280,20 +280,20 @@ export interface CNSRecoveryItem {
   recovery_percentage: number;
   created_at: string | null;
   updated_at: string | null;
-}
+};
 
-export interface RecoveryStatusResponse {
+export type RecoveryStatusResponse = {
   recovery_status: Record<string, MuscleRecoveryItem>;
   cns_recovery: CNSRecoveryItem | null;
   is_pro: boolean;
   timestamp: string;
-}
+};
 
 // Workout API paths (relative to /api/workout/ or your base)
 export const CREATE_WORKOUT_URL = '/workout/create/';
 export const GET_ACTIVE_WORKOUT_URL = '/workout/active/';
-export const GET_WORKOUTS_URL = '/workout/list/'; // GET list (paginated)
-export const GET_WORKOUT_URL = '/workout/list/:id/'; // GET single – replace :id with workout_id
+export const GET_WORKOUTS_URL = '/workout/list/';
+export const GET_WORKOUT_URL = '/workout/list/:id/';
 export const ADD_EXERCISE_TO_WORKOUT_URL = '/workout/:id/add_exercise/';
 export const COMPLETE_WORKOUT_URL = '/workout/:id/complete/';
 export const UPDATE_WORKOUT_URL = '/workout/:id/update/';

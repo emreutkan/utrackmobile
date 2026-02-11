@@ -1,5 +1,5 @@
 import { changePassword, updateGender, updateHeight, updateWeight } from '@/api/account';
-import { clearTokens } from '@/api/Storage';
+import { clearTokens } from '@/hooks/Storage';
 import { theme } from '@/constants/theme';
 import { useInvalidateUser, useUser, useClearUser, useChangePassword } from '@/hooks/useUser';
 import { Ionicons } from '@expo/vector-icons';

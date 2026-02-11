@@ -11,7 +11,7 @@ export type AchievementCategory =
 
 export type AchievementRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
-export interface Achievement {
+export type Achievement = {
   id: string;
   name: string;
   description: string;
@@ -27,30 +27,30 @@ export interface Achievement {
   points: number;
   is_hidden: boolean;
   order: number;
-}
+};
 
-export interface UserAchievement {
+export type UserAchievement = {
   achievement: Achievement;
   is_earned: boolean;
   current_progress: number;
   progress_percentage: number;
   earned_at: string | null;
   earned_value: number | null;
-}
+};
 
-export interface AchievementCategoryStats {
+export type AchievementCategoryStats = {
   code: AchievementCategory;
   name: string;
   total: number;
   earned: number;
   progress_percentage: number;
-}
+};
 
-export interface UnnotifiedAchievement extends UserAchievement {
+export type UnnotifiedAchievement = UserAchievement & {
   message: string;
-}
+};
 
-export interface PersonalRecord {
+export type PersonalRecord = {
   id: string;
   exercise_id: string;
   exercise_name: string;
@@ -68,7 +68,7 @@ export interface PersonalRecord {
   total_reps: number;
   created_at: string;
   updated_at: string;
-}
+};
 
 const ACHIEVEMENTS_URL = '/achievements/list/';
 const EARNED_ACHIEVEMENTS_URL = '/achievements/earned/';

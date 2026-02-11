@@ -1,31 +1,24 @@
 import apiClient from './APIClient';
-import { BodyMeasurement } from './types';
-import { getErrorMessage } from './errorHandler';
-import { PaginatedResponse, isPaginatedResponse } from './types/pagination';
+import type { BodyMeasurement } from './types';
+import { isPaginatedResponse, type PaginatedResponse } from './types/pagination';
 
-export const getMeasurements = async (page?: number, pageSize?: number): Promise<PaginatedResponse<BodyMeasurement> | BodyMeasurement[]> => {
-    const params: any = {};
-    if (page !== undefined) params.page = page;
-    if (pageSize !== undefined) params.page_size = pageSize;
+export const getMeasurements = async (
+  page?: number,
+  pageSize?: number
+): Promise<PaginatedResponse<BodyMeasurement> | BodyMeasurement[]> => {
+  const searchParams: Record<string, number> = {};
+  if (page !== undefined) searchParams.page = page;
+  if (pageSize !== undefined) searchParams.page_size = pageSize;
 
-    const response = await apiClient.get('/measurements/', { params });
-    const data = response.data;
+  const data = await apiClient.get('/measurements/', { searchParams }).json();
 
-    // Handle backward compatibility: if response is array, return as-is
-    if (Array.isArray(data)) {
-        return data;
-    }
-
-    // If paginated, return paginated response
-    if (isPaginatedResponse<BodyMeasurement>(data)) {
-        return data;
-    }
-
-    // Fallback: wrap in paginated format
-    return {
-        count: data.results?.length || 0,
-        next: data.next || null,
-        previous: data.previous || null,
-        results: data.results || []
-    };
+  if (Array.isArray(data)) return data as BodyMeasurement[];
+  if (isPaginatedResponse<BodyMeasurement>(data)) return data;
+  const d = data as { results?: BodyMeasurement[]; next?: string | null; previous?: string | null };
+  return {
+    count: d.results?.length ?? 0,
+    next: d.next ?? null,
+    previous: d.previous ?? null,
+    results: d.results ?? [],
+  };
 };

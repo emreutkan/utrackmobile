@@ -14,79 +14,113 @@ export interface ValidationErrorDetails {
 }
 
 /**
- * Extract error information from API error response
+ * Extract error information from API error response.
+ * Supports ky (Response has .json(), no .data) and axios-style (response.data).
+ * For ky, use parseApiErrorAsync to get body from error.response.json().
  */
-export const parseApiError = (error: any): ApiErrorResponse | null => {
-    if (!error?.response?.data) {
-        return null;
-    }
+export const parseApiError = (error: unknown): ApiErrorResponse | null => {
+    const res = (error as { response?: { data?: unknown; json?: () => Promise<unknown> } })?.response;
+    if (!res) return null;
+    // Axios-style: response.data
+    const errorData = 'data' in res && res.data !== undefined ? res.data : null;
+    if (errorData == null) return null;
 
-    const errorData = error.response.data;
-
-    // Check if it's the new standardized format
-    if (errorData.error && errorData.message) {
+    const data = errorData as Record<string, unknown>;
+    if (data.error && data.message) {
         return {
-            error: errorData.error,
-            message: errorData.message,
-            details: errorData.details,
+            error: String(data.error),
+            message: String(data.message),
+            details: data.details,
         };
     }
-
-    // Backward compatibility: handle old format
-    if (errorData.error && typeof errorData.error === 'string') {
+    if (data.error && typeof data.error === 'string') {
         return {
             error: 'UNKNOWN_ERROR',
-            message: errorData.error,
-            details: errorData.details,
+            message: data.error,
+            details: data.details,
         };
     }
-
-    // Handle detail field (common in Django REST Framework)
-    if (errorData.detail) {
+    if (data.detail) {
         return {
             error: 'UNKNOWN_ERROR',
-            message: errorData.detail,
-            details: errorData,
+            message: typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail),
+            details: data,
         };
     }
-
     return null;
 };
 
 /**
- * Get user-friendly error message from API error
+ * Parse API error from ky HTTPError (error.response is a Response).
+ * Use in catch blocks when using ky.
  */
-export const getErrorMessage = (error: any): string => {
+export const parseApiErrorAsync = async (error: unknown): Promise<ApiErrorResponse | null> => {
+    const res = (error as { response?: Response })?.response;
+    if (!res || typeof res.json !== 'function') return parseApiError(error);
+    try {
+        const data = (await res.json()) as Record<string, unknown>;
+        if (data.error && data.message) {
+            return {
+                error: String(data.error),
+                message: String(data.message),
+                details: data.details,
+            };
+        }
+        if (data.error && typeof data.error === 'string') {
+            return {
+                error: 'UNKNOWN_ERROR',
+                message: data.error as string,
+                details: data.details,
+            };
+        }
+        if (data.detail) {
+            return {
+                error: 'UNKNOWN_ERROR',
+                message: typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail),
+                details: data,
+            };
+        }
+    } catch {
+        // ignore JSON parse failure
+    }
+    return null;
+};
+
+/**
+ * Get user-friendly error message from API error (sync; works when response has .data).
+ * For ky errors use getErrorMessageAsync to read response body.
+ */
+export const getErrorMessage = (error: unknown): string => {
     const parsedError = parseApiError(error);
-    if (parsedError) {
-        return parsedError.message;
-    }
+    if (parsedError) return parsedError.message;
+    if (error instanceof Error) return error.message;
+    return 'An unexpected error occurred';
+};
 
-    // Fallback to error message
-    if (error?.message) {
-        return error.message;
-    }
-
+/**
+ * Get error message from ky HTTPError (reads response body).
+ */
+export const getErrorMessageAsync = async (error: unknown): Promise<string> => {
+    const parsed = await parseApiErrorAsync(error);
+    if (parsed) return parsed.message;
+    if (error instanceof Error) return error.message;
     return 'An unexpected error occurred';
 };
 
 /**
  * Get error code from API error
  */
-export const getErrorCode = (error: any): string | null => {
+export const getErrorCode = (error: unknown): string | null => {
     const parsedError = parseApiError(error);
-    return parsedError?.error || null;
+    return parsedError?.error ?? null;
 };
 
 /**
  * Extract validation errors from error details
  */
-export const getValidationErrors = (error: any): ValidationErrorDetails | null => {
+export const getValidationErrors = (error: unknown): ValidationErrorDetails | null => {
     const parsedError = parseApiError(error);
-    if (!parsedError?.details) {
-        return null;
-    }
-
+    if (!parsedError?.details) return null;
     const details = parsedError.details;
 
     // If details is already an object with field names as keys
@@ -120,20 +154,18 @@ export const formatValidationErrors = (validationErrors: ValidationErrorDetails)
 /**
  * Check if error requires user action (e.g., redirect to login)
  */
-export const requiresUserAction = (error: any): { action: 'login' | 'upgrade' | 'none'; code?: string } => {
+export const requiresUserAction = (error: unknown): { action: 'login' | 'upgrade' | 'none'; code?: string } => {
     const errorCode = getErrorCode(error);
-
     switch (errorCode) {
         case 'UNAUTHORIZED':
             return { action: 'login', code: errorCode };
-        case 'FORBIDDEN':
-            // Check if it's a PRO feature error
+        case 'FORBIDDEN': {
             const parsedError = parseApiError(error);
-            if (parsedError?.details?.error === 'PRO feature') {
-                return { action: 'upgrade', code: errorCode };
-            }
+            const details = parsedError?.details as { error?: string } | undefined;
+            if (details?.error === 'PRO feature') return { action: 'upgrade', code: errorCode };
             return { action: 'none', code: errorCode };
+        }
         default:
-            return { action: 'none', code: errorCode || undefined };
+            return { action: 'none', code: errorCode ?? undefined };
     }
 };

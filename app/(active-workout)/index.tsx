@@ -62,7 +62,7 @@ export default function ActiveWorkoutScreen() {
         if (!activeWorkout?.id) return;
 
         try {
-            await addExerciseToWorkout(activeWorkout.id, exerciseId);
+            await addExerciseToWorkout(activeWorkout.id, { exercise_id: exerciseId });
             setIsModalVisible(false);
             // Refresh active workout to show new exercise
             const updatedWorkout = await getActiveWorkout();
@@ -73,10 +73,10 @@ export default function ActiveWorkoutScreen() {
         }
     };
 
-    const handleRemoveExercise = async (exerciseId: number) => {
-        if (!activeWorkout?.id) return;
+    const handleRemoveExercise = async (workoutExerciseId: number) => {
         try {
-            await removeExerciseFromWorkout(activeWorkout.id, exerciseId);
+            const success = await removeExerciseFromWorkout(workoutExerciseId);
+            if (!success) throw new Error('Remove failed');
             // Refresh active workout to show remaining exercises
             const updatedWorkout = await getActiveWorkout();
             setActiveWorkout(updatedWorkout);
@@ -119,7 +119,12 @@ export default function ActiveWorkoutScreen() {
 
     const handleAddSet = async (workoutExerciseId: number, set: { weight: number, reps: number, reps_in_reserve?: number }) => {
         try {
-            const result = await addSetToExercise(workoutExerciseId, set);
+            const result = (await addSetToExercise(workoutExerciseId, set)) as {
+                id?: number;
+                error?: boolean;
+                validationErrors?: Record<string, string[]>;
+                message?: string;
+            } | null;
 
             // Check if result has validation errors
             if (result && typeof result === 'object' && result.error) {
@@ -135,7 +140,7 @@ export default function ActiveWorkoutScreen() {
             }
 
             // Success - refresh workout
-            if (result?.id || (typeof result === 'object' && !result.error)) {
+            if (result?.id || (result && typeof result === 'object' && !result.error)) {
                 const updatedWorkout = await getActiveWorkout();
                 setActiveWorkout(updatedWorkout);
                 // Refresh rest timer state from backend

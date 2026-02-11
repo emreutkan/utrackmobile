@@ -1,5 +1,10 @@
 import ky from 'ky';
-import { getAccessToken, getRefreshToken, storeAccessToken, getBackendPreference } from './Storage';
+import {
+  getAccessToken,
+  getRefreshToken,
+  storeAccessToken,
+  getBackendPreference,
+} from '../hooks/Storage';
 
 // Backend configurations
 const LOCAL_IP = '192.168.1.2';

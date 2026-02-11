@@ -94,9 +94,8 @@ export default function WorkoutDetailScreen() {
         }
     };
 
-    const handleRemoveExercise = async (exerciseId: number) => {
-        if (!workout?.id) return;
-        const success = await removeExerciseFromWorkout(workout.id, exerciseId);
+    const handleRemoveExercise = async (workoutExerciseId: number) => {
+        const success = await removeExerciseFromWorkout(workoutExerciseId);
         if (success) fetchWorkout();
         else Alert.alert("Error", "Failed to remove exercise.");
     };

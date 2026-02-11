@@ -1,16 +1,16 @@
-export interface PaginatedResponse<T> {
+export type PaginatedResponse<T> = {
   count: number;
   next: string | null;
   previous: string | null;
   results: T[];
-}
+};
 
-export interface PaginationParams {
+export type PaginationParams = {
   page?: number;
   page_size?: number;
-}
+};
 
-export const isPaginatedResponse = <T>(data: any): data is PaginatedResponse<T> => {
+export const isPaginatedResponse = <T>(data: unknown): data is PaginatedResponse<T> => {
   return (
     typeof data === 'object' &&
     data !== null &&
@@ -18,7 +18,7 @@ export const isPaginatedResponse = <T>(data: any): data is PaginatedResponse<T> 
     'next' in data &&
     'previous' in data &&
     'results' in data &&
-    Array.isArray(data.results)
+    Array.isArray((data as PaginatedResponse<unknown>).results)
   );
 };
 

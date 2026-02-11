@@ -1,44 +1,45 @@
-export interface CheckEmailResponse {
+export type CheckEmailResponse = {
   is_valid: boolean;
   errors: string[];
   user_exists: boolean;
   security_threats: string[];
   normalized_email?: string;
-}
+};
 
-export interface CheckPasswordResponse {
+export type CheckPasswordResponse = {
   is_valid: boolean;
   errors: string[];
   security_threats: string[];
   strength_score: number;
   strength_level: 'weak' | 'medium' | 'strong';
-}
+};
 
-export interface CheckNameResponse {
+export type CheckNameResponse = {
   is_valid: boolean;
   errors: string[];
   security_threats: string[];
-}
+};
 
 // Login
-export interface LoginRequest {
+export type LoginRequest = {
   username: string;
   password: string;
-}
+};
 
-export interface LoginResponse {
+export type LoginResponse = {
   access: string;
   refresh: string;
-}
+};
 
 // Register
-export interface RegisterRequest {
+export type RegisterRequest = {
   email: string;
   password: string;
   gender?: 'male' | 'female';
   height?: number | null;
-}
-export interface User {
+};
+
+export type User = {
   id: string;
   email: string;
   is_verified: boolean;
@@ -53,60 +54,67 @@ export interface User {
   trial_days_remaining: number | null;
   pro_until: string | null;
   trial_until: string | null;
-}
-export interface RegisterResponse {
+};
+
+export type RegisterResponse = {
   user: User;
   refresh: string;
   access: string;
-}
+};
 
 // Refresh
-export interface RefreshRequest {
+export type RefreshRequest = {
   refresh: string;
-}
-export interface RefreshResponse {
+};
+
+export type RefreshResponse = {
   access: string;
   refresh?: string;
-}
+};
 
 // Me
 export type MeResponse = User;
 
 // Change password
-export interface ChangePasswordRequest {
+export type ChangePasswordRequest = {
   old_password: string;
   new_password: string;
-}
-export interface ChangePasswordResponse {
+};
+
+export type ChangePasswordResponse = {
   message: string;
-}
+};
 
 // Password reset
-export interface RequestPasswordResetRequest {
+export type RequestPasswordResetRequest = {
   email: string;
-}
-export interface RequestPasswordResetResponse {
+};
+
+export type RequestPasswordResetResponse = {
   message: string;
-}
-export interface ResetPasswordRequest {
+};
+
+export type ResetPasswordRequest = {
   uid: string;
   token: string;
   new_password: string;
-}
-export interface ResetPasswordResponse {
+};
+
+export type ResetPasswordResponse = {
   message: string;
-}
-export interface CheckEmailRequest {
+};
+
+export type CheckEmailRequest = {
   email: string;
-}
+};
 
-export interface CheckPasswordRequest {
+export type CheckPasswordRequest = {
   password: string;
-}
+};
 
-export interface CheckNameRequest {
+export type CheckNameRequest = {
   name: string;
-}
+};
 
 export const LOGIN_URL = `/user/login/`;
 export const REGISTER_URL = `/user/register/`;

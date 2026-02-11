@@ -47,7 +47,7 @@ export const useAddExerciseToWorkout = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ workoutId, exerciseId }: { workoutId: number; exerciseId: number }) =>
-      addExerciseToWorkout(workoutId, exerciseId),
+      addExerciseToWorkout(workoutId, { exercise_id: exerciseId }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['workout', variables.workoutId] });
       queryClient.invalidateQueries({ queryKey: ['active-workout'] });
@@ -55,14 +55,14 @@ export const useAddExerciseToWorkout = () => {
   });
 };
 
-// Remove exercise from workout mutation
+// Remove exercise from workout mutation (workoutExerciseId = id of the workout_exercise row)
 export const useRemoveExerciseFromWorkout = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ workoutId, exerciseId }: { workoutId: number; exerciseId: number }) =>
-      removeExerciseFromWorkout(workoutId, exerciseId),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['workout', variables.workoutId] });
+    mutationFn: (workoutExerciseId: number) =>
+      removeExerciseFromWorkout(workoutExerciseId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workout'] });
       queryClient.invalidateQueries({ queryKey: ['active-workout'] });
     },
   });
@@ -110,7 +110,7 @@ export const useUpdateExerciseOrder = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ workoutId, exerciseOrders }: { workoutId: number; exerciseOrders: { id: number; order: number }[] }) =>
-      updateExerciseOrder(workoutId, exerciseOrders),
+      updateExerciseOrder(workoutId, { exercise_orders: exerciseOrders }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['workout', variables.workoutId] });
       queryClient.invalidateQueries({ queryKey: ['active-workout'] });

@@ -1,11 +1,11 @@
-import { CNSRecovery } from '@/api/types';
+import { CNSRecoveryItem } from '@/api/types';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 import { formatTimeRemaining, getStatusColor } from './helpers';
 
 interface CNSCardProps {
-  data: CNSRecovery;
+  data: CNSRecoveryItem;
 }
 
 export default function CNSCard({ data }: CNSCardProps) {
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: theme.spacing.s,
     paddingVertical: 4,
-    borderRadius: theme.borderRadius.s,
+    borderRadius: theme.borderRadius.m,
   },
   badgeText: {
     fontSize: 11,

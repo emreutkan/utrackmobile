@@ -13,7 +13,7 @@ interface ExerciseSearchModalProps {
     title?: string;
     mode?: 'single' | 'multiple';
     selectedExerciseIds?: number[];
-    onToggleExercise?: (exerciseId: number) => void;
+    onToggleExercise?: (exerciseId: number, exercise?: any) => void;
     excludeExerciseIds?: number[];
 }
 
@@ -94,9 +94,9 @@ export default function ExerciseSearchModal({
         }
     };
 
-    const handleExercisePress = async (exerciseId: number) => {
+    const handleExercisePress = async (exerciseId: number, exercise?: any) => {
         if (mode === 'multiple' && onToggleExercise) {
-            onToggleExercise(exerciseId);
+            onToggleExercise(exerciseId, exercise);
         } else {
             await onSelectExercise(exerciseId);
         }
@@ -156,7 +156,7 @@ export default function ExerciseSearchModal({
                             return (
                                 <TouchableOpacity
                                     style={[styles.exerciseCard, selected && styles.exerciseCardSelected]}
-                                    onPress={() => handleExercisePress(item.id)}
+                                    onPress={() => handleExercisePress(item.id, item)}
                                     activeOpacity={0.7}
                                 >
                                     <View style={styles.exerciseInfoContainer}>

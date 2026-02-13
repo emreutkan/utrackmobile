@@ -7,7 +7,6 @@ export * from './auth';
 export * from './workout';
 export * from './pagination';
 export * from './volume';
-export * from './achievements';
 
 export const CREATE_CALENDAR_URL = `workout/calendar/create/`;
 export const GET_CALENDAR_URL = `workout/calendar/`;
@@ -65,5 +64,12 @@ export const TEMPLATE_CREATE_URL = `workout/template/create/`;
 export const TEMPLATE_LIST_URL = `workout/template/list/`;
 export const TEMPLATE_DELETE_URL = `workout/template/delete/:id/`;
 export const TEMPLATE_START_URL = `workout/template/start/`;
+
+export const GET_USER_SUPPLEMENTS_URL = `supplements/user/list/`;
+export const ADD_USER_SUPPLEMENT_URL = `supplements/user/add/`;
+export const LOG_USER_SUPPLEMENT_URL = `supplements/user/log/add/`;
+export const GET_USER_SUPPLEMENT_LOGS_URL = `supplements/user/log/list/`;
+export const DELETE_USER_SUPPLEMENT_LOG_URL = `supplements/user/log/delete/:id/`;
+export const GET_USER_SUPPLEMENT_LOGS_TODAY_URL = `supplements/user/log/today/`;
 
 export const BACKEND_URL = 'http://192.168.1.2:8000/api';

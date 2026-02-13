@@ -9,24 +9,12 @@ import {
   changePassword,
   exportUserData,
 } from '@/api/account';
-import { getAccessToken } from './Storage';
-import { useState, useEffect } from 'react';
 
 // User profile queries
 export const useUser = () => {
-  const [token, setToken] = useState<string | null>(null);
-  const [checked, setChecked] = useState(false);
-
-  useEffect(() => {
-    getAccessToken().then((t) => {
-      setToken(t);
-      setChecked(true);
-    });
-  }, []);
   return useQuery({
     queryKey: ['user'],
     queryFn: getAccount,
-    enabled: checked && !!token,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };

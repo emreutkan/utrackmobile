@@ -10,19 +10,7 @@ interface SupplementCardProps {
   onPress: () => void;
 }
 
-const getSupplementBenefit = (name: string): string => {
-  const benefits: Record<string, string> = {
-    Creatine: 'STRENGTH & POWER',
-    Protein: 'MUSCLE RECOVERY',
-    Caffeine: 'ENERGY & FOCUS',
-    'Beta-Alanine': 'ENDURANCE',
-  };
-  return benefits[name] || 'GENERAL HEALTH';
-};
-
 export default function SupplementCard({ item, isLogged, onLog, onPress }: SupplementCardProps) {
-  const benefit = getSupplementBenefit(item.supplement_details.name);
-
   return (
     <TouchableOpacity style={styles.supplementCard} activeOpacity={0.7} onPress={onPress}>
       <View style={styles.supplementIcon}>
@@ -32,7 +20,8 @@ export default function SupplementCard({ item, isLogged, onLog, onPress }: Suppl
         <Text style={styles.supplementName}>{item.supplement_details.name.toUpperCase()}</Text>
         <Text style={styles.supplementDetails}>
           {item.dosage}
-          {item.supplement_details.dosage_unit.toUpperCase()} • {benefit}
+          {item.supplement_details.dosage_unit.toUpperCase()} •{' '}
+          {item.supplement_details.description}
         </Text>
       </View>
       <TouchableOpacity

@@ -31,7 +31,6 @@ export type UserStatistics = {
   current_streak: number;
   longest_streak: number;
   last_workout_date: string | null;
-  total_achievements: number;
   total_points: number;
   total_prs: number;
   prs_this_month: number;

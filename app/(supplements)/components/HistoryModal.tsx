@@ -3,7 +3,15 @@ import { SwipeAction } from '@/components/SwipeAction';
 import { theme } from '@/constants/theme';
 import { useDeleteSupplementLog, useSupplementLogs } from '@/hooks/useSupplements';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 interface HistoryModalProps {
@@ -13,7 +21,7 @@ interface HistoryModalProps {
 }
 
 export default function HistoryModal({ visible, onClose, supplement }: HistoryModalProps) {
-  const { data: logs, isLoading } = useSupplementLogs(supplement?.id || null);
+  const { data: logs, isLoading } = useSupplementLogs(supplement?.supplement_details.id || null);
   const deleteMutation = useDeleteSupplementLog();
 
   const handleDelete = async (logId: number) => {
@@ -59,7 +67,9 @@ export default function HistoryModal({ visible, onClose, supplement }: HistoryMo
                 enableTrackpadTwoFingerGesture
                 rightThreshold={40}
               >
-                <View style={[styles.logRow, index === (logs?.length || 0) - 1 && styles.logRowLast]}>
+                <View
+                  style={[styles.logRow, index === (logs?.length || 0) - 1 && styles.logRowLast]}
+                >
                   <Text style={styles.logDate}>
                     {new Date(item.date).toLocaleDateString('en-US', {
                       month: 'short',

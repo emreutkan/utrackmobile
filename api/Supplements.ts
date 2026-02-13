@@ -4,9 +4,19 @@ import type {
   UserSupplement,
   UserSupplementLog,
   UserSupplementLogTodayResponse,
+  GetUserSupplementsRequest,
+  PaginatedUserSupplementsResponse,
 } from './types/supplements';
 import type { PaginatedResponse } from './types/pagination';
 import { isPaginatedResponse } from './types/pagination';
+import {
+  ADD_USER_SUPPLEMENT_URL,
+  DELETE_USER_SUPPLEMENT_LOG_URL,
+  GET_USER_SUPPLEMENT_LOGS_URL,
+  GET_USER_SUPPLEMENTS_URL,
+  LOG_USER_SUPPLEMENT_URL,
+  GET_USER_SUPPLEMENT_LOGS_TODAY_URL,
+} from './types/index';
 
 export type CreateUserSupplementRequest = {
   supplement_id: number;
@@ -17,8 +27,8 @@ export type CreateUserSupplementRequest = {
 
 export type LogUserSupplementRequest = {
   user_supplement_id: number;
-  date: string;
-  time: string;
+  date?: string;
+  time?: string;
   dosage: number;
 };
 
@@ -44,57 +54,40 @@ export const getSupplements = async (
 };
 
 export const getUserSupplements = async (
-  page?: number,
-  pageSize?: number
-): Promise<PaginatedResponse<UserSupplement> | UserSupplement[]> => {
-  const searchParams: Record<string, number> = {};
-  if (page !== undefined) searchParams.page = page;
-  if (pageSize !== undefined) searchParams.page_size = pageSize;
+  params: GetUserSupplementsRequest
+): Promise<PaginatedUserSupplementsResponse> => {
+  const data = await apiClient
+    .get(GET_USER_SUPPLEMENTS_URL, { searchParams: params })
+    .json<PaginatedUserSupplementsResponse>();
 
-  const data = await apiClient.get('/supplements/user/list/', { searchParams }).json();
-
-  if (Array.isArray(data)) return data as UserSupplement[];
-  if (isPaginatedResponse<UserSupplement>(data)) return data;
-  const d = data as {
-    results?: UserSupplement[];
-    next?: string | null;
-    previous?: string | null;
-  };
-  return {
-    count: d.results?.length ?? 0,
-    next: d.next ?? null,
-    previous: d.previous ?? null,
-    results: d.results ?? [],
-  };
+  return data;
 };
 
 export const addUserSupplement = async (
   data: CreateUserSupplementRequest
 ): Promise<UserSupplement> => {
-  return apiClient.post('/supplements/user/add/', { json: data }).json();
+  return apiClient.post(ADD_USER_SUPPLEMENT_URL, { json: data }).json();
 };
 
 export const logUserSupplement = async (
   data: LogUserSupplementRequest
 ): Promise<UserSupplementLog> => {
-  return apiClient.post('/supplements/user/log/add/', { json: data }).json();
+  return apiClient.post(LOG_USER_SUPPLEMENT_URL, { json: data }).json();
 };
 
-export const getSupplementLogs = async (
-  userSupplementId: number
-): Promise<UserSupplementLog[]> => {
+export const getSupplementLogs = async (userSupplementId: number): Promise<UserSupplementLog[]> => {
   const data = await apiClient
-    .get('/supplements/user/log/list/', {
+    .get(GET_USER_SUPPLEMENT_LOGS_URL, {
       searchParams: { user_supplement_id: userSupplementId },
     })
     .json();
-  return Array.isArray(data) ? data : (data as { results?: UserSupplementLog[] }).results ?? [];
+  return Array.isArray(data) ? data : ((data as { results?: UserSupplementLog[] }).results ?? []);
 };
 
 export const deleteSupplementLog = async (logId: number): Promise<void> => {
-  await apiClient.delete(`/supplements/user/log/delete/${logId}/`);
+  await apiClient.delete(DELETE_USER_SUPPLEMENT_LOG_URL.replace(':id', logId.toString())).json();
 };
 
 export const getTodayLogs = async (): Promise<UserSupplementLogTodayResponse> => {
-  return apiClient.get('/supplements/user/log/today/').json();
+  return apiClient.get(GET_USER_SUPPLEMENT_LOGS_TODAY_URL).json();
 };

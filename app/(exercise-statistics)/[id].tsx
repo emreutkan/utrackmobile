@@ -1,6 +1,5 @@
-import { getExerciseRanking } from '@/api/Achievements';
 import { getExercise1RMHistory, getExerciseSetHistory } from '@/api/Exercises';
-import { Exercise1RMHistoryResponse, ExerciseRankingResponse } from '@/api/types/achievements';
+import { Exercise1RMHistory, ExerciseRanking } from '@/api/types/exercise';
 import UpgradeModal from '@/components/UpgradeModal';
 import { theme } from '@/constants/theme';
 import { useUser } from '@/hooks/useUser';
@@ -21,36 +20,39 @@ import WeightRepsChart from './components/WeightRepsChart';
 export default function ExerciseStatisticsScreen() {
   const { id } = useLocalSearchParams();
   const { data: user, isLoading: isLoadingUser } = useUser();
-  const [history, setHistory] = useState<Exercise1RMHistoryResponse | null>(null);
-  const [ranking, setRanking] = useState<ExerciseRankingResponse | null>(null);
+  const [history, setHistory] = useState<Exercise1RMHistory | null>(null);
+  const [ranking, setRanking] = useState<ExerciseRanking | null>(null);
   const [recentPerformance, setRecentPerformance] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPro, setIsPro] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const insets = useSafeAreaInsets();
 
-  const isPro = user !== null ? user.is_pro || false : null;
+  if (user !== undefined) {
+    setIsPro(user.is_pro || user.is_paid_pro || user.is_trial);
+  }
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [rmData, sData, rData] = await Promise.all([
+      const [rmData, sData] = await Promise.all([
         getExercise1RMHistory(Number(id)),
         getExerciseSetHistory(Number(id)),
-        getExerciseRanking(Number(id)),
       ]);
 
       if (rmData && typeof rmData === 'object' && 'history' in rmData) {
-        setHistory(rmData);
+        setHistory(rmData as Exercise1RMHistory);
       }
 
-      if (sData?.results) {
-        setRecentPerformance(sData.results);
+      if (
+        sData &&
+        typeof sData === 'object' &&
+        'results' in sData &&
+        Array.isArray((sData as { results: unknown }).results)
+      ) {
+        setRecentPerformance((sData as { results: any[] }).results);
       } else if (Array.isArray(sData)) {
         setRecentPerformance(sData);
-      }
-
-      if (rData) {
-        setRanking(rData);
       }
     } catch (error) {
       console.error('Failed to fetch statistics:', error);
@@ -99,7 +101,7 @@ export default function ExerciseStatisticsScreen() {
   useEffect(() => {
     if (!id) return;
 
-    if (user !== null && !isLoadingUser) {
+    if (user !== undefined && !isLoadingUser) {
       if (!user.is_pro) {
         setShowUpgradeModal(true);
         setIsLoading(false);

@@ -174,18 +174,28 @@ export default function BottomNavigator() {
 }
 
 // Helper to render the list and keep the main component clean
-const TabList = ({ activeKey, router }: { activeKey: string, router: any }) => (
-    <View style={styles.tabsContainer}>
-        {tabs.map((tab) => (
-            <TabButton
-                key={tab.key}
-                tab={tab}
-                isActive={activeKey === tab.key}
-                onPress={(route) => router.replace(route)}
-            />
-        ))}
-    </View>
-);
+const TabList = ({ activeKey, router }: { activeKey: string, router: any }) => {
+    const handleTabPress = (tabKey: string, route: string) => {
+        // Prevent navigation if already on this tab
+        if (activeKey === tabKey) {
+            return;
+        }
+        router.replace(route);
+    };
+
+    return (
+        <View style={styles.tabsContainer}>
+            {tabs.map((tab) => (
+                <TabButton
+                    key={tab.key}
+                    tab={tab}
+                    isActive={activeKey === tab.key}
+                    onPress={(route) => handleTabPress(tab.key, route)}
+                />
+            ))}
+        </View>
+    );
+};
 
 const styles = StyleSheet.create({
     container: {

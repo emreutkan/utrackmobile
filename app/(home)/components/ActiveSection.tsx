@@ -1,9 +1,8 @@
 import { Workout } from '@/api/types/index';
-import { getActiveWorkout, getWorkoutSummary } from '@/api/Workout';
 import TrainingIntensityCard from '@/components/TrainingIntensityCard';
 import { RestDayCard } from '@/components/WorkoutModal';
 import { theme } from '@/constants/theme';
-import { useTodayStatus } from '@/hooks/useWorkout';
+import { useTodayStatus, useActiveWorkout, useWorkoutSummary } from '@/hooks/useWorkout';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { RefObject, useCallback, useEffect, useState } from 'react';
@@ -23,50 +22,35 @@ export default function ActiveSection({
   onStartWorkoutPress,
 }: ActiveSectionProps) {
   const { data: todayStatus } = useTodayStatus();
-  const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null);
+  const { data: activeWorkoutData, refetch: refetchActiveWorkout } = useActiveWorkout();
+
+  // Get today's workout ID if it exists and is completed
+  const todayWorkoutId =
+    todayStatus?.workout_status === 'performed' && todayStatus?.workout
+      ? (todayStatus.workout as Workout).id
+      : null;
+
+  const { data: workoutSummary } = useWorkoutSummary(todayWorkoutId);
+
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
-  const [todayWorkoutScore, setTodayWorkoutScore] = useState<number | null>(null);
 
-  // Fetch active workout data
-  const fetchData = useCallback(async () => {
-    try {
-      const active = await getActiveWorkout();
-      if (active && typeof active === 'object' && 'id' in active) {
-        setActiveWorkout(active);
-      } else {
-        setActiveWorkout(null);
-      }
+  // Convert active workout data to typed object
+  const activeWorkout =
+    activeWorkoutData && typeof activeWorkoutData === 'object' && 'id' in activeWorkoutData
+      ? (activeWorkoutData as Workout)
+      : null;
 
-      // Fetch workout summary if today's workout exists
-      if (
-        todayStatus &&
-        typeof todayStatus === 'object' &&
-        'workout_status' in todayStatus &&
-        todayStatus.workout_status === 'performed' &&
-        'workout' in todayStatus &&
-        todayStatus.workout
-      ) {
-        try {
-          const summary = await getWorkoutSummary((todayStatus.workout as Workout).id);
-          if (summary && typeof summary === 'object' && 'score' in summary && typeof summary.score === 'number') {
-            setTodayWorkoutScore(summary.score);
-          }
-        } catch (e) {
-          console.error('Error fetching workout summary:', e);
-        }
-      } else {
-        setTodayWorkoutScore(null);
-      }
-    } catch (error) {
-      console.error('Error fetching active workout:', error);
-    }
-  }, [todayStatus]);
+  // Get today's workout score from summary
+  const todayWorkoutScore =
+    workoutSummary && typeof workoutSummary === 'object' && 'score' in workoutSummary
+      ? (workoutSummary.score as number)
+      : null;
 
   // Initial load and refresh on focus
   useFocusEffect(
     useCallback(() => {
-      fetchData();
-    }, [fetchData])
+      refetchActiveWorkout();
+    }, [refetchActiveWorkout])
   );
 
   // Timer Logic

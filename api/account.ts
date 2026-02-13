@@ -13,11 +13,10 @@ import {
   EXPORT_DATA_URL,
 } from './types';
 
-export const getAccount = async (): Promise<GetAccountResponse | any> => {
-  const response = await apiClient.get(ME_URL);
-  return response.json();
+export const getAccount = async (): Promise<GetAccountResponse> => {
+  const response = await apiClient.get(ME_URL).json<GetAccountResponse>();
+  return response;
 };
-
 export const updateHeight = async (
   height: number
 ): Promise<{ height: string; message: string }> => {

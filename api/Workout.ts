@@ -41,7 +41,7 @@ import {
   CALENDAR_STATS_URL,
   CHECK_TODAY_URL,
   RECOVERY_STATUS_URL,
-} from './types/workout';
+} from './types/';
 import type { PaginatedResponse } from './types/pagination';
 export const createWorkout = async (
   request: CreateWorkoutRequest
@@ -81,9 +81,7 @@ export const completeWorkout = async (
   return response.json();
 };
 
-export const getWorkoutSummary = async (
-  workoutId: number
-): Promise<WorkoutSummaryResponse> => {
+export const getWorkoutSummary = async (workoutId: number): Promise<WorkoutSummaryResponse> => {
   const url = WORKOUT_SUMMARY_URL.replace(':id', String(workoutId));
   const response = await apiClient.get(url);
   return response.json();
@@ -172,9 +170,11 @@ export const getAvailableYears = async (): Promise<AvailableYearsResponse | any>
   return response.json();
 };
 
-export const getCalendarStats = async (
-  period: { year: number; month?: number | null; week?: number | null }
-): Promise<CalendarStats | any> => {
+export const getCalendarStats = async (period: {
+  year: number;
+  month?: number | null;
+  week?: number | null;
+}): Promise<CalendarStats | any> => {
   const searchParams: Record<string, number> = { year: period.year };
   if (period.month != null) searchParams.month = period.month;
   if (period.week != null) searchParams.week = period.week;

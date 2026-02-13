@@ -1,9 +1,9 @@
-import { ExerciseRankingResponse } from '@/api/types/achievements';
+import { ExerciseRanking } from '@/api/types/exercise';
 import { theme } from '@/constants/theme';
 import { StyleSheet, Text, View } from 'react-native';
 
 interface RankingCardProps {
-  ranking: ExerciseRankingResponse;
+  ranking: ExerciseRanking;
 }
 
 export default function RankingCard({ ranking }: RankingCardProps) {

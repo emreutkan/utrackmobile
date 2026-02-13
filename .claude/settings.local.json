@@ -6,7 +6,9 @@
       "Bash(npx tsc:*)",
       "Bash(ls:*)",
       "Bash(test:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(npx expo start --clear)",
+      "Bash(git checkout:*)"
     ]
   }
 }

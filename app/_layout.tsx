@@ -7,23 +7,14 @@ import 'react-native-reanimated';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUser } from '@/hooks/useUser';
+import LoadingScreen from './(loading)/LoadingView';
 
-const queryClient = new QueryClient(); // query client must be outside component otherwise it gets recreated every render and u lose cached data
+const queryClient = new QueryClient();
 
-// useUser must be called inside QueryClientProivder if we did it like
-/*
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const isAuthenticated = useUser();
-  return (
-    <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack
-            screenOptions={{
-*/
-
-// then isAuthenticated woudl be called outside QueryClientProvider thats why we need to split it into 2
+// So authenticated users land on index → (home) instead of (account)
+export const unstable_settings = {
+  initialRouteName: 'index',
+};
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -40,9 +31,15 @@ export default function RootLayout() {
   );
 }
 
-export function AppNavigator() {
+function AppNavigator() {
   const { data, isLoading } = useUser();
-  if (isLoading)
+
+  // Show loading screen while checking auth
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (!!data) {
     return (
       <Stack
         screenOptions={{
@@ -50,30 +47,15 @@ export function AppNavigator() {
           contentStyle: { backgroundColor: 'black' },
         }}
       >
-        <Stack.Screen name="(loading)" />
-      </Stack>
-    );
-  if (!data) {
-    return (
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: 'black' },
-        }}
-      >
-        <Stack.Screen name="(hero)" />
-        <Stack.Screen name="(auth)" />
+        <Stack>
+          <Stack.Screen name="(hero)" />
+          <Stack.Screen name="(auth)" />
+        </Stack>
       </Stack>
     );
   }
-
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: 'black' },
-      }}
-    >
+    <>
       <Stack.Protected guard={!!data}>
         <Stack.Screen name="(home)" />
         <Stack.Screen name="(account)" />
@@ -88,6 +70,6 @@ export function AppNavigator() {
         <Stack.Screen name="(templates)" />
         <Stack.Screen name="(volume-analysis)" />
       </Stack.Protected>
-    </Stack>
+    </>
   );
 }

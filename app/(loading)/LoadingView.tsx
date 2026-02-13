@@ -2,13 +2,11 @@ import { theme, typographyStyles } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { ScrollView as RNScrollView, StyleSheet, Text, View } from 'react-native';
-import LoadingSkeleton from './homeLoadingSkeleton';
+import LoadingSkeleton from '../(home)/components/homeLoadingSkeleton';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-interface LoadingViewProps {
-  insets: { top: number };
-}
-
-export default function LoadingView({ insets }: LoadingViewProps) {
+export default function LoadingScreen() {
+  const insets = useSafeAreaInsets();
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <LinearGradient

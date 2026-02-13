@@ -1,9 +1,9 @@
 import { MuscleRecoveryItem } from '@/api/types/index';
-import { getRecoveryStatus } from '@/api/Workout';
 import { theme, typographyStyles } from '@/constants/theme';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRecoveryStatus } from '@/hooks/useWorkout';
 
 interface MuscleRecoverySectionProps {
   onPress?: () => void;
@@ -51,23 +51,14 @@ const MuscleRecoveryCard = ({ muscle, status }: { muscle: string; status: Muscle
 };
 
 export default function MuscleRecoverySection({ onPress }: MuscleRecoverySectionProps) {
-  const [recoveryStatus, setRecoveryStatus] = useState<Record<string, MuscleRecoveryItem>>({});
+  const { data: recoveryData, refetch } = useRecoveryStatus();
 
-  const fetchRecoveryData = useCallback(async () => {
-    try {
-      const recovery = await getRecoveryStatus();
-      if (recovery?.recovery_status) {
-        setRecoveryStatus(recovery.recovery_status);
-      }
-    } catch (error) {
-      console.error('Error fetching recovery status:', error);
-    }
-  }, []);
+  const recoveryStatus = recoveryData?.recovery_status || {};
 
   useFocusEffect(
     useCallback(() => {
-      fetchRecoveryData();
-    }, [fetchRecoveryData])
+      refetch();
+    }, [refetch])
   );
 
   // Get top 3 recovering muscles, sorted by hours until recovery

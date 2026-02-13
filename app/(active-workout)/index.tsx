@@ -1,5 +1,3 @@
-import { addExerciseToWorkout, addSetToExercise, deleteSet, removeExerciseFromWorkout } from '@/api/Exercises';
-import { completeWorkout, getActiveWorkout, getRestTimerState } from '@/api/Workout';
 import ExerciseSearchModal from '@/components/ExerciseSearchModal';
 import WorkoutDetailView from '@/components/WorkoutDetailView';
 import { theme } from '@/constants/theme';
@@ -10,63 +8,63 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useActiveWorkout, useCompleteWorkout, useRestTimerState } from '@/hooks/useWorkout';
+import { useAddExerciseToWorkout, useRemoveExerciseFromWorkout, useAddSetToExercise, useDeleteSet } from '@/hooks/useExercises';
 
 export default function ActiveWorkoutScreen() {
-    const [activeWorkout, setActiveWorkout] = useState<any>(null);
     const [elapsedTime, setElapsedTime] = useState('00:00:00');
     const [isModalVisible, setIsModalVisible] = useState(false);
 
     // Rest timer state from Zustand
     const { setLastSetTimestamp, setLastExerciseCategory } = useActiveWorkoutStore();
 
-    const fetchActiveWorkout = useCallback(async () => {
-        const workout = await getActiveWorkout();
-            setActiveWorkout(workout);
-    }, []);
+    // Data fetching with React Query
+    const { data: activeWorkout, refetch: refetchActiveWorkout } = useActiveWorkout();
+    const { data: restTimerState, refetch: refetchRestTimer } = useRestTimerState();
+    const completeWorkoutMutation = useCompleteWorkout();
+    const addExerciseMutation = useAddExerciseToWorkout();
+    const removeExerciseMutation = useRemoveExerciseFromWorkout();
+    const addSetMutation = useAddSetToExercise();
+    const deleteSetMutation = useDeleteSet();
 
-    const fetchRestTimerState = useCallback(async () => {
-        try {
-            const state = await getRestTimerState();
-            if (state && state.last_set_timestamp) {
-                // Convert ISO string to timestamp
-                const timestamp = new Date(state.last_set_timestamp).getTime();
+    // Sync rest timer state to Zustand when it changes
+    useEffect(() => {
+        if (restTimerState && restTimerState.last_set_timestamp) {
+            // Convert ISO string to timestamp
+            const timestamp = new Date(restTimerState.last_set_timestamp).getTime();
 
-                // Validate timestamp is not in the future (handle timezone/clock skew)
-                const now = Date.now();
-                if (timestamp > now) {
-                    // If timestamp is in the future, use current time instead
-                    console.warn('Rest timer timestamp is in the future, using current time');
-                    setLastSetTimestamp(now);
-                } else {
-                    setLastSetTimestamp(timestamp);
-                }
-                setLastExerciseCategory(state.last_exercise_category || 'isolation');
+            // Validate timestamp is not in the future (handle timezone/clock skew)
+            const now = Date.now();
+            if (timestamp > now) {
+                console.warn('Rest timer timestamp is in the future, using current time');
+                setLastSetTimestamp(now);
             } else {
-                // No rest timer state, clear it
-                setLastSetTimestamp(null);
-                setLastExerciseCategory('isolation');
+                setLastSetTimestamp(timestamp);
             }
-        } catch (error) {
-            console.error('Failed to fetch rest timer state:', error);
+            setLastExerciseCategory(restTimerState.last_exercise_category || 'isolation');
+        } else {
+            // No rest timer state, clear it
+            setLastSetTimestamp(null);
+            setLastExerciseCategory('isolation');
         }
-    }, [setLastSetTimestamp, setLastExerciseCategory]);
+    }, [restTimerState, setLastSetTimestamp, setLastExerciseCategory]);
 
     useFocusEffect(
         useCallback(() => {
-            fetchActiveWorkout();
-            fetchRestTimerState();
-        }, [fetchActiveWorkout, fetchRestTimerState])
+            refetchActiveWorkout();
+            refetchRestTimer();
+        }, [refetchActiveWorkout, refetchRestTimer])
     );
 
     const handleAddExercise = async (exerciseId: number) => {
         if (!activeWorkout?.id) return;
 
         try {
-            await addExerciseToWorkout(activeWorkout.id, { exercise_id: exerciseId });
+            await addExerciseMutation.mutateAsync({
+                workoutId: activeWorkout.id,
+                exerciseId,
+            });
             setIsModalVisible(false);
-            // Refresh active workout to show new exercise
-            const updatedWorkout = await getActiveWorkout();
-            setActiveWorkout(updatedWorkout);
         } catch (error) {
             console.error("Failed to add exercise:", error);
             alert("Failed to add exercise");
@@ -75,11 +73,7 @@ export default function ActiveWorkoutScreen() {
 
     const handleRemoveExercise = async (workoutExerciseId: number) => {
         try {
-            const success = await removeExerciseFromWorkout(workoutExerciseId);
-            if (!success) throw new Error('Remove failed');
-            // Refresh active workout to show remaining exercises
-            const updatedWorkout = await getActiveWorkout();
-            setActiveWorkout(updatedWorkout);
+            await removeExerciseMutation.mutateAsync(workoutExerciseId);
         } catch (error) {
             console.error("Failed to remove exercise:", error);
             alert("Failed to remove exercise");
@@ -119,51 +113,26 @@ export default function ActiveWorkoutScreen() {
 
     const handleAddSet = async (workoutExerciseId: number, set: { weight: number, reps: number, reps_in_reserve?: number }) => {
         try {
-            const result = (await addSetToExercise(workoutExerciseId, set)) as {
-                id?: number;
-                error?: boolean;
-                validationErrors?: Record<string, string[]>;
-                message?: string;
-            } | null;
-
-            // Check if result has validation errors
-            if (result && typeof result === 'object' && result.error) {
-                if (result.validationErrors) {
-                    const errorMessage = formatValidationErrors(result.validationErrors);
-                    Alert.alert('Validation Error', errorMessage);
-                } else if (result.message) {
-                    Alert.alert('Error', result.message);
-                } else {
-                    Alert.alert('Error', 'Failed to add set');
-                }
-                return;
-            }
-
-            // Success - refresh workout
-            if (result?.id || (result && typeof result === 'object' && !result.error)) {
-                const updatedWorkout = await getActiveWorkout();
-                setActiveWorkout(updatedWorkout);
-                // Refresh rest timer state from backend
-                fetchRestTimerState();
-            } else {
-                Alert.alert('Error', 'Failed to add set');
-            }
+            await addSetMutation.mutateAsync({
+                workoutExerciseId,
+                data: set,
+            });
+            // Refresh rest timer state from backend after successful set addition
+            refetchRestTimer();
         } catch (error: any) {
-            console.error("Failed to add set:", error);
-            Alert.alert("Error", error?.message || "Failed to add set");
+            // Handle validation errors from the API
+            if (error?.response?.data?.validationErrors) {
+                const errorMessage = formatValidationErrors(error.response.data.validationErrors);
+                Alert.alert('Validation Error', errorMessage);
+            } else {
+                Alert.alert("Error", error?.message || "Failed to add set");
+            }
         }
     };
 
     const handleDeleteSet = async (setId: number) => {
         try {
-            const success = await deleteSet(setId);
-            if (success) {
-                // Refresh workout
-                const updatedWorkout = await getActiveWorkout();
-                setActiveWorkout(updatedWorkout);
-            } else {
-                alert("Failed to delete set");
-            }
+            await deleteSetMutation.mutateAsync(setId);
         } catch (error) {
             console.error("Failed to delete set:", error);
             alert("Failed to delete set");
@@ -173,8 +142,7 @@ export default function ActiveWorkoutScreen() {
     const handleUpdateSet = async (setId: number, updatedSet: any) => {
         try {
             // Refresh workout from backend to get latest data
-            const updatedWorkout = await getActiveWorkout();
-            setActiveWorkout(updatedWorkout);
+            refetchActiveWorkout();
         } catch (error) {
             console.error("Failed to refresh workout after set update:", error);
         }
@@ -198,12 +166,14 @@ export default function ActiveWorkoutScreen() {
                             const startTime = new Date(activeWorkout.created_at).getTime();
                             const durationSeconds = Math.floor(Math.max(0, now - startTime) / 1000);
 
-                            await completeWorkout(activeWorkout.id, { duration: durationSeconds });
+                            await completeWorkoutMutation.mutateAsync({
+                                workoutId: activeWorkout.id,
+                                data: { duration: durationSeconds.toString() },
+                            });
                             // Clear rest timer state when workout is completed
                             setLastSetTimestamp(null);
                             setLastExerciseCategory('isolation');
                             // Navigate to workout summary with the workout ID
-                            // Use the active workout ID since completeWorkout may not return full workout data
                             router.replace(`/(workout-summary)/workoutsummary?workoutId=${activeWorkout.id}`);
                         } catch (error) {
                             console.error("Failed to complete workout:", error);

@@ -1,9 +1,8 @@
 import { CalendarDay, CalendarStats, Workout } from '@/api/types/index';
-import { deleteWorkout, getCalendar, getCalendarStats, getWorkouts } from '@/api/Workout';
 import CalendarModal from '@/components/CalendarModal';
 import WorkoutModal from '@/components/WorkoutModal';
 import { theme } from '@/constants/theme';
-import { useDateStore, useHomeLoadingStore } from '@/state/userStore';
+import { useDateStore } from '@/state/userStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
@@ -12,15 +11,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ActiveSection from './components/ActiveSection';
 import CalendarStrip from './components/CalendarStrip';
 import HomeHeader from './components/HomeHeader';
-import LoadingView from './components/LoadingView';
 import MuscleRecoverySection from './components/MuscleRecoverySection';
 import StartWorkoutMenu from './components/StartWorkoutMenu';
 import TemplatesSection from './components/TemplatesSection';
+import { useDeleteWorkout, useWorkouts } from '@/hooks/useWorkout';
 
 export default function Home() {
   const insets = useSafeAreaInsets();
   const today = useDateStore((state) => state.today);
-  const { hasSeenOnboarding } = useHomeLoadingStore();
 
   // UI State
   const [refreshing, setRefreshing] = useState(false);
@@ -39,6 +37,10 @@ export default function Home() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
+  // React Query hooks
+  const deleteWorkoutMutation = useDeleteWorkout();
+  const { data: workoutsData, refetch: refetchWorkouts } = useWorkouts(1, 100);
+
   const onRefresh = async () => {
     setRefreshing(true);
     // Components handle their own refresh via useFocusEffect
@@ -53,8 +55,13 @@ export default function Home() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await deleteWorkout(id);
-          onRefresh();
+          try {
+            await deleteWorkoutMutation.mutateAsync(id);
+            onRefresh();
+          } catch (error) {
+            console.error('Error deleting workout:', error);
+            Alert.alert('Error', 'Failed to delete workout');
+          }
         },
       },
     ]);
@@ -95,60 +102,52 @@ export default function Home() {
   ) => {
     if (!dayData) return;
 
+    // Refresh workouts data to ensure we have the latest
+    await refetchWorkouts();
+
+    const workouts = workoutsData && 'results' in workoutsData ? workoutsData.results : [];
+
     // If it's a rest day, show delete alert
     if (dayData.is_rest_day) {
-      try {
-        const workoutsResponse = await getWorkouts();
-        if (workoutsResponse && 'results' in workoutsResponse) {
-          const restDayWorkout = workoutsResponse.results.find((w: Workout) => {
-            const workoutDate = new Date(w.datetime).toISOString().split('T')[0];
-            return workoutDate === dateStr && w.is_rest_day;
-          });
+      const restDayWorkout = workouts.find((w: Workout) => {
+        const workoutDate = new Date(w.datetime).toISOString().split('T')[0];
+        return workoutDate === dateStr && w.is_rest_day;
+      });
 
-          if (restDayWorkout) {
-            Alert.alert('Delete Rest Day', 'Do you want to delete this rest day?', [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: async () => {
-                  await deleteWorkout(restDayWorkout.id);
-                  fetchCalendar(selectedYear, selectedMonth);
-                  fetchCalendarStats(selectedYear, selectedMonth);
-                },
-              },
-            ]);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching workout for rest day:', error);
+      if (restDayWorkout) {
+        Alert.alert('Delete Rest Day', 'Do you want to delete this rest day?', [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteWorkoutMutation.mutateAsync(restDayWorkout.id);
+                fetchCalendar(selectedYear, selectedMonth);
+                fetchCalendarStats(selectedYear, selectedMonth);
+              } catch (error) {
+                console.error('Error deleting workout:', error);
+                Alert.alert('Error', 'Failed to delete workout');
+              }
+            },
+          },
+        ]);
       }
       return;
     }
 
     // If it's a regular workout, navigate to workout detail
     if (dayData.has_workout) {
-      try {
-        const workoutsResponse = await getWorkouts();
-        if (workoutsResponse && 'results' in workoutsResponse) {
-          const workout = workoutsResponse.results.find((w: Workout) => {
-            const workoutDate = new Date(w.datetime).toISOString().split('T')[0];
-            return workoutDate === dateStr && !w.is_rest_day;
-          });
+      const workout = workouts.find((w: Workout) => {
+        const workoutDate = new Date(w.datetime).toISOString().split('T')[0];
+        return workoutDate === dateStr && !w.is_rest_day;
+      });
 
-          if (workout) {
-            router.push(`/(workouts)/${workout.id}`);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching workout:', error);
+      if (workout) {
+        router.push(`/(workouts)/${workout.id}`);
       }
     }
   };
-
-  if (!hasSeenOnboarding) {
-    return <LoadingView insets={insets} />;
-  }
 
   return (
     <View style={styles.container}>

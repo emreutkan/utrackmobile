@@ -9,19 +9,32 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AddSupplementModal from './components/AddSupplementModal';
 import HistoryModal from './components/HistoryModal';
 import ProgressCard from './components/ProgressCard';
 import SupplementCard from './components/SupplementCard';
 import SupplementsHeader from './components/SupplementsHeader';
+import { LogUserSupplementRequest } from '@/api/Supplements';
 
 export default function SupplementsScreen() {
   const insets = useSafeAreaInsets();
 
   // Queries
-  const { data, fetchNextPage, hasNextPage, refetch } = useInfiniteUserSupplements(50);
+  const { data, fetchNextPage, hasNextPage, refetch, isLoading } = useInfiniteUserSupplements(
+    1,
+    50
+  );
+
   const { data: todayLogs, refetch: refetchLogs } = useTodaySupplementLogs();
   const logMutation = useLogSupplement();
 
@@ -29,8 +42,8 @@ export default function SupplementsScreen() {
   const [modals, setModals] = useState({ add: false, history: false });
   const [selectedSupp, setSelectedSupp] = useState<UserSupplement | null>(null);
 
-  const userSupplements = data?.pages.flatMap((page) => page.results) || [];
-  const todayLogsMap = new Map(todayLogs?.map((log) => [log.user_supplement, true]) || []);
+  const userSupplements = data?.pages.flatMap((page) => page.results ?? []) || [];
+  const todayLogsMap = new Map(todayLogs?.logs.map((log) => [log.user_supplement_id, true]) || []);
 
   useFocusEffect(
     useCallback(() => {
@@ -40,8 +53,15 @@ export default function SupplementsScreen() {
   );
 
   const handleLog = async (item: UserSupplement) => {
+    const current_date = new Date();
     try {
-      await logMutation.mutateAsync({ user_supplement_id: item.id });
+      const logSupplement: LogUserSupplementRequest = {
+        user_supplement_id: item.supplement_details.id,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toISOString().split('T')[1],
+        dosage: item.dosage,
+      };
+      await logMutation.mutateAsync(logSupplement);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to log supplement');
     }
@@ -60,67 +80,73 @@ export default function SupplementsScreen() {
   const totalCount = userSupplements.length;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <LinearGradient
-        colors={['rgba(99, 101, 241, 0.13)', 'transparent']}
-        style={styles.gradientBg}
-      />
+    <>
+      {isLoading ? (
+        <ActivityIndicator size="large" color={theme.colors.status.active} />
+      ) : (
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <Stack.Screen options={{ headerShown: false }} />
+          <LinearGradient
+            colors={['rgba(99, 101, 241, 0.13)', 'transparent']}
+            style={styles.gradientBg}
+          />
 
-      <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <SupplementsHeader onAddPress={() => setModals((m) => ({ ...m, add: true }))} />
+          <ScrollView
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+            showsVerticalScrollIndicator={false}
+          >
+            <SupplementsHeader onAddPress={() => setModals((m) => ({ ...m, add: true }))} />
 
-        <ProgressCard loggedCount={loggedCount} totalCount={totalCount} />
+            <ProgressCard loggedCount={loggedCount} totalCount={totalCount} />
 
-        {userSupplements.length > 0 && (
-          <>
-            <Text style={styles.sectionHeader}>ACTIVE</Text>
-            {userSupplements.map((item) => (
-              <SupplementCard
-                key={item.id}
-                item={item}
-                isLogged={todayLogsMap.get(item.id) || false}
-                onLog={() => handleLog(item)}
-                onPress={() => openHistory(item)}
-              />
-            ))}
-            {hasNextPage && (
-              <TouchableOpacity
-                style={styles.loadMoreButton}
-                onPress={() => fetchNextPage()}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.loadMoreText}>Load More</Text>
-              </TouchableOpacity>
+            {userSupplements.length > 0 && (
+              <>
+                <Text style={styles.sectionHeader}>ACTIVE</Text>
+                {userSupplements.map((item) => (
+                  <SupplementCard
+                    key={item.supplement_details.id}
+                    item={item}
+                    isLogged={todayLogsMap.get(item.supplement_details.id) || false}
+                    onLog={() => handleLog(item)}
+                    onPress={() => openHistory(item)}
+                  />
+                ))}
+                {hasNextPage && (
+                  <TouchableOpacity
+                    style={styles.loadMoreButton}
+                    onPress={() => fetchNextPage()}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.loadMoreText}>Load More</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
-          </>
-        )}
 
-        {userSupplements.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="nutrition" size={32} color="#8E8E93" />
-            </View>
-            <Text style={styles.emptyTitle}>No Supplements</Text>
-            <Text style={styles.emptyText}>Add supplements to track your daily intake.</Text>
-          </View>
-        )}
-      </ScrollView>
+            {userSupplements.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <View style={styles.emptyIcon}>
+                  <Ionicons name="nutrition" size={32} color="#8E8E93" />
+                </View>
+                <Text style={styles.emptyTitle}>No Supplements</Text>
+                <Text style={styles.emptyText}>Add supplements to track your daily intake.</Text>
+              </View>
+            )}
+          </ScrollView>
 
-      <AddSupplementModal
-        visible={modals.add}
-        onClose={() => setModals((m) => ({ ...m, add: false }))}
-      />
+          <AddSupplementModal
+            visible={modals.add}
+            onClose={() => setModals((m) => ({ ...m, add: false }))}
+          />
 
-      <HistoryModal
-        visible={modals.history}
-        onClose={() => setModals((m) => ({ ...m, history: false }))}
-        supplement={selectedSupp}
-      />
-    </View>
+          <HistoryModal
+            visible={modals.history}
+            onClose={() => setModals((m) => ({ ...m, history: false }))}
+            supplement={selectedSupp}
+          />
+        </View>
+      )}
+    </>
   );
 }
 

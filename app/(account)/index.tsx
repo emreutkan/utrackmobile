@@ -20,14 +20,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useUserStatistics } from '@/hooks/useAchievements';
+// import { useUserStatistics } from '@/hooks/useStatistics';
 
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const { data: user } = useUser();
   const clearUser = useClearUser();
   const changePassword = useChangePassword();
-  const { data: stats } = useUserStatistics();
+  // const { data: stats } = useUserStatistics();
   const invalidateUser = useInvalidateUser();
   // Controls visibility of the 3 modals
   const [modals, setModals] = useState({
@@ -61,15 +61,15 @@ export default function AccountScreen() {
   }, [user]);
 
   // Format total volume
-  const formattedVolume = useMemo(() => {
-    const volume = stats?.total_volume || 0;
-    if (volume >= 1000000) {
-      return `${(volume / 1000000).toFixed(1)}T`;
-    } else if (volume >= 1000) {
-      return `${(volume / 1000).toFixed(1)}K`;
-    }
-    return volume.toFixed(0);
-  }, [stats]);
+  // const formattedVolume = useMemo(() => {
+  //   const volume = stats?.total_volume || 0;
+  //   if (volume >= 1000000) {
+  //     return `${(volume / 1000000).toFixed(1)}T`;
+  //   } else if (volume >= 1000) {
+  //     return `${(volume / 1000).toFixed(1)}K`;
+  //   }
+  //   return volume.toFixed(0);
+  // }, [stats]);
 
   // --- Handlers ---
 
@@ -157,7 +157,7 @@ export default function AccountScreen() {
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>SESSIONS</Text>
             <View style={styles.statValueContainer}>
-              <Text style={styles.statValue}>{stats?.total_workouts || 0}</Text>
+              {/* <Text style={styles.statValue}>{stats?.total_workouts || 0}</Text> */}
               <Ionicons
                 name="barbell"
                 size={16}
@@ -169,13 +169,13 @@ export default function AccountScreen() {
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>STREAK</Text>
             <View style={styles.statValueContainer}>
-              <Text style={styles.statValue}>{stats?.current_streak || 0}</Text>
+              {/* <Text style={styles.statValue}>{stats?.current_streak || 0}</Text> */}
               <Ionicons name="flame" size={16} color="#FF9F0A" style={styles.statIcon} />
             </View>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>VOLUME</Text>
-            <Text style={styles.statValue}>{formattedVolume}</Text>
+            {/* <Text style={styles.statValue}>{formattedVolume}</Text> */}
           </View>
         </View>
 
@@ -198,24 +198,6 @@ export default function AccountScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settingCard}
-            onPress={() => router.push('/(achievements)')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.iconBox, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
-              <Ionicons name="trophy-outline" size={20} color="#F59E0B" />
-            </View>
-            <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>ACHIEVEMENTS</Text>
-              <Text style={styles.settingSubtitle}>
-                {stats?.total_achievements || 0} EARNED • {stats?.total_points || 0} PTS
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.settingCard}
             onPress={() => router.push('/(prs)')}
@@ -226,7 +208,7 @@ export default function AccountScreen() {
             </View>
             <View style={styles.settingContent}>
               <Text style={styles.settingTitle}>PERSONAL RECORDS</Text>
-              <Text style={styles.settingSubtitle}>{stats?.total_prs || 0} RECORDS TRACKED</Text>
+              {/* <Text style={styles.settingSubtitle}>{stats?.total_prs || 0} RECORDS TRACKED</Text> */}
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
           </TouchableOpacity>

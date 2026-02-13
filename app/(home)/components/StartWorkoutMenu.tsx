@@ -1,8 +1,8 @@
-import { createWorkout } from '@/api/Workout';
 import { theme } from '@/constants/theme';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { useCreateWorkout } from '@/hooks/useWorkout';
 
 interface StartWorkoutMenuProps {
   visible: boolean;
@@ -21,7 +21,20 @@ export default function StartWorkoutMenu({
   onLogPrevious,
   onRefresh,
 }: StartWorkoutMenuProps) {
+  const createWorkoutMutation = useCreateWorkout();
+
   if (!visible) return null;
+
+  const handleRestDay = async () => {
+    onClose();
+    try {
+      await createWorkoutMutation.mutateAsync({ title: 'Rest Day', is_rest_day: true });
+      onRefresh();
+    } catch (error) {
+      console.error('Error creating rest day:', error);
+      Alert.alert('Error', 'Failed to create rest day');
+    }
+  };
 
   return (
     <>
@@ -50,14 +63,7 @@ export default function StartWorkoutMenu({
             <Text style={styles.popoverText}>Log Previous</Text>
           </TouchableOpacity>
           <View style={styles.divider} />
-          <TouchableOpacity
-            style={styles.popoverItem}
-            onPress={async () => {
-              onClose();
-              await createWorkout({ title: 'Rest Day', is_rest_day: true });
-              onRefresh();
-            }}
-          >
+          <TouchableOpacity style={styles.popoverItem} onPress={handleRestDay}>
             <Text style={styles.popoverText}>Rest Day</Text>
           </TouchableOpacity>
         </View>

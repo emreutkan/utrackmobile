@@ -1,5 +1,4 @@
 import { TemplateWorkout } from '@/api/types/index';
-import { deleteTemplateWorkout, getTemplateWorkouts, startTemplateWorkout } from '@/api/Workout';
 import UpgradeModal from '@/components/UpgradeModal';
 import { theme, typographyStyles } from '@/constants/theme';
 import { useUser } from '@/hooks/useUser';
@@ -7,30 +6,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTemplateWorkouts, useDeleteTemplateWorkout, useStartTemplateWorkout } from '@/hooks/useWorkout';
 
 const FREE_TEMPLATE_LIMIT = 3;
 
 export default function TemplatesSection() {
   const { data: user } = useUser();
-  const [templates, setTemplates] = useState<TemplateWorkout[]>([]);
+  const { data: templatesData, refetch } = useTemplateWorkouts();
+  const deleteTemplateMutation = useDeleteTemplateWorkout();
+  const startTemplateMutation = useStartTemplateWorkout();
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
 
+  const templates = Array.isArray(templatesData) ? templatesData : [];
   const isPro = user?.is_pro || false;
   const canCreateTemplate = isPro || templates.length < FREE_TEMPLATE_LIMIT;
 
-  const fetchTemplates = useCallback(async () => {
-    try {
-      const tpls = await getTemplateWorkouts();
-      setTemplates(Array.isArray(tpls) ? tpls : []);
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-    }
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
-      fetchTemplates();
-    }, [fetchTemplates])
+      refetch();
+    }, [refetch])
   );
 
   const handleCreatePress = () => {
@@ -45,10 +39,14 @@ export default function TemplatesSection() {
     Alert.alert(template.title.toUpperCase(), 'What would you like to do?', [
       {
         text: 'Start Workout',
-        onPress: () => {
-          startTemplateWorkout({ template_workout_id: template.id }).then((res) => {
+        onPress: async () => {
+          try {
+            const res = await startTemplateMutation.mutateAsync({ template_workout_id: template.id });
             if (res?.id) router.push('/(active-workout)');
-          });
+          } catch (error) {
+            console.error('Error starting template workout:', error);
+            Alert.alert('Error', 'Failed to start workout');
+          }
         },
       },
       {
@@ -61,8 +59,12 @@ export default function TemplatesSection() {
               text: 'Delete',
               style: 'destructive',
               onPress: async () => {
-                await deleteTemplateWorkout(template.id);
-                fetchTemplates();
+                try {
+                  await deleteTemplateMutation.mutateAsync(template.id);
+                } catch (error) {
+                  console.error('Error deleting template:', error);
+                  Alert.alert('Error', 'Failed to delete template');
+                }
               },
             },
           ]);

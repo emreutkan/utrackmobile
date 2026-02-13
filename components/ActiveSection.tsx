@@ -8,7 +8,8 @@ import React, { RefObject, useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { SwipeAction } from './SwipeAction';
-import { useTodayStore } from '@/state/stores/todayStore';
+import { checkToday } from '@/api/Workout';
+import { useTodayStatus } from '@/hooks/useWorkout';
 interface ActiveSectionProps {
   activeWorkout: Workout | null;
   elapsedTime: string;
@@ -25,15 +26,17 @@ export default function ActiveSection({
   startButtonRef,
   onStartWorkoutPress,
 }: ActiveSectionProps) {
-  const { todayStatus, getTodayStatus } = useTodayStore();
   const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null);
-
+  const { data: todayStatus } = useTodayStatus();
   useEffect(() => {
-    getTodayStatus();
-    console.log('todayStatus', todayStatus);
-    if (todayStatus?.workout_status === 'performing') {
-      setActiveWorkout(todayStatus.workout || null);
-    }
+    const fetchTodayStatus = async () => {
+      const { data: todayStatus } = await checkToday();
+      console.log('todayStatus', todayStatus);
+      if (todayStatus?.workout_status === 'performing') {
+        setActiveWorkout(todayStatus.workout || null);
+      }
+    };
+    fetchTodayStatus();
   }, []);
 
   if (activeWorkout) {

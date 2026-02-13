@@ -39,19 +39,12 @@ export const useInfiniteSupplements = (pageSize: number = 50) => {
 };
 
 // User supplements query
-export const useUserSupplements = (page: number = 1, pageSize: number = 50) => {
-  return useQuery({
-    queryKey: ['user-supplements', page, pageSize],
-    queryFn: () => getUserSupplements(page, pageSize),
-    staleTime: 1000 * 60 * 2, // 2 minutes
-  });
-};
 
 // Infinite scroll for user supplements
-export const useInfiniteUserSupplements = (pageSize: number = 50) => {
+export const useInfiniteUserSupplements = (page: number, pageSize: number) => {
   return useInfiniteQuery({
     queryKey: ['user-supplements-infinite'],
-    queryFn: ({ pageParam = 1 }) => getUserSupplements(pageParam, pageSize),
+    queryFn: () => getUserSupplements({ page, pageSize }),
     getNextPageParam: (lastPage) => {
       if (lastPage && typeof lastPage === 'object' && 'next' in lastPage && lastPage.next) {
         const url = new URL(lastPage.next as string);

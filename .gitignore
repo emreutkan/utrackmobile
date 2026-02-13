@@ -47,3 +47,43 @@ storybook-static
 
 # docs
 docs/
+
+# build
+build/
+
+# apk
+*.apk
+
+# ipa
+*.ipa
+
+# release
+release/
+
+# dist
+dist/
+
+# web-build
+web-build/
+
+.prettierignore
+.prettierrc.json
+.prettierignore
+.prettier
+NOTES.md
+NOTES.txt
+NOTES.docx
+NOTES.doc
+NOTES.pdf
+NOTES.xls
+NOTES.xlsx
+NOTES.ppt
+NOTES.pptx
+NOTES.txt
+NOTES.docx
+NOTES.doc
+NOTES.pdf
+NOTES.xls
+NOTES.xlsx
+NOTES.ppt
+NOTES.pptx

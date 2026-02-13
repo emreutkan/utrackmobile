@@ -1,14 +1,11 @@
-import { getMeasurements } from '@/api/Measurements';
-import { getAccount, getWeightHistory } from '@/api/account';
-import { BodyMeasurement, WeightHistoryEntry } from '@/api/types/index';
+import { BodyMeasurement } from '@/api/types/index';
 import { extractResults } from '@/api/types/pagination';
 import { theme, typographyStyles, commonStyles } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
-import { Stack, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState, useEffect } from 'react';
+import { Stack } from 'expo-router';
+import { useMemo, useState, useEffect } from 'react';
 import {
-    Dimensions,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -21,151 +18,11 @@ import {
     Share
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CHART_HEIGHT = 180;
-const CHART_PADDING = 20;
-const CHART_WIDTH = SCREEN_WIDTH - 48 - (CHART_PADDING * 2); // Card width minus padding
-
-// ============================================================================
-// HELPER COMPONENTS
-// ============================================================================
-
-/**
- * Mini Trend Graph Component
- */
-const MiniTrendGraph = ({ data, color, width }: { data: number[]; color: string; width: number }) => {
-    if (data.length < 2 || width <= 0) return null;
-
-    const MINI_HEIGHT = 50;
-
-    const maxVal = Math.max(...data);
-    const minVal = Math.min(...data);
-    const range = maxVal - minVal || 1;
-    const padding = range * 0.1;
-    const effectiveMin = minVal - padding;
-    const effectiveMax = maxVal + padding;
-    const effectiveRange = effectiveMax - effectiveMin;
-
-    const getCoordinates = (index: number, value: number) => {
-        const x = (index / (data.length - 1)) * width;
-        const y = MINI_HEIGHT - ((value - effectiveMin) / effectiveRange) * (MINI_HEIGHT - 10) - 5;
-        return { x, y };
-    };
-
-    let pathD = `M ${getCoordinates(0, data[0]).x} ${getCoordinates(0, data[0]).y}`;
-    for (let i = 1; i < data.length; i++) {
-        const p0 = getCoordinates(i - 1, data[i - 1]);
-        const p1 = getCoordinates(i, data[i]);
-        const cp1x = p0.x + (p1.x - p0.x) / 2;
-        pathD += ` C ${cp1x} ${p0.y}, ${cp1x} ${p1.y}, ${p1.x} ${p1.y}`;
-    }
-
-    const fillPathD = `${pathD} L ${width} ${MINI_HEIGHT} L 0 ${MINI_HEIGHT} Z`;
-
-    return (
-        <View style={{ width, height: MINI_HEIGHT, overflow: 'hidden' }}>
-            <Svg width={width} height={MINI_HEIGHT}>
-                <Defs>
-                    <LinearGradient id={`glow-${color}`} x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor={color} stopOpacity="0.5" />
-                        <Stop offset="0.5" stopColor={color} stopOpacity="0.2" />
-                        <Stop offset="1" stopColor={color} stopOpacity="0" />
-                    </LinearGradient>
-                </Defs>
-                <Path d={fillPathD} fill={`url(#glow-${color})`} />
-                <Path d={pathD} stroke={color} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            </Svg>
-        </View>
-    );
-};
-
-/**
- * Combined Neural Trend Chart Component
- */
-const NeuralTrendChart = ({ weightData, bodyFatData }: { weightData: number[]; bodyFatData: number[] }) => {
-    if (weightData.length < 2 && bodyFatData.length < 2) {
-        return (
-            <View style={styles.emptyChart}>
-                <Ionicons name="stats-chart" size={32} color={theme.colors.text.secondary} />
-                <Text style={styles.emptyChartText}>Not enough data to graph</Text>
-            </View>
-        );
-    }
-
-    const normalizeData = (data: number[]) => {
-        if (data.length < 2) return [];
-        const maxVal = Math.max(...data);
-        const minVal = Math.min(...data);
-        const range = maxVal - minVal || 1;
-        const padding = range * 0.1;
-        const effectiveMin = minVal - padding;
-        const effectiveMax = maxVal + padding;
-        const effectiveRange = effectiveMax - effectiveMin;
-        return data.map(val => ((val - effectiveMin) / effectiveRange) * 100);
-    };
-
-    const normalizedWeight = normalizeData(weightData);
-    const normalizedBodyFat = normalizeData(bodyFatData);
-    const maxLength = Math.max(normalizedWeight.length, normalizedBodyFat.length);
-
-    const getCoordinates = (index: number, value: number) => {
-        const x = (index / (maxLength - 1 || 1)) * CHART_WIDTH;
-        const y = CHART_HEIGHT - (value / 100) * (CHART_HEIGHT - 20) - 10;
-        return { x, y };
-    };
-
-    const generatePath = (data: number[]) => {
-        if (data.length < 2) return '';
-        let d = `M ${getCoordinates(0, data[0]).x} ${getCoordinates(0, data[0]).y}`;
-        for (let i = 1; i < data.length; i++) {
-            const p0 = getCoordinates(i - 1, data[i - 1]);
-            const p1 = getCoordinates(i, data[i]);
-            const cp1x = p0.x + (p1.x - p0.x) / 2;
-            d += ` C ${cp1x} ${p0.y}, ${cp1x} ${p1.y}, ${p1.x} ${p1.y}`;
-        }
-        return d;
-    };
-
-    const weightPathD = generatePath(normalizedWeight);
-    const bodyFatPathD = generatePath(normalizedBodyFat);
-
-    return (
-        <View style={{ height: CHART_HEIGHT, width: CHART_WIDTH }}>
-            <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-                <Defs>
-                    <LinearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor={theme.colors.text.brand} stopOpacity="0.4" />
-                        <Stop offset="1" stopColor={theme.colors.text.brand} stopOpacity="0.0" />
-                    </LinearGradient>
-                    <LinearGradient id="bodyFatGradient" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor={theme.colors.status.rest} stopOpacity="0.4" />
-                        <Stop offset="1" stopColor={theme.colors.status.rest} stopOpacity="0.0" />
-                    </LinearGradient>
-                </Defs>
-                {weightPathD && <Path d={`${weightPathD} L ${CHART_WIDTH} ${CHART_HEIGHT} L 0 ${CHART_HEIGHT} Z`} fill="url(#weightGradient)" />}
-                {bodyFatPathD && <Path d={`${bodyFatPathD} L ${CHART_WIDTH} ${CHART_HEIGHT} L 0 ${CHART_HEIGHT} Z`} fill="url(#bodyFatGradient)" />}
-                {weightPathD && (
-                    <>
-                        <Path d={weightPathD} stroke={theme.colors.text.brand} strokeWidth="6" fill="none" opacity="0.1" strokeLinecap="round" strokeLinejoin="round" />
-                        <Path d={weightPathD} stroke={theme.colors.text.brand} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                    </>
-                )}
-                {bodyFatPathD && (
-                    <>
-                        <Path d={bodyFatPathD} stroke={theme.colors.status.rest} strokeWidth="6" fill="none" opacity="0.1" strokeLinecap="round" strokeLinejoin="round" />
-                        <Path d={bodyFatPathD} stroke={theme.colors.status.rest} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                    </>
-                )}
-            </Svg>
-        </View>
-    );
-};
+import { useMeasurements } from '@/hooks/useMeasurements';
+import { useUser, useWeightHistory, useUpdateWeight } from '@/hooks/useUser';
+import { MiniTrendGraph } from './components/MiniTrendGraph';
+import { NeuralTrendChart } from './components/NeuralTrendChart';
+import { useQueryClient } from '@tanstack/react-query';
 
 // ============================================================================
 // MAIN SCREEN COMPONENT
@@ -173,15 +30,23 @@ const NeuralTrendChart = ({ weightData, bodyFatData }: { weightData: number[]; b
 
 export default function MeasurementsScreen() {
     const insets = useSafeAreaInsets();
+    const queryClient = useQueryClient();
 
     // UI Navigation
     const [activeTab, setActiveTab] = useState<'biometrics' | 'calculator'>('biometrics');
 
-    // Biometrics State
-    const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
-    const [weightHistory, setWeightHistory] = useState<WeightHistoryEntry[]>([]);
-    const [currentWeight, setCurrentWeight] = useState<number | null>(null);
-    const [, setIsLoading] = useState(false);
+    // TanStack Query hooks
+    const { data: measurementsData } = useMeasurements();
+    const { data: userData } = useUser();
+    const { data: weightHistoryData } = useWeightHistory();
+    const updateWeightMutation = useUpdateWeight();
+
+    // Refresh handler
+    const handleRefresh = () => {
+        queryClient.invalidateQueries({ queryKey: ['measurements'] });
+        queryClient.invalidateQueries({ queryKey: ['user'] });
+        queryClient.invalidateQueries({ queryKey: ['weight-history'] });
+    };
 
     // 1RM Calculator State
     const [calcWeight, setCalcWeight] = useState('');
@@ -191,6 +56,18 @@ export default function MeasurementsScreen() {
     // Modals & Forms
     const [modals, setModals] = useState({ weight: false, bodyFat: false });
     const [tempVal, setTempVal] = useState('');
+
+    // Extract data from queries
+    const measurements = useMemo(() => {
+        if (!measurementsData) return [];
+        return extractResults(measurementsData) as BodyMeasurement[];
+    }, [measurementsData]);
+
+    const weightHistory = useMemo(() => {
+        return weightHistoryData?.results || [];
+    }, [weightHistoryData]);
+
+    const currentWeight = userData?.weight || null;
 
     // Derived Data for Biometrics
     const latestBodyFat = useMemo(() => {
@@ -206,24 +83,6 @@ export default function MeasurementsScreen() {
     const [cardWidth, setCardWidth] = useState(0);
 
     const sortedHistory = useMemo(() => [...weightHistory].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [weightHistory]);
-
-    // Load Data
-    useFocusEffect(useCallback(() => { loadData(); }, []));
-
-    const loadData = async () => {
-        setIsLoading(true);
-        try {
-            const [measData, weightData, accountData] = await Promise.all([getMeasurements(), getWeightHistory(), getAccount()]);
-            const measurementResults = extractResults(measData);
-            setMeasurements(measurementResults as BodyMeasurement[]);
-            if (weightData?.results) setWeightHistory(weightData.results);
-            if (accountData?.weight) setCurrentWeight(accountData.weight);
-        } catch (error) {
-            console.error('Failed to load data:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     // 1RM Calculation Logic
     useEffect(() => {
@@ -246,8 +105,23 @@ export default function MeasurementsScreen() {
         });
     };
 
-    const openWeightModal = () => { setTempVal(currentWeight?.toString() || ''); setModals(prev => ({ ...prev, weight: true })); };
-    const handleSaveWeight = async () => { /* Logic */ };
+    const openWeightModal = () => {
+        setTempVal(currentWeight?.toString() || '');
+        setModals(prev => ({ ...prev, weight: true }));
+    };
+
+    const handleSaveWeight = async () => {
+        const weight = parseFloat(tempVal);
+        if (!weight || isNaN(weight)) return;
+
+        try {
+            await updateWeightMutation.mutateAsync(weight);
+            setModals(prev => ({ ...prev, weight: false }));
+            setTempVal('');
+        } catch (error) {
+            console.error('Failed to update weight:', error);
+        }
+    };
 
     const openBodyFatModal = () => { setModals(prev => ({ ...prev, bodyFat: true })); };
 
@@ -289,7 +163,7 @@ export default function MeasurementsScreen() {
             </View>
 
             <View style={styles.historySection}>
-                <View style={styles.historyHeader}><Text style={styles.historySectionTitle}>HISTORY</Text><TouchableOpacity onPress={loadData}><Ionicons name="refresh" size={16} color={theme.colors.text.secondary} /></TouchableOpacity></View>
+                <View style={styles.historyHeader}><Text style={styles.historySectionTitle}>HISTORY</Text><TouchableOpacity onPress={handleRefresh}><Ionicons name="refresh" size={16} color={theme.colors.text.secondary} /></TouchableOpacity></View>
                 {sortedHistory.length > 0 ? (
                     <View style={styles.historyContainer}>
                         {sortedHistory.map((item) => (
@@ -464,8 +338,6 @@ const styles = StyleSheet.create({
     legendDot: { width: 8, height: 8, borderRadius: 4 },
     legendText: { fontSize: 10, fontWeight: '800', color: theme.colors.text.secondary, textTransform: 'uppercase' },
     graphCard: { backgroundColor: theme.colors.ui.glass, borderRadius: 40, padding: 24, borderWidth: 1, borderColor: theme.colors.ui.border, overflow: 'hidden' },
-    emptyChart: { height: 180, alignItems: 'center', justifyContent: 'center', opacity: 0.5 },
-    emptyChartText: { color: theme.colors.text.secondary, marginTop: 8, fontSize: 12 },
 
     historySection: { marginTop: theme.spacing.m },
     historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.m },

@@ -42,7 +42,6 @@ function AppNavigator() {
   const [hasTokens, setHasTokens] = useState<boolean | null>(null);
   const pathname = usePathname();
 
-  // Check tokens when navigating to protected routes (e.g., after login)
   const checkTokens = async () => {
     try {
       const accessToken = await getAccessToken();
@@ -55,31 +54,27 @@ function AppNavigator() {
     }
   };
 
-  // Re-check tokens on every navigation (login stores tokens then navigates)
   useEffect(() => {
     checkTokens();
   }, [pathname]);
 
-  // Fetch user data to protect routes
   const { data: user } = useUser({
     enabled: hasTokens === true,
   });
 
-  // Protect against accessing protected routes without auth
+  // Redirect to auth when on protected route without tokens
   useEffect(() => {
     if (hasTokens === false && pathname != null && !pathname.includes('(auth)') && !pathname.includes('(hero)') && !pathname.includes('(loading)')) {
       router.replace('/(auth)');
     }
   }, [hasTokens, pathname]);
 
-  // Redirect from auth/hero to home when logged in
+  // Redirect to home when logged in and on auth/hero
   useEffect(() => {
     const onUnauthRoute =
       pathname != null &&
       (pathname.includes('(auth)') || pathname.includes('(hero)'));
-    const shouldGoHome = hasTokens === true && user !== undefined && onUnauthRoute;
-
-    if (shouldGoHome) {
+    if (hasTokens === true && user !== undefined && onUnauthRoute) {
       router.replace('/(tabs)/(home)');
     }
   }, [hasTokens, user, pathname]);
@@ -94,18 +89,16 @@ function AppNavigator() {
       <Stack.Screen name="(loading)" />
       <Stack.Screen name="(hero)" />
       <Stack.Screen name="(auth)" />
-      <Stack.Protected guard={user !== undefined}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="(account)" options={{ headerShown: false }} />
-        <Stack.Screen name="(add-exercise)" />
-        <Stack.Screen name="(active-workout)" />
-        <Stack.Screen name="(add-workout)" />
-        <Stack.Screen name="(exercise-statistics)" />
-        <Stack.Screen name="(templates)" />
-        <Stack.Screen name="(volume-analysis)" />
-        <Stack.Screen name="(recovery-status)" />
-        <Stack.Screen name="(workout-summary)" />
-      </Stack.Protected>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(account)" options={{ headerShown: false }} />
+      <Stack.Screen name="(add-exercise)" />
+      <Stack.Screen name="(active-workout)" />
+      <Stack.Screen name="(add-workout)" />
+      <Stack.Screen name="(exercise-statistics)" />
+      <Stack.Screen name="(templates)" />
+      <Stack.Screen name="(volume-analysis)" />
+      <Stack.Screen name="(recovery-status)" />
+      <Stack.Screen name="(workout-summary)" />
     </Stack>
   );
 }

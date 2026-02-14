@@ -55,11 +55,9 @@ function AppNavigator() {
     }
   };
 
-  // Re-check tokens when navigating to protected routes
+  // Re-check tokens on every navigation (login stores tokens then navigates)
   useEffect(() => {
-    if (pathname && (pathname.includes('(home)') || pathname.includes('(tabs)'))) {
-      checkTokens();
-    }
+    checkTokens();
   }, [pathname]);
 
   // Fetch user data to protect routes
@@ -69,7 +67,7 @@ function AppNavigator() {
 
   // Protect against accessing protected routes without auth
   useEffect(() => {
-    if (hasTokens === false && pathname != null && !pathname.includes('(auth)') && !pathname.includes('(loading)')) {
+    if (hasTokens === false && pathname != null && !pathname.includes('(auth)') && !pathname.includes('(hero)') && !pathname.includes('(loading)')) {
       router.replace('/(auth)');
     }
   }, [hasTokens, pathname]);
@@ -82,7 +80,7 @@ function AppNavigator() {
     const shouldGoHome = hasTokens === true && user !== undefined && onUnauthRoute;
 
     if (shouldGoHome) {
-      router.replace('/(home)');
+      router.replace('/(tabs)/(home)');
     }
   }, [hasTokens, user, pathname]);
 

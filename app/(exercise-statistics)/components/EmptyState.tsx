@@ -13,7 +13,7 @@ export default function EmptyState() {
       <Text style={styles.emptySubtext}>
         Complete workouts with this exercise to track your performance.
       </Text>
-      <Pressable style={styles.emptyButton} onPress={() => router.replace('/(home)')}>
+      <Pressable style={styles.emptyButton} onPress={() => router.replace('/(tabs)/(home)')}>
         <Text style={styles.emptyButtonText}>START TRAINING</Text>
       </Pressable>
     </View>

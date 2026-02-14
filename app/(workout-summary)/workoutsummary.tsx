@@ -275,7 +275,7 @@ const WorkoutSummaryScreen = () => {
           <>
             {/* Finish Button */}
             <Animated.View entering={FadeInDown.delay(800)} style={styles.footer}>
-              <Pressable style={styles.doneButton} onPress={() => router.replace('/(home)')}>
+              <Pressable style={styles.doneButton} onPress={() => router.replace('/(tabs)/(home)')}>
                 <Text style={styles.doneButtonText}>ACKNOWLEDGE</Text>
                 <Ionicons name="checkmark-done" size={20} color="#FFF" />
               </Pressable>

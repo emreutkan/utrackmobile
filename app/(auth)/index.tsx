@@ -335,7 +335,7 @@ export default function AuthScreen() {
       if (typeof result === 'object' && result.access && result.refresh) {
         await storeAccessToken(result.access);
         await storeRefreshToken(result.refresh);
-        router.replace('/(home)');
+        router.replace('/(tabs)/(home)');
       } else {
         showAlert(
           'Login Failed',
@@ -384,7 +384,7 @@ export default function AuthScreen() {
       if (typeof result === 'object' && result.access && result.refresh) {
         await storeAccessToken(result.access);
         await storeRefreshToken(result.refresh);
-        router.replace('/(home)');
+        router.replace('/(tabs)/(home)');
       } else {
         showAlert(
           'Registration Failed',
@@ -440,15 +440,15 @@ export default function AuthScreen() {
         </View>
 
         <View style={styles.contentContainer}>
-          <View style={styles.inputGroup}>
+          <View style={[
+            styles.inputGroup,
+            currentStep === 'email' && emailValidation && !emailValidation.is_valid && styles.inputGroupError,
+          ]}>
             {currentStep === 'email' ? (
               // Email Step
               <>
                 <View
-                  style={[
-                    styles.inputWrapper,
-                    emailValidation && !emailValidation.is_valid && styles.inputWrapperError,
-                  ]}
+                  style={styles.inputWrapper}
                 >
                   <Ionicons
                     name="mail-outline"
@@ -792,9 +792,8 @@ const styles = StyleSheet.create({
     minHeight: 56,
     maxHeight: 60,
   },
-  inputWrapperError: {
+  inputGroupError: {
     borderColor: theme.colors.status.error,
-    borderWidth: 1,
   },
   inputIcon: {
     marginRight: 12,

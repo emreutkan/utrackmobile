@@ -42,11 +42,10 @@ export function ActiveSectionSkeleton() {
   const shimmer = useShimmer();
   return (
     <View style={styles.activeContainer}>
-      <View style={styles.activeUpper}>
-        <View>
-          <View style={styles.activeBars} />
+      <View style={styles.activeRow}>
+        <View style={styles.activeRowLeft}>
+          <SkeletonBox animatedStyle={shimmer} style={styles.activeBars} />
           <SkeletonBox animatedStyle={shimmer} style={styles.activeTitle} />
-          <SkeletonBox animatedStyle={shimmer} style={styles.activeSubtitle} />
         </View>
         <SkeletonBox animatedStyle={shimmer} style={styles.activeIcon} />
       </View>
@@ -122,28 +121,26 @@ const styles = StyleSheet.create({
   // Active section
   activeContainer: {
     marginBottom: theme.spacing.m,
-    padding: theme.spacing.xxl,
+    paddingVertical: 14,
+    paddingHorizontal: theme.spacing.l,
     backgroundColor: theme.colors.ui.glass,
-    borderRadius: theme.borderRadius.xxl,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: theme.colors.ui.border,
   },
-  activeUpper: {
+  activeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
-  activeBars: {
-    width: 24,
-    height: 12,
-    backgroundColor: theme.colors.ui.glass,
-    borderRadius: 4,
-    marginBottom: theme.spacing.s,
-    opacity: 0.8,
+  activeRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.s,
   },
-  activeTitle: { width: 120, height: 14, marginBottom: theme.spacing.s },
-  activeSubtitle: { width: 160, height: 12 },
-  activeIcon: { width: 48, height: 48, borderRadius: 24 },
+  activeBars: { width: 20, height: 12, borderRadius: 3 },
+  activeTitle: { width: 110, height: 12 },
+  activeIcon: { width: 36, height: 36, borderRadius: 18 },
   // Calendar strip
   calendarContainer: { marginVertical: theme.spacing.l },
   calendarHeader: {

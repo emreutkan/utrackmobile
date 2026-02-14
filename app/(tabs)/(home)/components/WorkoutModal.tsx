@@ -181,6 +181,9 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
     const title = mode === 'create' ? 'Start Workout' : 'Log Past Workout';
     const buttonText = mode === 'create' ? 'Start Session' : 'Save Log';
 
+    const icon = mode === 'create' ? 'flash' : 'time';
+    const accentColor = mode === 'create' ? theme.colors.status.active : theme.colors.status.warning;
+
     return (
         <Modal
             presentationStyle="overFullScreen"
@@ -199,33 +202,53 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
                 />
 
                 <View style={styles.sheetContainer}>
+                    {/* Drag handle */}
+                    <View style={styles.handleRow}>
+                        <View style={styles.handle} />
+                    </View>
+
+                    {/* Header */}
                     <View style={styles.header}>
-                        <Text style={styles.modalTitle}>{title}</Text>
+                        <View style={styles.headerLeft}>
+                            <View style={[styles.headerIcon, { backgroundColor: `${accentColor}15`, borderColor: `${accentColor}30` }]}>
+                                <Ionicons name={icon} size={16} color={accentColor} />
+                            </View>
+                            <Text style={styles.modalTitle}>{title}</Text>
+                        </View>
                         <Pressable onPress={onClose} style={styles.closeIcon}>
-                            <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
+                            <Ionicons name="close" size={18} color={theme.colors.text.secondary} />
                         </Pressable>
                     </View>
 
+                    {/* Form */}
                     <View style={styles.formContainer}>
                         <View style={styles.inputWrapper}>
+                            <Ionicons
+                                name="barbell-outline"
+                                size={18}
+                                color={theme.colors.text.tertiary}
+                                style={styles.inputIcon}
+                            />
                             <TextInput
                                 style={styles.input}
-                                placeholder="Workout Title"
+                                placeholder="Workout name"
                                 placeholderTextColor={theme.colors.text.tertiary}
                                 value={workoutTitle}
                                 onChangeText={setWorkoutTitle}
                                 autoFocus
                                 clearButtonMode="while-editing"
+                                selectionColor={accentColor}
                             />
                         </View>
 
                         {mode === 'log' && (
-                            <View style={styles.dateSection}>
+                            <>
                                 <Pressable
                                     style={[styles.dateButton, showDatePicker && styles.dateButtonActive]}
                                     onPress={toggleDatePicker}
                                 >
                                     <View style={styles.dateRow}>
+                                        <Ionicons name="calendar-outline" size={18} color={theme.colors.text.tertiary} />
                                         <Text style={styles.dateText}>
                                             {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                                         </Text>
@@ -235,10 +258,9 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
                                             {date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                                         </Text>
                                         <Ionicons
-                                            name="chevron-forward"
-                                            size={16}
+                                            name={showDatePicker ? 'chevron-up' : 'chevron-down'}
+                                            size={14}
                                             color={theme.colors.text.tertiary}
-                                            style={{ transform: [{ rotate: showDatePicker ? '90deg' : '0deg' }] }}
                                         />
                                     </View>
                                 </Pressable>
@@ -257,14 +279,20 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
                                         />
                                     </View>
                                 )}
-                            </View>
+                            </>
                         )}
 
                         <Pressable
-                            style={[styles.primaryButton, !workoutTitle.trim() && styles.btnDisabled]}
+                            style={({ pressed }) => [
+                                styles.primaryButton,
+                                { backgroundColor: accentColor },
+                                !workoutTitle.trim() && styles.btnDisabled,
+                                pressed && workoutTitle.trim() ? { opacity: 0.85 } : {},
+                            ]}
                             onPress={handleSubmit}
                             disabled={!workoutTitle.trim()}
                         >
+                            <Ionicons name={mode === 'create' ? 'play' : 'checkmark'} size={18} color={theme.colors.text.primary} />
                             <Text style={styles.primaryButtonText}>{buttonText}</Text>
                         </Pressable>
                     </View>
@@ -281,102 +309,128 @@ const styles = StyleSheet.create({
     },
     modalBackdrop: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: theme.colors.ui.glass,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
     },
     sheetContainer: {
-        backgroundColor: theme.colors.ui.glass,
-        borderRadius: theme.borderRadius.l,
-        overflow: 'hidden',
-        paddingBottom: theme.spacing.navHeight + 20,
-        bottom: -40,
+        backgroundColor: '#111114',
+        borderTopLeftRadius: theme.borderRadius.xl,
+        borderTopRightRadius: theme.borderRadius.xl,
+        borderTopWidth: 1,
+        borderLeftWidth: 1,
+        borderRightWidth: 1,
+        borderColor: theme.colors.ui.border,
+        // Extend background below visible area so keyboard gap is covered
+        paddingBottom: theme.spacing.xl + 200,
+        marginBottom: -200,
+    },
+    handleRow: {
+        alignItems: 'center',
+        paddingTop: 10,
+        paddingBottom: 6,
+    },
+    handle: {
+        width: 36,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
     },
     header: {
-        paddingTop: 22,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: theme.spacing.l,
-        marginBottom: theme.spacing.l,
+        paddingTop: theme.spacing.s,
+        paddingBottom: theme.spacing.m,
+    },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    headerIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
     },
     modalTitle: {
-        fontSize: theme.typography.sizes.xl,
-        fontWeight: '900',
+        fontSize: 17,
+        fontWeight: '700',
         color: theme.colors.text.primary,
-        fontStyle: 'italic',
-        textTransform: 'uppercase',
-        letterSpacing: theme.typography.tracking.tight,
+        letterSpacing: 0.3,
     },
     closeIcon: {
-        padding: theme.spacing.xs,
-        backgroundColor: theme.colors.ui.glassStrong,
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
         borderRadius: theme.borderRadius.full,
         borderWidth: 1,
         borderColor: theme.colors.ui.border,
     },
     formContainer: {
-        paddingHorizontal: theme.spacing.m,
-        gap: theme.spacing.s,
-    },
-    label: {
-        fontSize: theme.typography.sizes.label,
-        fontWeight: '700',
-        color: theme.colors.text.secondary,
-        paddingHorizontal: theme.spacing.xs,
-        textTransform: 'uppercase',
-        letterSpacing: theme.typography.tracking.wide,
+        paddingHorizontal: theme.spacing.l,
+        gap: 10,
+        paddingBottom: theme.spacing.s,
     },
     inputWrapper: {
-        backgroundColor: theme.colors.ui.glassStrong,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
         borderRadius: theme.borderRadius.m,
         borderWidth: 1,
         borderColor: theme.colors.ui.border,
+        paddingHorizontal: 14,
+    },
+    inputIcon: {
+        marginRight: 10,
     },
     input: {
-        padding: theme.spacing.m,
+        flex: 1,
+        paddingVertical: 14,
         color: theme.colors.text.primary,
-        fontSize: theme.typography.sizes.m,
-        fontWeight: '600',
-    },
-    dateSection: {
-        marginTop: theme.spacing.xs,
+        fontSize: 15,
+        fontWeight: '500',
     },
     dateButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: theme.colors.ui.glassStrong,
-        padding: theme.spacing.m,
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+        paddingVertical: 12,
+        paddingHorizontal: 14,
         borderRadius: theme.borderRadius.m,
         borderWidth: 1,
         borderColor: theme.colors.ui.border,
     },
     dateButtonActive: {
-        backgroundColor: theme.colors.ui.primaryLight,
-        borderColor: theme.colors.status.active,
+        borderColor: theme.colors.ui.primaryBorder,
     },
     dateRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: theme.spacing.s,
+        gap: 8,
     },
     dateText: {
         color: theme.colors.text.primary,
-        fontSize: theme.typography.sizes.m,
-        fontWeight: '600',
+        fontSize: 15,
+        fontWeight: '500',
     },
     timeRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: theme.spacing.xs,
+        gap: 6,
     },
     timeText: {
         color: theme.colors.text.secondary,
-        fontSize: theme.typography.sizes.m,
+        fontSize: 14,
         fontWeight: '500',
     },
     datePickerContainer: {
-        marginTop: theme.spacing.s,
-        backgroundColor: theme.colors.ui.glassStrong,
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
         borderRadius: theme.borderRadius.m,
         overflow: 'hidden',
         borderWidth: 1,
@@ -386,29 +440,24 @@ const styles = StyleSheet.create({
         height: 180,
     },
     primaryButton: {
-        backgroundColor: theme.colors.status.active,
-        paddingVertical: theme.spacing.l,
-        borderRadius: theme.borderRadius.l,
+        flexDirection: 'row',
         alignItems: 'center',
-        marginTop: theme.spacing.s,
-        shadowColor: theme.colors.status.active,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 15,
+        borderRadius: theme.borderRadius.m,
+        marginTop: 4,
     },
     btnDisabled: {
-        backgroundColor: theme.colors.ui.glassStrong,
-        opacity: 0.5,
-        shadowOpacity: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        opacity: 0.4,
     },
     primaryButtonText: {
         color: theme.colors.text.primary,
-        fontSize: theme.typography.sizes.m,
-        fontWeight: '900',
-        fontStyle: 'italic',
+        fontSize: 15,
+        fontWeight: '700',
         textTransform: 'uppercase',
-        letterSpacing: theme.typography.tracking.wide,
+        letterSpacing: 0.8,
     },
 });
 

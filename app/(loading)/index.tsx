@@ -45,7 +45,7 @@ export default function LoadingScreen() {
 
     // Has tokens and user data loaded → go to home
     if (user !== undefined) {
-      router.replace('/(home)');
+      router.replace('/(tabs)/(home)');
       return;
     }
 

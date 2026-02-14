@@ -21,7 +21,7 @@ export default function DebugView() {
         await storeAccessToken(data.access);
         await storeRefreshToken(data.refresh);
       }
-      router.replace('/(home)');
+      router.replace('/(tabs)/(home)');
     } catch (error) {
       console.error('Error during debug login:', error);
     }
@@ -61,7 +61,7 @@ export default function DebugView() {
 
           <Pressable
             style={[styles.button, { marginTop: 12, backgroundColor: '#32D74B' }]}
-            onPress={() => router.replace('/(home)')}
+            onPress={() => router.replace('/(tabs)/(home)')}
           >
             <Ionicons name="home-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
             <Text style={styles.buttonText}>Go to Home</Text>

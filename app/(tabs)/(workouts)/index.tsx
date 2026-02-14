@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContent: {
-    padding: theme.spacing.m,
+    paddingHorizontal: 12,
     paddingTop: 0,
   },
 });

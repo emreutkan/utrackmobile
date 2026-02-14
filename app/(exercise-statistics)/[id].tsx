@@ -24,13 +24,13 @@ export default function ExerciseStatisticsScreen() {
   const [ranking, setRanking] = useState<ExerciseRanking | null>(null);
   const [recentPerformance, setRecentPerformance] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPro, setIsPro] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const insets = useSafeAreaInsets();
 
-  if (user !== undefined) {
-    setIsPro(user.is_pro || user.is_paid_pro || user.is_trial);
-  }
+  const isPro = useMemo(() => {
+    if (!user) return null;
+    return user.is_pro || user.is_paid_pro || user.is_trial;
+  }, [user]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -102,14 +102,17 @@ export default function ExerciseStatisticsScreen() {
     if (!id) return;
 
     if (user !== undefined && !isLoadingUser) {
-      if (!user.is_pro) {
+      if (!isPro) {
         setShowUpgradeModal(true);
         setIsLoading(false);
         return;
       }
       fetchData();
     }
-  }, [id, user, isLoadingUser, fetchData]);
+  }, [id, user, isLoadingUser, isPro, fetchData]);
+
+  const showLoading = isLoading || isLoadingUser || !user || isPro === null;
+  const hasData = history && history.history.length > 0;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -121,15 +124,11 @@ export default function ExerciseStatisticsScreen() {
 
       <StatisticsHeader exerciseName={history?.exercise_name} onRefresh={fetchData} />
 
-      {isLoading || isLoadingUser || !user || isPro === null ? (
+      {showLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.status.active} />
         </View>
-      ) : isPro === false ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.status.active} />
-        </View>
-      ) : history && history.history.length > 0 ? (
+      ) : hasData ? (
         <ScrollView
           style={styles.content}
           contentContainerStyle={[styles.contentContainer, { paddingBottom: insets.bottom + 40 }]}
@@ -180,7 +179,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: 16,
+    padding: 12,
+    gap: 10,
   },
   loadingContainer: {
     flex: 1,

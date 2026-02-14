@@ -1,9 +1,8 @@
-import { Workout } from '@/api/types/index';
 import TrainingIntensityCard from './TrainingIntensityCard';
 import { RestDayCard } from './WorkoutModal';
 import { theme } from '@/constants/theme';
 import { useDateStore } from '@/state/userStore';
-import { useTodayStatus, useActiveWorkout, useWorkoutSummary } from '@/hooks/useWorkout';
+import { useTodayStatus, useWorkoutSummary } from '@/hooks/useWorkout';
 import { ActiveSectionSkeleton } from './homeLoadingSkeleton';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -14,8 +13,6 @@ import {
   Pressable,
   View,
   LayoutAnimation,
-  Platform,
-  UIManager,
 } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { SwipeAction } from '@/components/shared/SwipeAction';
@@ -26,10 +23,6 @@ import Animated, {
   interpolate,
   Easing,
 } from 'react-native-reanimated';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 interface ActiveSectionProps {
   onDeleteWorkout: (id: number) => void;
@@ -46,19 +39,20 @@ export default function ActiveSection({
 }: ActiveSectionProps) {
   const selectedDate = useDateStore((state) => state.today);
   const { data: todayStatus, isLoading: todayStatusLoading } = useTodayStatus(selectedDate);
-  const isSelectedToday = selectedDate.toDateString() === new Date().toDateString();
-  const {
-    data: activeWorkoutData,
-    isLoading: activeWorkoutLoading,
-  } = useActiveWorkout();
 
-  // Get today's workout ID if it exists and is completed
-  const todayWorkoutId =
-    todayStatus?.workout_status === 'performed' && todayStatus?.workout
-      ? (todayStatus.workout as Workout).id
+  // Derive data from the single checkToday response
+  const status = todayStatus?.status ?? 'none';
+  const activeWorkout = todayStatus?.active_workout ?? null;
+  const completedWorkout = todayStatus?.completed_workout ?? null;
+
+  // Get workout summary for completed workouts
+  const completedWorkoutId = status === 'completed' && completedWorkout ? completedWorkout.id : null;
+  const { data: workoutSummary } = useWorkoutSummary(completedWorkoutId);
+
+  const todayWorkoutScore =
+    workoutSummary && typeof workoutSummary === 'object' && 'score' in workoutSummary
+      ? (workoutSummary.score as number)
       : null;
-
-  const { data: workoutSummary } = useWorkoutSummary(todayWorkoutId);
 
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -66,21 +60,6 @@ export default function ActiveSection({
 
   // Animated value
   const animationProgress = useSharedValue(0);
-
-  // Convert active workout data to typed object
-  const activeWorkout =
-    activeWorkoutData && typeof activeWorkoutData === 'object' && 'id' in activeWorkoutData
-      ? (activeWorkoutData as Workout)
-      : null;
-
-  // Get today's workout score from summary
-  const todayWorkoutScore =
-    workoutSummary && typeof workoutSummary === 'object' && 'score' in workoutSummary
-      ? (workoutSummary.score as number)
-      : null;
-
-  // Initial load and refresh on focus
-  // No refetch on focus: active-workout is shared cache; mutations invalidate when needed
 
   // Timer Logic
   useEffect(() => {
@@ -184,22 +163,21 @@ export default function ActiveSection({
     };
   });
 
-  if (todayStatusLoading || (isSelectedToday && activeWorkoutLoading)) {
+  if (todayStatusLoading) {
     return <ActiveSectionSkeleton />;
   }
 
-  // Only show active workout card when the selected date is actually today
-  if (isSelectedToday && activeWorkout) {
+  // Active workout card
+  if (status === 'active' && activeWorkout) {
     const exercisesCount = activeWorkout.exercises?.length || 0;
     const setsCount =
       activeWorkout.exercises?.reduce((total, ex) => total + (ex.sets?.length || 0), 0) || 0;
 
     return (
       <ReanimatedSwipeable
-        renderRightActions={(p, d) => (
+        renderRightActions={(p) => (
           <SwipeAction
             progress={p}
-            dragX={d}
             onPress={() => onDeleteWorkout(activeWorkout.id)}
             iconName="trash-outline"
           />
@@ -273,31 +251,51 @@ export default function ActiveSection({
     );
   }
 
-  // Check for rest day first (priority)
-  if (todayStatus?.workout_status === 'rest_day') {
-    return <RestDayCard />;
-  }
-
-  // Also check if rest day is set directly on todayStatus (fallback)
-  if (
-    todayStatus &&
-    typeof todayStatus === 'object' &&
-    todayStatus !== null &&
-    'is_rest' in todayStatus &&
-    todayStatus.is_rest
-  ) {
-    return <RestDayCard />;
-  }
-
-  // Check for completed workout - Show TrainingIntensityCard instead
-  if (todayStatus?.workout_status === 'performed' && todayStatus?.workout) {
-    const w = todayStatus.workout;
+  // Rest day card
+  if (status === 'rest_day' && completedWorkout) {
     return (
-      <TrainingIntensityCard
-        intensityScore={todayWorkoutScore ?? 0}
-        totalVolume={w.total_volume || 0}
-        caloriesBurned={Number(w.calories_burned || 0)}
-      />
+      <ReanimatedSwipeable
+        renderRightActions={(p) => (
+          <SwipeAction
+            progress={p}
+            onPress={() => onDeleteWorkout(completedWorkout.id)}
+            iconName="trash-outline"
+          />
+        )}
+        friction={2}
+        enableTrackpadTwoFingerGesture
+        rightThreshold={40}
+      >
+        <Pressable onPress={() => router.push(`/(workouts)/${completedWorkout.id}`)}>
+          <RestDayCard />
+        </Pressable>
+      </ReanimatedSwipeable>
+    );
+  }
+
+  // Completed workout - Show TrainingIntensityCard
+  if (status === 'completed' && completedWorkout) {
+    return (
+      <ReanimatedSwipeable
+        renderRightActions={(p) => (
+          <SwipeAction
+            progress={p}
+            onPress={() => onDeleteWorkout(completedWorkout.id)}
+            iconName="trash-outline"
+          />
+        )}
+        friction={2}
+        enableTrackpadTwoFingerGesture
+        rightThreshold={40}
+      >
+        <Pressable onPress={() => router.push(`/(workouts)/${completedWorkout.id}`)}>
+          <TrainingIntensityCard
+            intensityScore={todayWorkoutScore ?? 0}
+            totalVolume={completedWorkout.total_volume || 0}
+            caloriesBurned={Number(completedWorkout.calories_burned || 0)}
+          />
+        </Pressable>
+      </ReanimatedSwipeable>
     );
   }
 

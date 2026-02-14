@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, Pressable, View } from 'react-native';
 import { theme } from '@/constants/theme';
-import { parseRestTime, validateSetData } from '../ExerciseCardUtils';
+import { autoFormatRestInput, parseRestTime, validateSetData } from '../ExerciseCardUtils';
 
 interface AddSetRowSimpleProps {
     lastSet: any;
@@ -101,13 +101,17 @@ export const AddSetRowSimple = ({
                     style={[styles.setInput, styles.addSetInput]}
                     value={inputs.restTime}
                     onChangeText={(value) => {
-                        const numericRegex = /^[0-9]*\.?[0-9]*$/;
-                        if (value === '' || numericRegex.test(value)) {
-                            setInputs(p => ({ ...p, restTime: value }));
+                        const filtered = value.replace(/[^0-9:]/g, '');
+                        setInputs(p => ({ ...p, restTime: filtered }));
+                    }}
+                    onBlur={() => {
+                        if (inputs.restTime) {
+                            const formatted = autoFormatRestInput(inputs.restTime);
+                            setInputs(p => ({ ...p, restTime: formatted }));
                         }
                     }}
-                    keyboardType="numbers-and-punctuation"
-                    placeholder="Rest"
+                    keyboardType="numeric"
+                    placeholder="0:00"
                     placeholderTextColor={theme.colors.text.tertiary}
                     onFocus={onFocus}
                 />

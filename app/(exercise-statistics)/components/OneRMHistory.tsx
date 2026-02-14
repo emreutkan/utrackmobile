@@ -1,4 +1,4 @@
-import { theme, typographyStyles } from '@/constants/theme';
+import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -10,39 +10,37 @@ interface OneRMHistoryProps {
 export default function OneRMHistory({ history, best1RM }: OneRMHistoryProps) {
   return (
     <View>
-      <Text style={styles.historySectionTitle}>1RM HISTORY</Text>
-      <View style={styles.historyList}>
+      <Text style={styles.sectionLabel}>1RM HISTORY</Text>
+      <View style={styles.list}>
         {history.map((entry, idx) => {
           const date = new Date(entry.workout_date);
-          const isNewBest = entry.one_rep_max >= best1RM && idx < 3;
+          const day = date.getDate();
+          const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+          const isPB = entry.one_rep_max >= best1RM && idx < 3;
 
           return (
-            <View key={idx} style={styles.historyItem}>
-              <View style={styles.historyItemMain}>
-                <View style={styles.dateContainer}>
-                  <Text style={styles.dateDay}>{date.getDate()}</Text>
-                  <Text style={styles.dateMonth}>
-                    {date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.workoutInfo}>
-                  <Text style={styles.workoutTitle} numberOfLines={1}>
-                    {entry.workout_title}
-                  </Text>
-                  <View style={styles.bestBadgeContainer}>
-                    {isNewBest && (
-                      <View style={styles.bestBadge}>
-                        <Ionicons name="star" size={10} color="#000" />
-                        <Text style={styles.bestBadgeText}>PB</Text>
-                      </View>
-                    )}
-                    <Text style={styles.workoutYear}>{date.getFullYear()}</Text>
-                  </View>
+            <View key={idx} style={styles.item}>
+              <View style={styles.dateBox}>
+                <Text style={styles.dateDay}>{day}</Text>
+                <Text style={styles.dateMonth}>{month}</Text>
+              </View>
+              <View style={styles.info}>
+                <Text style={styles.workoutTitle} numberOfLines={1}>
+                  {entry.workout_title}
+                </Text>
+                <View style={styles.badgeRow}>
+                  {isPB && (
+                    <View style={styles.pbBadge}>
+                      <Ionicons name="star" size={8} color="#000" />
+                      <Text style={styles.pbText}>PB</Text>
+                    </View>
+                  )}
+                  <Text style={styles.year}>{date.getFullYear()}</Text>
                 </View>
               </View>
-              <View style={styles.historyItemRight}>
-                <Text style={styles.historyValue}>{entry.one_rep_max.toFixed(1)}</Text>
-                <Text style={styles.historyUnit}>KG</Text>
+              <View style={styles.valueGroup}>
+                <Text style={styles.rmValue}>{entry.one_rep_max.toFixed(1)}</Text>
+                <Text style={styles.unit}>kg</Text>
               </View>
             </View>
           );
@@ -53,34 +51,31 @@ export default function OneRMHistory({ history, best1RM }: OneRMHistoryProps) {
 }
 
 const styles = StyleSheet.create({
-  historySectionTitle: {
-    ...typographyStyles.labelMuted,
-    marginBottom: 15,
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: theme.colors.text.tertiary,
+    letterSpacing: 1.5,
+    marginBottom: 8,
     marginLeft: 4,
   },
-  historyList: {
-    gap: 8,
+  list: {
+    gap: 6,
   },
-  historyItem: {
+  item: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
+    padding: 12,
     backgroundColor: theme.colors.ui.glass,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.ui.border,
+    gap: 10,
   },
-  historyItemMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
-  },
-  dateContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  dateBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: theme.colors.ui.glassStrong,
     alignItems: 'center',
     justifyContent: 'center',
@@ -88,64 +83,62 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.ui.border,
   },
   dateDay: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '900',
     color: theme.colors.text.primary,
-    fontStyle: 'italic',
   },
   dateMonth: {
     fontSize: 8,
     fontWeight: '700',
     color: theme.colors.text.tertiary,
-    marginTop: -2,
+    marginTop: -1,
   },
-  workoutInfo: {
+  info: {
     flex: 1,
   },
   workoutTitle: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     color: theme.colors.text.primary,
-    fontStyle: 'italic',
     marginBottom: 2,
   },
-  bestBadgeContainer: {
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  bestBadge: {
+  pbBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
     backgroundColor: theme.colors.status.warning,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 5,
   },
-  bestBadgeText: {
+  pbText: {
     fontSize: 8,
     fontWeight: '900',
     color: '#000',
   },
-  workoutYear: {
+  year: {
     fontSize: 10,
     fontWeight: '700',
     color: theme.colors.text.tertiary,
   },
-  historyItemRight: {
+  valueGroup: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 4,
+    gap: 3,
   },
-  historyValue: {
+  rmValue: {
     fontSize: 16,
     fontWeight: '900',
     color: theme.colors.text.primary,
-    fontStyle: 'italic',
+    fontVariant: ['tabular-nums'],
   },
-  historyUnit: {
-    fontSize: 11,
+  unit: {
+    fontSize: 10,
     fontWeight: '700',
     color: theme.colors.text.tertiary,
   },

@@ -1,10 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
 import { SwipeAction } from '../SwipeAction';
 import { InsightsModal } from '../InsightsModal';
 import {
+    autoFormatRestInput,
     formatRestTimeForDisplay,
     formatRestTimeForInput,
     formatWeight,
@@ -161,10 +163,9 @@ export const SetRow = ({
         }
     };
 
-    const renderRightActions = (progress: any, dragX: any) => (
+    const renderRightActions = (progress: any) => (
         <SwipeAction
             progress={progress}
-            dragX={dragX}
             onPress={() => {
                 swipeRef.current?.close();
                 onDelete(set.id);
@@ -173,12 +174,11 @@ export const SetRow = ({
         />
     );
 
-    const renderLeftActions = (progress: any, dragX: any) => {
+    const renderLeftActions = (progress: any) => {
         if (set.insights && (set.insights.good || set.insights.bad)) {
             return (
                 <SwipeAction
                     progress={progress}
-                    dragX={dragX}
                     onPress={() => {
                         swipeRef.current?.close();
                         setShowInsights(true);
@@ -191,7 +191,6 @@ export const SetRow = ({
             return (
                 <SwipeAction
                     progress={progress}
-                    dragX={dragX}
                     onPress={() => {
                         swipeRef.current?.close();
                         onShowStatistics(exerciseId);
@@ -202,6 +201,9 @@ export const SetRow = ({
         }
         return null;
     };
+
+    const hasInsights = set.insights && (set.insights.good || set.insights.bad);
+    const hasGoodInsights = set.insights?.good && Object.keys(set.insights.good).length > 0;
 
     return (
         <>
@@ -220,27 +222,45 @@ export const SetRow = ({
                 leftThreshold={40}
                 rightThreshold={40}
             >
-                <View style={[styles.setRow, hasBadInsights && styles.setRowWithBadInsights]}>
-                    <Text style={[styles.setText, { maxWidth: 30 }, set.is_warmup && { color: theme.colors.status.warning, fontWeight: 'bold' }]}>
-                        {set.is_warmup ? 'W' : String(index + 1)}
-                    </Text>
+                <View style={styles.setRow}>
+                    {/* Set number + insights indicator */}
+                    <View style={styles.setNumberCol}>
+                        <Text style={[styles.setNumber, set.is_warmup && styles.warmupNumber]}>
+                            {set.is_warmup ? 'W' : String(index + 1)}
+                        </Text>
+                        {hasInsights && (
+                            <Pressable onPress={() => setShowInsights(true)} hitSlop={6}>
+                                <Ionicons
+                                    name="bulb"
+                                    size={12}
+                                    color={hasBadInsights ? theme.colors.status.warning : theme.colors.status.success}
+                                />
+                            </Pressable>
+                        )}
+                    </View>
+
                     {isEditable ? (
                         <TextInput
                             style={styles.setInput}
                             value={localValues.restTime}
                             onChangeText={(value) => {
-                                const numericRegex = /^[0-9]*\.?[0-9]*$/;
-                                if (value === '' || numericRegex.test(value)) {
-                                    setLocalValues(prev => ({ ...prev, restTime: value }));
-                                    currentValuesRef.current.restTime = value;
-                                }
+                                const filtered = value.replace(/[^0-9:]/g, '');
+                                setLocalValues(prev => ({ ...prev, restTime: filtered }));
+                                currentValuesRef.current.restTime = filtered;
                             }}
                             onFocus={() => {
                                 if (onInputFocus) onInputFocus();
                             }}
-                            onBlur={() => handleBlur('restTime')}
-                            keyboardType="numbers-and-punctuation"
-                            placeholder="Rest"
+                            onBlur={() => {
+                                if (localValues.restTime) {
+                                    const formatted = autoFormatRestInput(localValues.restTime);
+                                    setLocalValues(prev => ({ ...prev, restTime: formatted }));
+                                    currentValuesRef.current.restTime = formatted;
+                                }
+                                handleBlur('restTime');
+                            }}
+                            keyboardType="numeric"
+                            placeholder="0:00"
                             placeholderTextColor={theme.colors.text.tertiary}
                         />
                     ) : (
@@ -364,18 +384,27 @@ export const SetRow = ({
 const styles = StyleSheet.create({
     setRow: {
         flexDirection: 'row',
-        paddingBottom: 8,
-        paddingTop: 8,
+        paddingVertical: 6,
         paddingHorizontal: 4,
         alignItems: 'center',
-        borderRadius: 8,
         backgroundColor: 'transparent',
     },
-    setRowWithBadInsights: {
-        borderWidth: 2,
-        borderColor: theme.colors.status.error,
-        backgroundColor: 'rgba(255, 69, 58, 0.08)',
-        borderStyle: 'solid',
+    setNumberCol: {
+        width: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 2,
+    },
+    setNumber: {
+        color: theme.colors.text.secondary,
+        fontSize: 13,
+        fontWeight: '700',
+        textAlign: 'center',
+        fontVariant: ['tabular-nums'],
+    },
+    warmupNumber: {
+        color: theme.colors.status.warning,
+        fontWeight: '800',
     },
     setText: {
         flex: 1,
@@ -391,15 +420,13 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         textAlignVertical: 'center',
         color: theme.colors.text.primary,
-        fontSize: 16,
+        fontSize: 15,
         fontVariant: ['tabular-nums'],
         backgroundColor: 'transparent',
         borderBottomWidth: 1,
         borderBottomColor: theme.colors.ui.border,
         paddingVertical: 6,
-        paddingBottom: 6,
-        marginHorizontal: 6,
-        minHeight: 40,
-        lineHeight: 18,
+        marginHorizontal: 4,
+        minHeight: 38,
     },
 });

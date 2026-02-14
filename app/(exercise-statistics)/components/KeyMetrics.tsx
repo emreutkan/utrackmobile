@@ -8,53 +8,38 @@ interface KeyMetricsProps {
 }
 
 export default function KeyMetrics({ best1RM, progressionPct }: KeyMetricsProps) {
+  const isPositive = progressionPct >= 0;
+  const progressColor = isPositive ? theme.colors.status.success : theme.colors.status.error;
+
   return (
-    <View style={styles.metricsRow}>
-      <View style={[styles.metricCard, { flex: 1.5 }]}>
-        <View style={styles.metricHeader}>
-          <Ionicons name="trophy-outline" size={14} color={theme.colors.status.warning} />
-          <Text style={styles.metricLabel}>PERSONAL BEST</Text>
+    <View style={styles.row}>
+      {/* Personal Best */}
+      <View style={[styles.card, styles.pbCard]}>
+        <View style={styles.cardHeader}>
+          <Ionicons name="trophy" size={14} color={theme.colors.status.warning} />
+          <Text style={styles.cardLabel}>BEST 1RM</Text>
         </View>
-        <View style={styles.metricValueContainer}>
-          <Text style={styles.metricValue}>{best1RM.toFixed(1)}</Text>
-          <Text style={styles.metricUnit}>KG</Text>
+        <View style={styles.valueRow}>
+          <Text style={styles.bigValue}>{best1RM.toFixed(1)}</Text>
+          <Text style={styles.unit}>kg</Text>
         </View>
       </View>
 
-      <View style={[styles.metricCard, { flex: 1 }]}>
-        <View style={styles.metricHeader}>
+      {/* Progress */}
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
           <Ionicons
-            name={progressionPct >= 0 ? 'trending-up' : 'trending-down'}
+            name={isPositive ? 'trending-up' : 'trending-down'}
             size={14}
-            color={progressionPct >= 0 ? theme.colors.status.success : theme.colors.status.error}
+            color={progressColor}
           />
-          <Text style={styles.metricLabel}>PROGRESS</Text>
+          <Text style={styles.cardLabel}>PROGRESS</Text>
         </View>
-        <View style={styles.metricValueContainer}>
-          <Text
-            style={[
-              styles.metricValue,
-              {
-                color:
-                  progressionPct >= 0 ? theme.colors.status.success : theme.colors.status.error,
-                fontSize: 24,
-              },
-            ]}
-          >
-            {progressionPct >= 0 ? '+' : ''}
-            {progressionPct.toFixed(1)}
+        <View style={styles.valueRow}>
+          <Text style={[styles.bigValue, { color: progressColor, fontSize: 26 }]}>
+            {isPositive ? '+' : ''}{progressionPct.toFixed(1)}
           </Text>
-          <Text
-            style={[
-              styles.metricUnit,
-              {
-                color:
-                  progressionPct >= 0 ? theme.colors.status.success : theme.colors.status.error,
-              },
-            ]}
-          >
-            %
-          </Text>
+          <Text style={[styles.unit, { color: progressColor }]}>%</Text>
         </View>
       </View>
     </View>
@@ -62,45 +47,47 @@ export default function KeyMetrics({ best1RM, progressionPct }: KeyMetricsProps)
 }
 
 const styles = StyleSheet.create({
-  metricsRow: {
+  row: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
+    gap: 8,
   },
-  metricCard: {
+  card: {
+    flex: 1,
     backgroundColor: theme.colors.ui.glass,
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
     borderColor: theme.colors.ui.border,
   },
-  metricHeader: {
+  pbCard: {
+    flex: 1.4,
+  },
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginBottom: 8,
   },
-  metricLabel: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: theme.colors.text.secondary,
+  cardLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: theme.colors.text.tertiary,
     letterSpacing: 0.5,
   },
-  metricValueContainer: {
+  valueRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 4,
   },
-  metricValue: {
-    fontSize: 32,
+  bigValue: {
+    fontSize: 28,
     fontWeight: '900',
     color: theme.colors.text.primary,
-    fontStyle: 'italic',
+    fontVariant: ['tabular-nums'],
   },
-  metricUnit: {
-    fontSize: 14,
-    fontWeight: '900',
+  unit: {
+    fontSize: 13,
+    fontWeight: '800',
     color: theme.colors.text.tertiary,
-    fontStyle: 'italic',
   },
 });

@@ -47,8 +47,6 @@ export const ActiveWorkoutExerciseCard = ({
     const [showHistory, setShowHistory] = useState<boolean>(false);
     const [setHistory, setSetHistory] = useState<any[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
-    const [isTrackingTUT, setIsTrackingTUT] = useState<boolean>(false);
-
     useEffect(() => {
         if (!showHistory || !exercise) return;
         const loadHistory = async () => {
@@ -105,10 +103,9 @@ export const ActiveWorkoutExerciseCard = ({
         }
     };
 
-    const renderLeftActions = (progress: any, dragX: any) => (
+    const renderLeftActions = (progress: any) => (
         <SwipeAction
             progress={progress}
-            dragX={dragX}
             onPress={() => {
                 swipeControl.closeAll();
                 onToggleLock(idToLock);
@@ -117,10 +114,9 @@ export const ActiveWorkoutExerciseCard = ({
         />
     );
 
-    const renderRightActions = (progress: any, dragX: any) => (
+    const renderRightActions = (progress: any) => (
         <SwipeAction
             progress={progress}
-            dragX={dragX}
             onPress={() => {
                 swipeControl.closeAll();
                 onRemove?.(idToLock);
@@ -169,7 +165,7 @@ export const ActiveWorkoutExerciseCard = ({
 
                 {(sets.length > 0 || !isLocked) && (
                     <View style={styles.setsContainer}>
-                        <SetsHeader columns={['SET', 'REST', 'WEIGHT', 'REPS', 'RIR']} showTut={isTrackingTUT} />
+                        <SetsHeader columns={['SET', 'REST', 'KG', 'REPS', 'RIR', 'TUT']} />
 
                         {sets.map((set: any, index: number) => {
                             const setKey = `set-${set.id || index}`;
@@ -190,6 +186,7 @@ export const ActiveWorkoutExerciseCard = ({
                                     }}
                                     onShowStatistics={onShowStatistics}
                                     exerciseId={exercise.id}
+                                    showTut={true}
                                 />
                             );
                         })}
@@ -204,7 +201,6 @@ export const ActiveWorkoutExerciseCard = ({
                                 onInputFocus?.();
                             }}
                             exerciseIndex={exerciseIndex ?? 0}
-                            onTrackingChange={setIsTrackingTUT}
                         />
                     </View>
                 )}

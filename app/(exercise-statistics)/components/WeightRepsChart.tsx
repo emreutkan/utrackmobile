@@ -11,14 +11,14 @@ export default function WeightRepsChart({ kgRepsData }: WeightRepsChartProps) {
   if (kgRepsData.length === 0) return null;
 
   return (
-    <View style={styles.sectionCard}>
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionIconContainer}>
-          <Ionicons name="barbell" size={18} color={theme.colors.text.brand} />
+    <View style={styles.card}>
+      <View style={styles.header}>
+        <View style={styles.iconBox}>
+          <Ionicons name="barbell" size={16} color={theme.colors.text.brand} />
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.sectionTitle}>WEIGHT & REPS</Text>
-          <Text style={styles.sectionSubtitle}>HIGHEST WEIGHT AT EACH REP COUNT</Text>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>WEIGHT & REPS</Text>
+          <Text style={styles.subtitle}>BEST WEIGHT AT EACH REP COUNT</Text>
         </View>
       </View>
 
@@ -28,40 +28,41 @@ export default function WeightRepsChart({ kgRepsData }: WeightRepsChartProps) {
 }
 
 const styles = StyleSheet.create({
-  sectionCard: {
+  card: {
     backgroundColor: theme.colors.ui.glass,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 12,
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
     borderColor: theme.colors.ui.border,
   },
-  sectionHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     marginBottom: 4,
   },
-  sectionIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+  iconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionTitle: {
-    fontSize: 13,
+  headerText: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 12,
     fontWeight: '900',
     color: theme.colors.text.primary,
-    fontStyle: 'italic',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
-  sectionSubtitle: {
+  subtitle: {
     fontSize: 9,
     fontWeight: '700',
     color: theme.colors.text.tertiary,
     letterSpacing: 0.5,
-    marginTop: 2,
+    marginTop: 1,
   },
 });

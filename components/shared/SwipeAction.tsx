@@ -1,20 +1,18 @@
 import React from 'react';
-import { StyleSheet, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
     useAnimatedStyle,
     interpolate,
     Extrapolation,
     SharedValue,
-    withSpring
+    withSpring,
 } from 'react-native-reanimated';
-import { RectButton } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { theme } from '@/constants/theme';
 
 interface SwipeActionProps {
     progress: SharedValue<number>;
-    dragX?: SharedValue<number>;
     onPress: () => void;
     iconName: keyof typeof Ionicons.glyphMap;
     color?: string;
@@ -23,16 +21,15 @@ interface SwipeActionProps {
     iconSize?: number;
 }
 
-export const SwipeAction = ({ 
-    progress, 
-    onPress, 
-    iconName, 
-    color = theme.colors.text.primary, 
+export const SwipeAction = ({
+    progress,
+    onPress,
+    iconName,
+    color = theme.colors.text.primary,
     backgroundColor = theme.colors.ui.glass,
     style,
-    iconSize = 22
+    iconSize = 20
 }: SwipeActionProps) => {
-    
     const animatedIconStyle = useAnimatedStyle(() => {
         const scale = interpolate(
             progress.value,
@@ -59,29 +56,28 @@ export const SwipeAction = ({
     };
 
     return (
-        <RectButton
+        <Pressable
             onPress={handlePress}
             style={[
-                styles.container,
+                styles.wrapper,
                 { backgroundColor },
-                style
+                style,
             ]}
-            underlayColor="rgba(255, 255, 255, 0.2)"
         >
             <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
                 <Ionicons name={iconName} size={iconSize} color={color} />
             </Animated.View>
-        </RectButton>
+        </Pressable>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        width: 80,
-        height: '100%',
+    wrapper: {
+        width: 68,
+        marginLeft: 6,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: theme.borderRadius.lg,
+        borderRadius: theme.borderRadius.m,
     },
     iconContainer: {
         justifyContent: 'center',

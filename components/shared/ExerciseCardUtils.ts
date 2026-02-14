@@ -67,12 +67,13 @@ export const formatValidationErrors = (validationErrors: any): string => {
 // Parse rest time: if contains ".", treat as minutes (X.YY), else as seconds
 export const parseRestTime = (input: string): number => {
     if (!input || input.trim() === '') return 0;
-    
-    if (input.includes('.')) {
-        // Treat as minutes: X.YY -> convert to seconds
-        const minutes = parseFloat(input);
-        if (isNaN(minutes)) return 0;
-        return Math.round(minutes * 60);
+
+    if (input.includes(':')) {
+        // Treat as m:ss -> convert to seconds
+        const parts = input.split(':');
+        const minutes = parseInt(parts[0]) || 0;
+        const seconds = parseInt(parts[1]) || 0;
+        return minutes * 60 + seconds;
     } else {
         // Treat as seconds
         const seconds = parseInt(input);
@@ -80,22 +81,42 @@ export const parseRestTime = (input: string): number => {
     }
 };
 
-// Format rest time for display
+// Format rest time for display (uses m:ss for >= 60s)
 export const formatRestTimeForDisplay = (seconds: number): string => {
     if (!seconds) return '';
-    if (seconds < 60) return `${seconds}`;
+    if (seconds < 60) return `0:${seconds.toString().padStart(2, '0')}`;
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
-    return s > 0 ? `${m}.${s.toString().padStart(2, '0')}` : `${m}`;
+    return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
-// Format rest time for input (shows as X.YY for minutes or just number for seconds)
+// Format rest time for input (uses m:ss format)
 export const formatRestTimeForInput = (seconds: number): string => {
     if (!seconds) return '';
-    if (seconds < 60) return `${seconds}`;
+    if (seconds < 60) return `0:${seconds.toString().padStart(2, '0')}`;
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
-    return s > 0 ? `${m}.${s.toString().padStart(2, '0')}` : `${m}`;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
+// Auto-format raw rest time input on blur
+// If user typed raw digits (no :), treat as total seconds and convert to m:ss
+// If already has :, just normalize the format
+export const autoFormatRestInput = (input: string): string => {
+    if (!input || input.trim() === '') return '';
+
+    if (input.includes(':')) {
+        // Already in m:ss format - normalize it
+        const seconds = parseRestTime(input);
+        if (seconds === 0) return '';
+        return formatRestTimeForDisplay(seconds);
+    }
+
+    // Raw digits - treat as total seconds
+    const totalSeconds = parseInt(input);
+    if (isNaN(totalSeconds) || totalSeconds === 0) return '';
+    if (totalSeconds > 10800) return formatRestTimeForDisplay(10800); // cap at 3 hours
+    return formatRestTimeForDisplay(totalSeconds);
 };
 
 // Format weight for display

@@ -199,6 +199,7 @@ export default function WorkoutExerciseDetailsView({
                                             key={item.id || index}
                                             exercise={exercise}
                                             sets={item.sets || []}
+                                            onShowStatistics={onShowStatistics}
                                         />
                                     );
                                 })}
@@ -222,8 +223,14 @@ export default function WorkoutExerciseDetailsView({
                         )}
                     </>
                 ) : (
-                    <View style={styles.placeholderContainer}>
-                        <Text style={styles.placeholderText}>No exercises yet. Tap the + button to add exercises.</Text>
+                    <View style={styles.emptyContainer}>
+                        <View style={styles.emptyIconContainer}>
+                            <Ionicons name="barbell-outline" size={48} color={theme.colors.text.tertiary} />
+                        </View>
+                        <Text style={styles.emptyTitle}>No exercises yet</Text>
+                        <Text style={styles.emptySubtitle}>
+                            Tap the <Ionicons name="add" size={14} color={theme.colors.status.active} /> button to add your first exercise
+                        </Text>
                     </View>
                 )}
             </View>
@@ -236,53 +243,80 @@ export default function WorkoutExerciseDetailsView({
             >
                 {selectedExerciseInfo && (
                     <View style={styles.modalContainer}>
-                        <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
-                            <Text style={styles.modalTitle}>{selectedExerciseInfo.name}</Text>
-                            <Pressable 
+                        <View style={styles.modalHeader}>
+                            <View>
+                                <Text style={styles.modalTitle}>{selectedExerciseInfo.name?.toUpperCase()}</Text>
+                                <Text style={styles.modalSubtitle}>EXERCISE INFO</Text>
+                            </View>
+                            <Pressable
                                 onPress={() => setSelectedExerciseInfo(null)}
                                 style={styles.modalCloseButton}
                             >
-                                <Ionicons name="close" size={24} color="#FFFFFF" />
+                                <Ionicons name="close" size={20} color={theme.colors.text.primary} />
                             </Pressable>
                         </View>
-                        
+
                         <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer}>
-                            {selectedExerciseInfo.description && (
-                                <View style={styles.infoSection}>
-                                    <Text style={styles.infoSectionTitle}>Description</Text>
-                                    <Text style={styles.infoSectionText}>{selectedExerciseInfo.description}</Text>
-                                </View>
-                            )}
-                            
-                            {selectedExerciseInfo.instructions && (
-                                <View style={styles.infoSection}>
-                                    <Text style={styles.infoSectionTitle}>Instructions</Text>
-                                    <Text style={styles.infoSectionText}>{selectedExerciseInfo.instructions}</Text>
-                                </View>
-                            )}
-                            
-                            {selectedExerciseInfo.safety_tips && (
-                                <View style={styles.infoSection}>
-                                    <Text style={styles.infoSectionTitle}>Safety Tips</Text>
-                                    <Text style={styles.infoSectionText}>{selectedExerciseInfo.safety_tips}</Text>
-                                </View>
-                            )}
-                            
+                            {/* Badges row */}
                             <View style={styles.infoRow}>
+                                {selectedExerciseInfo.primary_muscle && (
+                                    <View style={[styles.infoBadge, { backgroundColor: 'rgba(99, 102, 241, 0.1)', borderColor: 'rgba(99, 102, 241, 0.2)' }]}>
+                                        <Text style={[styles.infoBadgeValue, { color: theme.colors.status.active }]}>{selectedExerciseInfo.primary_muscle}</Text>
+                                    </View>
+                                )}
                                 {selectedExerciseInfo.category && (
                                     <View style={styles.infoBadge}>
-                                        <Text style={styles.infoBadgeLabel}>Category</Text>
                                         <Text style={styles.infoBadgeValue}>{selectedExerciseInfo.category}</Text>
                                     </View>
                                 )}
-                                
+                                {selectedExerciseInfo.equipment_type && (
+                                    <View style={styles.infoBadge}>
+                                        <Text style={styles.infoBadgeValue}>{selectedExerciseInfo.equipment_type}</Text>
+                                    </View>
+                                )}
                                 {selectedExerciseInfo.difficulty_level && (
                                     <View style={styles.infoBadge}>
-                                        <Text style={styles.infoBadgeLabel}>Difficulty</Text>
                                         <Text style={styles.infoBadgeValue}>{selectedExerciseInfo.difficulty_level}</Text>
                                     </View>
                                 )}
                             </View>
+
+                            {selectedExerciseInfo.description && (
+                                <View style={styles.infoSection}>
+                                    <Text style={styles.infoSectionLabel}>DESCRIPTION</Text>
+                                    <Text style={styles.infoSectionText}>{selectedExerciseInfo.description}</Text>
+                                </View>
+                            )}
+
+                            {selectedExerciseInfo.instructions && (
+                                <View style={styles.infoSection}>
+                                    <Text style={styles.infoSectionLabel}>INSTRUCTIONS</Text>
+                                    <Text style={styles.infoSectionText}>{selectedExerciseInfo.instructions}</Text>
+                                </View>
+                            )}
+
+                            {selectedExerciseInfo.safety_tips && (
+                                <View style={styles.infoSection}>
+                                    <View style={styles.infoSectionLabelRow}>
+                                        <Ionicons name="shield-checkmark" size={14} color={theme.colors.status.warning} />
+                                        <Text style={[styles.infoSectionLabel, { color: theme.colors.status.warning }]}>SAFETY</Text>
+                                    </View>
+                                    <Text style={styles.infoSectionText}>{selectedExerciseInfo.safety_tips}</Text>
+                                </View>
+                            )}
+
+                            {selectedExerciseInfo.secondary_muscles && selectedExerciseInfo.secondary_muscles.length > 0 && (
+                                <View style={styles.infoSection}>
+                                    <Text style={styles.infoSectionLabel}>SECONDARY MUSCLES</Text>
+                                    <View style={styles.infoRow}>
+                                        {selectedExerciseInfo.secondary_muscles.map((muscle: string, i: number) => (
+                                            <View key={i} style={styles.infoBadge}>
+                                                <Text style={styles.infoBadgeValue}>{muscle}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                </View>
+                            )}
                         </ScrollView>
                     </View>
                 )}
@@ -293,7 +327,7 @@ export default function WorkoutExerciseDetailsView({
 
 const styles = StyleSheet.create({
     content: {
-        paddingHorizontal: theme.spacing.s,
+        paddingHorizontal: 12,
     },
     sectionTitle: {
         fontSize: theme.typography.sizes.label,
@@ -303,80 +337,124 @@ const styles = StyleSheet.create({
         letterSpacing: theme.typography.tracking.labelTight,
         marginBottom: theme.spacing.m,
     },
-    placeholderContainer: {
+    emptyContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 40,
+        paddingTop: 80,
+        paddingBottom: 120,
+        paddingHorizontal: 40,
     },
-    placeholderText: {
-        color: '#8E8E93',
-        fontSize: 17,
+    emptyIconContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: theme.colors.ui.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: theme.spacing.l,
+    },
+    emptyTitle: {
+        color: theme.colors.text.primary,
+        fontSize: 18,
+        fontWeight: '700',
+        marginBottom: theme.spacing.s,
+    },
+    emptySubtitle: {
+        color: theme.colors.text.tertiary,
+        fontSize: 14,
         textAlign: 'center',
+        lineHeight: 20,
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: '#000000',
+        backgroundColor: theme.colors.background,
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingBottom: 16,
+        paddingHorizontal: theme.spacing.l,
+        paddingVertical: theme.spacing.l,
         borderBottomWidth: 1,
-        borderBottomColor: '#1C1C1E',
+        borderBottomColor: theme.colors.ui.border,
     },
     modalTitle: {
-        fontSize: 24,
+        fontSize: theme.typography.sizes.m,
+        fontWeight: '900',
+        color: theme.colors.text.primary,
+        fontStyle: 'italic',
+        letterSpacing: 0.5,
+    },
+    modalSubtitle: {
+        fontSize: theme.typography.sizes.xs,
         fontWeight: '700',
-        color: '#FFFFFF',
+        color: theme.colors.text.tertiary,
+        letterSpacing: 1,
+        marginTop: 2,
     },
     modalCloseButton: {
-        padding: 8,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: theme.colors.ui.glassStrong,
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     modalContent: {
         flex: 1,
     },
     modalContentContainer: {
-        padding: 16,
+        padding: theme.spacing.l,
+        gap: theme.spacing.l,
     },
     infoSection: {
-        marginBottom: 24,
+        backgroundColor: theme.colors.ui.glass,
+        borderRadius: theme.borderRadius.l,
+        padding: theme.spacing.m,
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
     },
-    infoSectionTitle: {
-        fontSize: 18,
-        fontWeight: '500',
-        color: '#FFFFFF',
-        marginBottom: 16,
+    infoSectionLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: theme.colors.text.tertiary,
+        letterSpacing: 1,
+        marginBottom: theme.spacing.s,
+    },
+    infoSectionLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: theme.spacing.s,
     },
     infoSectionText: {
-        fontSize: 17,
-        color: '#8E8E93',
-        lineHeight: 24,
+        fontSize: 14,
+        color: theme.colors.text.secondary,
+        lineHeight: 22,
     },
     infoRow: {
         flexDirection: 'row',
-        gap: 16,
-        marginTop: 16,
+        flexWrap: 'wrap',
+        gap: theme.spacing.s,
     },
     infoBadge: {
-        backgroundColor: '#1C1C1E',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        backgroundColor: theme.colors.ui.glass,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
         borderRadius: 8,
-    },
-    infoBadgeLabel: {
-        fontSize: 13,
-        color: '#8E8E93',
-        textTransform: 'uppercase',
-        marginBottom: 8,
-        fontWeight: '300',
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
     },
     infoBadgeValue: {
-        fontSize: 17,
-        color: '#FFFFFF',
-        fontWeight: '400',
+        fontSize: 12,
+        color: theme.colors.text.secondary,
+        fontWeight: '600',
+        textTransform: 'capitalize',
     },
 });
 

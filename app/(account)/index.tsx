@@ -2,6 +2,7 @@ import { updateGender, updateHeight, updateWeight } from '@/api/account';
 import { clearTokens } from '@/hooks/Storage';
 import { theme } from '@/constants/theme';
 import { useInvalidateUser, useUser, useClearUser, useChangePassword } from '@/hooks/useUser';
+import { useSettingsStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -29,6 +30,7 @@ export default function AccountScreen() {
   const changePassword = useChangePassword();
   // const { data: stats } = useUserStatistics();
   const invalidateUser = useInvalidateUser();
+  const { tutCountdown, tutReactionOffset, setTutCountdown, setTutReactionOffset } = useSettingsStore();
   // Controls visibility of the 3 modals
   const [modals, setModals] = useState({
     height: false,
@@ -277,6 +279,62 @@ export default function AccountScreen() {
           </Pressable>
         </View>
 
+        {/* Workout Settings Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionHeaderText}>WORKOUT</Text>
+        </View>
+        <View style={styles.settingsContainer}>
+          <View style={styles.settingCard}>
+            <View style={[styles.iconBox, { backgroundColor: 'rgba(255, 159, 10, 0.1)' }]}>
+              <Ionicons name="timer-outline" size={20} color={theme.colors.status.warning} />
+            </View>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingTitle}>TUT COUNTDOWN</Text>
+              <Text style={styles.settingSubtitle}>SECONDS BEFORE TRACKING STARTS</Text>
+            </View>
+            <View style={styles.stepperContainer}>
+              <Pressable
+                style={styles.stepperButton}
+                onPress={() => setTutCountdown(Math.max(0, tutCountdown - 1))}
+              >
+                <Ionicons name="remove" size={16} color={theme.colors.text.primary} />
+              </Pressable>
+              <Text style={styles.stepperValue}>{tutCountdown}s</Text>
+              <Pressable
+                style={styles.stepperButton}
+                onPress={() => setTutCountdown(Math.min(10, tutCountdown + 1))}
+              >
+                <Ionicons name="add" size={16} color={theme.colors.text.primary} />
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.settingCard}>
+            <View style={[styles.iconBox, { backgroundColor: 'rgba(255, 69, 58, 0.1)' }]}>
+              <Ionicons name="speedometer-outline" size={20} color={theme.colors.status.error} />
+            </View>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingTitle}>REACTION OFFSET</Text>
+              <Text style={styles.settingSubtitle}>SECONDS SUBTRACTED FROM TUT</Text>
+            </View>
+            <View style={styles.stepperContainer}>
+              <Pressable
+                style={styles.stepperButton}
+                onPress={() => setTutReactionOffset(Math.max(0, tutReactionOffset - 1))}
+              >
+                <Ionicons name="remove" size={16} color={theme.colors.text.primary} />
+              </Pressable>
+              <Text style={styles.stepperValue}>{tutReactionOffset}s</Text>
+              <Pressable
+                style={styles.stepperButton}
+                onPress={() => setTutReactionOffset(Math.min(5, tutReactionOffset + 1))}
+              >
+                <Ionicons name="add" size={16} color={theme.colors.text.primary} />
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionHeaderText}>SUBSCRIPTION</Text>
         </View>
@@ -369,9 +427,8 @@ export default function AccountScreen() {
       </ScrollView>
 
       <Modal
-            presentationStyle="formSheet"
+        presentationStyle="formSheet"
         visible={modals.height}
-        transparent
         animationType="fade"
         onRequestClose={() => toggleModal('height', false)}
       >
@@ -423,9 +480,8 @@ export default function AccountScreen() {
       </Modal>
 
       <Modal
-            presentationStyle="formSheet"
+        presentationStyle="formSheet"
         visible={modals.weight}
-        transparent
         animationType="fade"
         onRequestClose={() => toggleModal('weight', false)}
       >
@@ -477,9 +533,8 @@ export default function AccountScreen() {
       </Modal>
 
       <Modal
-            presentationStyle="formSheet"
+        presentationStyle="formSheet"
         visible={modals.gender}
-        transparent
         animationType="fade"
         onRequestClose={() => toggleModal('gender', false)}
       >
@@ -560,9 +615,8 @@ export default function AccountScreen() {
       </Modal>
 
       <Modal
-            presentationStyle="formSheet"
+        presentationStyle="formSheet"
         visible={modals.password}
-        transparent
         animationType="fade"
         onRequestClose={() => toggleModal('password', false)}
       >
@@ -925,5 +979,28 @@ const styles = StyleSheet.create({
     color: theme.colors.text.primary,
     fontSize: theme.typography.sizes.m,
     fontWeight: '600',
+  },
+
+  // Stepper
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stepperButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: theme.colors.ui.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperValue: {
+    color: theme.colors.text.primary,
+    fontSize: 16,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    minWidth: 30,
+    textAlign: 'center',
   },
 });

@@ -1,8 +1,7 @@
 import { Workout } from '@/api/types/workout';
-import { theme, typographyStyles } from '@/constants/theme';
+import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, Pressable, View } from 'react-native';
-import { formatWorkoutDate, formatWorkoutVolume } from '@/utils/workoutFormatters';
 
 interface WorkoutCardProps {
   workout: Workout;
@@ -10,176 +9,267 @@ interface WorkoutCardProps {
   onViewDetail: (workoutId: number) => void;
 }
 
+const formatDate = (dateString: string) => {
+  const d = new Date(dateString);
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+  const monthDay = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+  return `${weekday} · ${monthDay}`;
+};
+
+const formatVolume = (volume: number) => {
+  if (!volume) return '0 kg';
+  if (volume >= 1000) return `${(volume / 1000).toFixed(1)}t`;
+  return `${Math.round(volume)} kg`;
+};
+
+const formatDuration = (seconds: number) => {
+  if (!seconds) return null;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+};
+
 export default function WorkoutCard({ workout, onOpenMenu, onViewDetail }: WorkoutCardProps) {
   const volume = workout.total_volume || 0;
   const dateStr = workout.datetime || workout.created_at;
   const exercises = workout.exercises || [];
   const isRestDay = workout.is_rest_day;
+  const totalSets = exercises.reduce((acc: number, ex: any) => acc + (ex.sets?.length || 0), 0);
+  const duration = formatDuration(workout.duration || 0);
+
+  if (isRestDay) {
+    return (
+      <View style={styles.restDayCard}>
+        <View style={styles.restDayDot} />
+        <Text style={styles.restDayText}>REST DAY</Text>
+        <Text style={styles.restDayDate}>{formatDate(dateStr)}</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.card}>
-      <View style={styles.cardTop}>
-        <View style={styles.cardTopLeft}>
-          <Ionicons name="calendar-outline" size={14} color={theme.colors.text.secondary} />
-          <Text style={styles.dateText}>{formatWorkoutDate(dateStr)}</Text>
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      onPress={() => onViewDetail(workout.id)}
+    >
+      {/* Header: Date + Menu */}
+      <View style={styles.topRow}>
+        <Text style={styles.dateText}>{formatDate(dateStr)}</Text>
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation();
+            onOpenMenu(workout);
+          }}
+          hitSlop={12}
+          style={styles.menuButton}
+        >
+          <Ionicons name="ellipsis-horizontal" size={16} color={theme.colors.text.tertiary} />
+        </Pressable>
+      </View>
+
+      {/* Title */}
+      <Text style={styles.title} numberOfLines={1}>
+        {(workout.title || 'Untitled Workout').toUpperCase()}
+      </Text>
+
+      {/* Inline Stats */}
+      <View style={styles.statsRow}>
+        {duration && (
+          <View style={styles.statItem}>
+            <Ionicons name="time-outline" size={13} color={theme.colors.text.brand} />
+            <Text style={styles.statText}>{duration}</Text>
+          </View>
+        )}
+        <View style={styles.statItem}>
+          <Ionicons name="barbell-outline" size={13} color={theme.colors.status.warning} />
+          <Text style={styles.statText}>{formatVolume(volume)}</Text>
         </View>
-        {!isRestDay && (
-          <View style={styles.cardTopRight}>
-            <Pressable onPress={() => onOpenMenu(workout)} style={styles.moreButton}>
-              <Ionicons
-                name="ellipsis-horizontal"
-                size={20}
-                color={theme.colors.text.tertiary}
-              />
-            </Pressable>
-          </View>
-        )}
+        <View style={styles.statItem}>
+          <Ionicons name="layers-outline" size={13} color={theme.colors.status.success} />
+          <Text style={styles.statText}>{totalSets} sets</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Ionicons name="fitness-outline" size={13} color={theme.colors.status.rest} />
+          <Text style={styles.statText}>{exercises.length} ex</Text>
+        </View>
       </View>
 
-      <View style={styles.titleRow}>
-        <Text style={styles.workoutTitle} numberOfLines={1}>
-          {isRestDay ? 'rest day' : workout.title || 'Untitled Workout'}
-        </Text>
-        {!isRestDay && (
-          <View style={styles.volumeBadge}>
-            <Text style={styles.volumeValue}>{formatWorkoutVolume(volume)}</Text>
-          </View>
-        )}
-      </View>
-
-      {!isRestDay && exercises.length > 0 && (
-        <View style={styles.exercisesList}>
-          {exercises.slice(0, 3).map((exercise, index) => {
+      {/* Exercise List Preview */}
+      {exercises.length > 0 && (
+        <View style={styles.exerciseList}>
+          {exercises.slice(0, 3).map((exercise: any, index: number) => {
             const setsCount = exercise.sets?.length || 0;
+            const bestWeight = Math.max(...(exercise.sets?.map((s: any) => s.weight || 0) || [0]));
             return (
               <View key={exercise.id || index} style={styles.exerciseRow}>
-                <Text style={styles.exerciseName}>
+                <View style={styles.exerciseDot} />
+                <Text style={styles.exerciseName} numberOfLines={1}>
                   {exercise.exercise?.name || 'Unknown'}
                 </Text>
-                <Text style={styles.exerciseSets}>{setsCount} SETS</Text>
+                <Text style={styles.exerciseStat}>
+                  {setsCount} × {bestWeight > 0 ? `${bestWeight}kg` : '—'}
+                </Text>
               </View>
             );
           })}
           {exercises.length > 3 && (
-            <Text style={styles.moreExercises}>+{exercises.length - 3} more exercises</Text>
+            <Text style={styles.moreText}>+{exercises.length - 3} more</Text>
           )}
         </View>
       )}
 
-      {!isRestDay && (
-        <Pressable
-          style={styles.viewDetailButton}
-          onPress={() => onViewDetail(workout.id)}
-        >
-          <Text style={styles.viewDetailText}>VIEW DETAIL</Text>
-          <Ionicons
-            name="arrow-up"
-            size={16}
-            color={theme.colors.status.active}
-            style={{ transform: [{ rotate: '45deg' }] }}
-          />
-        </Pressable>
+      {/* Muscle Tags */}
+      {workout.primary_muscles_worked && workout.primary_muscles_worked.length > 0 && (
+        <View style={styles.muscleRow}>
+          {workout.primary_muscles_worked.slice(0, 4).map((muscle: string, idx: number) => (
+            <View key={idx} style={styles.muscleChip}>
+              <Text style={styles.muscleChipText}>{muscle.toUpperCase()}</Text>
+            </View>
+          ))}
+        </View>
       )}
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.ui.glass,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.m,
-    marginBottom: theme.spacing.m,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: theme.colors.ui.border,
   },
-  cardTop: {
+  cardPressed: {
+    opacity: 0.85,
+  },
+  topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.s,
-  },
-  cardTopLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
+    marginBottom: 4,
   },
   dateText: {
-    color: theme.colors.text.secondary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: theme.colors.text.tertiary,
+    letterSpacing: 1,
   },
-  cardTopRight: {
+  menuButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    color: theme.colors.text.primary,
+    letterSpacing: -0.3,
+    marginBottom: 10,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 10,
+    flexWrap: 'wrap',
+  },
+  statItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
-  moreButton: {
-    padding: 4,
-    marginRight: -4,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.m,
-  },
-  workoutTitle: {
-    ...typographyStyles.h3,
-    fontSize: 20,
-    flex: 1,
-  },
-  volumeBadge: {
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.2)',
-  },
-  volumeValue: {
+  statText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: theme.colors.text.brand,
+    fontWeight: '600',
+    color: theme.colors.text.secondary,
+    fontVariant: ['tabular-nums'],
   },
-  exercisesList: {
-    marginBottom: theme.spacing.m,
+  exerciseList: {
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.ui.border,
     gap: 6,
   },
   exerciseRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  exerciseDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.text.tertiary,
+    marginRight: 8,
   },
   exerciseName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '500',
     color: theme.colors.text.secondary,
     flex: 1,
+    marginRight: 8,
   },
-  exerciseSets: {
-    fontSize: 10,
-    fontWeight: '800',
+  exerciseStat: {
+    fontSize: 12,
+    fontWeight: '700',
     color: theme.colors.text.tertiary,
+    fontVariant: ['tabular-nums'],
   },
-  moreExercises: {
+  moreText: {
     fontSize: 11,
+    fontWeight: '600',
     color: theme.colors.text.tertiary,
+    paddingLeft: 12,
+    marginTop: 2,
   },
-  viewDetailButton: {
+  muscleRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 10,
+  },
+  muscleChip: {
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
+  muscleChipText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: theme.colors.status.active,
+    letterSpacing: 0.8,
+  },
+
+  // Rest Day
+  restDayCard: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingTop: theme.spacing.s,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.ui.border,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 4,
   },
-  viewDetailText: {
+  restDayDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: theme.colors.text.tertiary,
+  },
+  restDayText: {
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.8,
-    color: theme.colors.status.active,
+    color: theme.colors.text.tertiary,
+    letterSpacing: 1,
+  },
+  restDayDate: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: theme.colors.text.tertiary,
+    marginLeft: 'auto',
   },
 });

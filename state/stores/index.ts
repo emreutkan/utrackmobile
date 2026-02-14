@@ -14,3 +14,6 @@ export type { DateState } from './dateStore';
 
 export { useSupplementStore } from './supplementStore';
 export type { SupplementState } from './supplementStore';
+
+export { useSettingsStore } from './settingsStore';
+export type { SettingsState } from './settingsStore';

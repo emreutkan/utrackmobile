@@ -13,7 +13,9 @@
       "Bash(do echo \"=== $file ===\")",
       "Bash(done)",
       "Bash(find:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(findstr:*)",
+      "Bash(cmd /c dir \"C:\\\\Users\\\\emre\\\\Desktop\\\\PROJECTS\\\\utrack_mobile\\\\app\" /s /b)"
     ]
   }
 }

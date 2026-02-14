@@ -4,6 +4,7 @@ export {
   useHomeLoadingStore,
   useDateStore,
   useSupplementStore,
+  useSettingsStore,
 } from './stores';
 
 // Re-export types for backward compatibility
@@ -13,4 +14,5 @@ export type {
   HomeLoadingState,
   DateState,
   SupplementState,
+  SettingsState,
 } from './stores';

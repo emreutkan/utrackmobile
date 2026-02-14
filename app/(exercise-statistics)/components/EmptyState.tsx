@@ -5,32 +5,36 @@ import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 export default function EmptyState() {
   return (
-    <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconContainer}>
-        <Ionicons name="barbell-outline" size={48} color={theme.colors.text.tertiary} />
+    <View style={styles.container}>
+      <View style={styles.iconCircle}>
+        <Ionicons name="barbell-outline" size={40} color={theme.colors.text.tertiary} />
       </View>
-      <Text style={styles.emptyText}>NO DATA YET</Text>
-      <Text style={styles.emptySubtext}>
-        Complete workouts with this exercise to track your performance.
+      <Text style={styles.title}>NO DATA YET</Text>
+      <Text style={styles.subtitle}>
+        Complete workouts with this exercise to start tracking performance.
       </Text>
-      <Pressable style={styles.emptyButton} onPress={() => router.replace('/(tabs)/(home)')}>
-        <Text style={styles.emptyButtonText}>START TRAINING</Text>
+      <Pressable
+        style={({ pressed }) => [styles.button, pressed && { opacity: 0.8 }]}
+        onPress={() => router.replace('/(tabs)/(home)')}
+      >
+        <Ionicons name="flash" size={14} color="#000" />
+        <Text style={styles.buttonText}>START TRAINING</Text>
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  emptyContainer: {
+  container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
   },
-  emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: theme.colors.ui.glass,
     borderWidth: 1,
     borderColor: theme.colors.ui.border,
@@ -38,31 +42,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 20,
   },
-  emptyText: {
-    fontSize: 16,
+  title: {
+    fontSize: 15,
     fontWeight: '900',
     color: theme.colors.text.secondary,
-    fontStyle: 'italic',
+    letterSpacing: 1,
     marginBottom: 8,
   },
-  emptySubtext: {
-    fontSize: 12,
-    fontWeight: '600',
+  subtitle: {
+    fontSize: 13,
+    fontWeight: '500',
     color: theme.colors.text.tertiary,
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 24,
   },
-  emptyButton: {
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: theme.colors.text.brand,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 16,
+    borderRadius: 12,
   },
-  emptyButtonText: {
+  buttonText: {
     fontSize: 12,
     fontWeight: '900',
     color: '#000',
-    fontStyle: 'italic',
+    letterSpacing: 0.5,
   },
 });

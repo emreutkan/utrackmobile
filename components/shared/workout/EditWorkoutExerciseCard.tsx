@@ -109,10 +109,9 @@ const data = await getExerciseSetHistory(exercise.id) as { results?: unknown[] }
         }
     };
 
-    const renderLeftActions = (progress: any, dragX: any) => (
+    const renderLeftActions = (progress: any) => (
         <SwipeAction
             progress={progress}
-            dragX={dragX}
             onPress={() => {
                 swipeControl.closeAll();
                 onToggleLock(idToLock);
@@ -121,10 +120,9 @@ const data = await getExerciseSetHistory(exercise.id) as { results?: unknown[] }
         />
     );
 
-    const renderRightActions = (progress: any, dragX: any) => (
+    const renderRightActions = (progress: any) => (
         <SwipeAction
             progress={progress}
-            dragX={dragX}
             onPress={() => {
                 swipeControl.closeAll();
                 onRemove?.(idToLock);

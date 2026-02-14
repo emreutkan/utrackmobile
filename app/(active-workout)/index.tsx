@@ -218,12 +218,50 @@ export default function ActiveWorkoutScreen() {
 
 
     const insets = useSafeAreaInsets();
+
+    const exerciseCount = activeWorkout?.exercises?.length || 0;
+    const totalSets = activeWorkout?.exercises?.reduce(
+        (acc: number, ex: any) => acc + (ex.sets?.length || 0), 0
+    ) || 0;
+
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={['rgba(99, 101, 241, 0.13)', 'transparent']}
+                colors={['rgba(99, 101, 241, 0.15)', 'transparent']}
                 style={styles.gradientBg}
             />
+
+            {/* Header */}
+            <View style={[styles.header, { paddingTop: insets.top + 4 }]}>
+                <Pressable onPress={() => router.back()} style={styles.backButton}>
+                    <Ionicons name="chevron-back" size={20} color={theme.colors.text.primary} />
+                </Pressable>
+
+                <View style={styles.headerCenter}>
+                    <View style={styles.timerPill}>
+                        <View style={styles.liveDot} />
+                        <Text style={styles.timerText}>{elapsedTime}</Text>
+                    </View>
+                </View>
+
+                <View style={styles.headerStats}>
+                    <Text style={styles.headerStatValue}>{exerciseCount}</Text>
+                    <Text style={styles.headerStatLabel}>EX</Text>
+                    <View style={styles.headerStatDot} />
+                    <Text style={styles.headerStatValue}>{totalSets}</Text>
+                    <Text style={styles.headerStatLabel}>SETS</Text>
+                </View>
+            </View>
+
+            {/* Workout Title */}
+            {activeWorkout?.title && (
+                <View style={styles.titleBar}>
+                    <Text style={styles.workoutTitle} numberOfLines={1}>
+                        {activeWorkout.title.toUpperCase()}
+                    </Text>
+                </View>
+            )}
+
             <WorkoutDetailView
                 workout={activeWorkout}
                 elapsedTime={elapsedTime}
@@ -242,24 +280,22 @@ export default function ActiveWorkoutScreen() {
                 onSelectExercise={handleAddExercise}
                 title="Add Exercise"
             />
-            <View style={[styles.WorkoutFooter, { paddingBottom: insets.bottom + 16 }]}>
-                <View style={styles.footerContent}>
-                    <Pressable
-                        style={styles.completeWorkoutButton}
-                        onPress={handleFinishWorkout}
-                    >
-                        <Ionicons name="checkmark-done" size={20} color="white" style={{ marginRight: 8 }} />
-                        <Text style={styles.completeWorkoutButtonText}>FINISH WORKOUT</Text>
-                    </Pressable>
-                    <Pressable
-                        onPress={() => {
-                            setIsModalVisible(true);
-                        }}
-                        style={styles.fabButton}
-                    >
-                        <Ionicons name="add" size={28} color="white" />
-                    </Pressable>
-                </View>
+
+            {/* Footer */}
+            <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+                <Pressable
+                    style={styles.finishButton}
+                    onPress={handleFinishWorkout}
+                >
+                    <Ionicons name="checkmark-done" size={18} color="white" />
+                    <Text style={styles.finishButtonText}>FINISH</Text>
+                </Pressable>
+                <Pressable
+                    onPress={() => setIsModalVisible(true)}
+                    style={styles.addFab}
+                >
+                    <Ionicons name="add" size={26} color="white" />
+                </Pressable>
             </View>
         </View>
     );
@@ -277,55 +313,126 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 0,
     },
-    WorkoutFooter: {
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingBottom: 8,
+    },
+    backButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: theme.colors.ui.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerCenter: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    timerPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: theme.colors.ui.glass,
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    liveDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#22c55e',
+    },
+    timerText: {
+        color: theme.colors.text.primary,
+        fontSize: 15,
+        fontWeight: '700',
+        fontVariant: ['tabular-nums'],
+        letterSpacing: 1,
+    },
+    headerStats: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    headerStatValue: {
+        color: theme.colors.text.primary,
+        fontSize: 14,
+        fontWeight: '800',
+    },
+    headerStatLabel: {
+        color: theme.colors.text.tertiary,
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
+    headerStatDot: {
+        width: 3,
+        height: 3,
+        borderRadius: 1.5,
+        backgroundColor: theme.colors.text.tertiary,
+        marginHorizontal: 4,
+    },
+    titleBar: {
+        paddingHorizontal: 12,
+        paddingBottom: 4,
+    },
+    workoutTitle: {
+        color: theme.colors.text.secondary,
+        fontSize: 12,
+        fontWeight: '800',
+        letterSpacing: 1,
+    },
+    footer: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        paddingHorizontal: theme.spacing.m,
-        paddingTop: theme.spacing.m,
-        backgroundColor: 'transparent',
-    },
-    footerContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: theme.spacing.s,
-    },
-    completeWorkoutButton: {
-        backgroundColor: theme.colors.status.active,
-        flex: 1,
-        height: 56,
-        borderRadius: 28,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        paddingHorizontal: 12,
+        paddingTop: 12,
+        gap: 10,
+    },
+    finishButton: {
+        flex: 1,
+        height: 50,
+        borderRadius: 25,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: theme.colors.status.active,
         shadowColor: theme.colors.status.active,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
         elevation: 4,
     },
-    completeWorkoutButtonText: {
+    finishButtonText: {
         color: '#FFFFFF',
         fontSize: 14,
         fontWeight: '900',
-        fontStyle: 'italic',
-        letterSpacing: 1,
+        letterSpacing: 1.5,
     },
-    fabButton: {
-        backgroundColor: theme.colors.ui.glass,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+    addFab: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         alignItems: 'center',
         justifyContent: 'center',
+        backgroundColor: theme.colors.ui.glassStrong,
         borderWidth: 1,
         borderColor: theme.colors.ui.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
     },
 });

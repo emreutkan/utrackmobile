@@ -267,9 +267,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.l,
-    paddingHorizontal: theme.spacing.l,
-    paddingTop: theme.spacing.l,
+    gap: theme.spacing.s,
+    paddingHorizontal: 12,
+    paddingTop: theme.spacing.m,
     paddingBottom: theme.spacing.s,
   },
   headerActions: {

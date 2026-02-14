@@ -14,91 +14,154 @@ export default function WorkoutDetailsView({ workout, elapsedTime, isActive }: W
 
     const formatDate = (dateString: string) => {
         const d = new Date(dateString);
-        return d.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        }).toUpperCase();
+        const weekday = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+        const monthDay = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+        const year = d.getFullYear();
+        return { weekday, monthDay, year: year.toString() };
     };
 
     const formatDuration = (timeStr: string) => {
-        // Convert "00:52:00" to "52m"
         const parts = timeStr.split(':');
         const hours = parseInt(parts[0] || '0');
         const minutes = parseInt(parts[1] || '0');
-        if (hours > 0) {
-            return `${hours}h ${minutes}m`;
-        }
-        return `${minutes}m`;
+        if (hours > 0) return { value: `${hours}h ${minutes}m`, raw: hours * 60 + minutes };
+        return { value: `${minutes}`, raw: minutes };
     };
 
     const formatVolume = (volume: number) => {
-        if (!volume || volume === 0) return '0KG';
-        const formatted = Math.round(volume).toLocaleString('en-US');
-        return `${formatted}KG`;
+        if (!volume || volume === 0) return '0';
+        if (volume >= 1000) return (volume / 1000).toFixed(1);
+        return Math.round(volume).toLocaleString('en-US');
     };
+
+    const getVolumeUnit = (volume: number) => {
+        if (volume >= 1000) return 'TONS';
+        return 'KG';
+    };
+
+    const totalSets = workout?.exercises?.reduce(
+        (acc: number, ex: any) => acc + (ex.sets?.length || 0), 0
+    ) || 0;
+
+    const totalExercises = workout?.exercises?.length || 0;
 
     const workoutTitle = workout?.title
         ? workout.title.toUpperCase()
         : 'WORKOUT';
 
+    const dateInfo = formatDate(workout?.datetime || workout?.created_at);
+    const durationInfo = formatDuration(elapsedTime);
+    const volume = workout?.total_volume || 0;
+
     return (
         <View style={styles.container}>
-            <View style={styles.dateRow}>
-                <Ionicons name="calendar-outline" size={14} color={theme.colors.text.secondary} />
+            {/* Title & Date Section */}
+            <View style={styles.titleSection}>
                 <Text style={styles.dateText}>
-                    {formatDate(workout?.datetime || workout?.created_at)}
+                    {dateInfo.weekday} · {dateInfo.monthDay}
                 </Text>
+                <Text style={styles.workoutTitle}>{workoutTitle}</Text>
             </View>
 
-            <Text style={styles.workoutTitle}>{workoutTitle}</Text>
-
-            <View style={styles.metricsRow}>
+            {/* Metrics Grid - 2x2 */}
+            <View style={styles.metricsGrid}>
                 <View style={styles.metricCard}>
-                    <Text style={styles.metricLabel}>DURATION</Text>
-                    <Text style={styles.metricValue}>{formatDuration(elapsedTime)}</Text>
-                </View>
-                <View style={styles.metricCard}>
-                    <View style={styles.volumeHeader}>
-                        <Ionicons name="flash" size={14} color={theme.colors.status.active} />
-                        <Text style={styles.metricLabel}>TOTAL VOLUME</Text>
+                    <View style={styles.metricIconRow}>
+                        <View style={[styles.metricIcon, { backgroundColor: 'rgba(99, 102, 241, 0.1)' }]}>
+                            <Ionicons name="time" size={14} color={theme.colors.text.brand} />
+                        </View>
+                        <Text style={styles.metricLabel}>DURATION</Text>
                     </View>
-                    <Text style={[styles.metricValue, styles.volumeValue]}>
-                        {formatVolume(workout?.total_volume || 0)}
-                    </Text>
+                    <View style={styles.metricValueRow}>
+                        <Text style={[styles.metricValue, { color: theme.colors.text.brand }]}>
+                            {durationInfo.value}
+                        </Text>
+                        {!elapsedTime.startsWith('0') && (
+                            <Text style={styles.metricUnit}>MIN</Text>
+                        )}
+                    </View>
+                </View>
+
+                <View style={styles.metricCard}>
+                    <View style={styles.metricIconRow}>
+                        <View style={[styles.metricIcon, { backgroundColor: 'rgba(255, 159, 10, 0.1)' }]}>
+                            <Ionicons name="barbell" size={14} color={theme.colors.status.warning} />
+                        </View>
+                        <Text style={styles.metricLabel}>VOLUME</Text>
+                    </View>
+                    <View style={styles.metricValueRow}>
+                        <Text style={[styles.metricValue, { color: theme.colors.status.warning }]}>
+                            {formatVolume(volume)}
+                        </Text>
+                        <Text style={styles.metricUnit}>{getVolumeUnit(volume)}</Text>
+                    </View>
+                </View>
+
+                <View style={styles.metricCard}>
+                    <View style={styles.metricIconRow}>
+                        <View style={[styles.metricIcon, { backgroundColor: 'rgba(52, 211, 153, 0.1)' }]}>
+                            <Ionicons name="layers" size={14} color={theme.colors.status.success} />
+                        </View>
+                        <Text style={styles.metricLabel}>SETS</Text>
+                    </View>
+                    <View style={styles.metricValueRow}>
+                        <Text style={[styles.metricValue, { color: theme.colors.status.success }]}>
+                            {totalSets}
+                        </Text>
+                        <Text style={styles.metricUnit}>TOTAL</Text>
+                    </View>
+                </View>
+
+                <View style={styles.metricCard}>
+                    <View style={styles.metricIconRow}>
+                        <View style={[styles.metricIcon, { backgroundColor: 'rgba(192, 132, 252, 0.1)' }]}>
+                            <Ionicons name="flash" size={14} color={theme.colors.status.rest} />
+                        </View>
+                        <Text style={styles.metricLabel}>EXERCISES</Text>
+                    </View>
+                    <View style={styles.metricValueRow}>
+                        <Text style={[styles.metricValue, { color: theme.colors.status.rest }]}>
+                            {totalExercises}
+                        </Text>
+                        <Text style={styles.metricUnit}>COUNT</Text>
+                    </View>
                 </View>
             </View>
 
+            {/* Muscle Mapping */}
             {(workout?.primary_muscles_worked?.length > 0 || workout?.secondary_muscles_worked?.length > 0) && (
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>NEURAL MAPPING</Text>
-                    <View style={styles.neuralCard}>
-                        {workout?.primary_muscles_worked?.length > 0 && (
-                            <View style={styles.muscleGroup}>
-                                <Text style={styles.primaryLabel}>PRIMARY FOCUS</Text>
-                                <View style={styles.tagsRow}>
-                                    {workout.primary_muscles_worked.map((muscle: string, idx: number) => (
-                                        <View key={idx} style={styles.primaryTag}>
-                                            <Text style={styles.tagText}>{muscle.toUpperCase()}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            </View>
-                        )}
-                        {workout?.secondary_muscles_worked?.length > 0 && (
-                            <View style={styles.muscleGroup}>
-                                <Text style={styles.synergistLabel}>SYNERGISTS</Text>
-                                <View style={styles.tagsRow}>
-                                    {workout.secondary_muscles_worked.map((muscle: string, idx: number) => (
-                                        <View key={idx} style={styles.synergistTag}>
-                                            <Text style={styles.tagText}>{muscle.toUpperCase()}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            </View>
-                        )}
+                <View style={styles.muscleSection}>
+                    <View style={styles.muscleSectionHeader}>
+                        <View style={styles.muscleSectionIcon}>
+                            <Ionicons name="body" size={14} color={theme.colors.text.brand} />
+                        </View>
+                        <Text style={styles.muscleSectionTitle}>MUSCLE MAPPING</Text>
                     </View>
+
+                    {workout?.primary_muscles_worked?.length > 0 && (
+                        <View style={styles.muscleGroup}>
+                            <Text style={styles.primaryLabel}>PRIMARY</Text>
+                            <View style={styles.tagsRow}>
+                                {workout.primary_muscles_worked.map((muscle: string, idx: number) => (
+                                    <View key={idx} style={styles.primaryTag}>
+                                        <Text style={styles.primaryTagText}>{muscle.toUpperCase()}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    )}
+                    {workout?.secondary_muscles_worked?.length > 0 && (
+                        <View style={styles.muscleGroup}>
+                            <Text style={styles.synergistLabel}>SYNERGISTS</Text>
+                            <View style={styles.tagsRow}>
+                                {workout.secondary_muscles_worked.map((muscle: string, idx: number) => (
+                                    <View key={idx} style={styles.synergistTag}>
+                                        <Text style={styles.synergistTagText}>{muscle.toUpperCase()}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    )}
                 </View>
             )}
         </View>
@@ -107,122 +170,161 @@ export default function WorkoutDetailsView({ workout, elapsedTime, isActive }: W
 
 const styles = StyleSheet.create({
     container: {
-        paddingHorizontal: theme.spacing.l,
-    },
-    dateRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.xs,
+        paddingHorizontal: 12,
         marginBottom: theme.spacing.m,
     },
+
+    // Title Section
+    titleSection: {
+        marginBottom: 20,
+    },
     dateText: {
-        fontSize: theme.typography.sizes.xs,
-        fontWeight: '600',
-        color: theme.colors.text.secondary,
-        textTransform: 'uppercase',
-        letterSpacing: theme.typography.tracking.tight,
+        fontSize: 11,
+        fontWeight: '700',
+        color: theme.colors.text.tertiary,
+        letterSpacing: 1,
+        marginBottom: 8,
     },
     workoutTitle: {
-        fontSize: theme.typography.sizes.xxl,
+        fontSize: 28,
         fontWeight: '900',
         color: theme.colors.text.primary,
         fontStyle: 'italic',
         textTransform: 'uppercase',
-        marginBottom: theme.spacing.l,
+        letterSpacing: -0.5,
     },
-    metricsRow: {
+
+    // Metrics Grid
+    metricsGrid: {
         flexDirection: 'row',
-        gap: theme.spacing.m,
-        marginBottom: theme.spacing.xl,
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 16,
     },
     metricCard: {
-        flex: 1,
+        width: '48%',
+        flexGrow: 1,
         backgroundColor: theme.colors.ui.glass,
-        borderRadius: theme.borderRadius.l,
-        padding: theme.spacing.m,
+        borderRadius: theme.borderRadius.m,
+        padding: 12,
         borderWidth: 1,
         borderColor: theme.colors.ui.border,
     },
-    volumeHeader: {
+    metricIconRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: theme.spacing.xs,
+        gap: 6,
+        marginBottom: 10,
+    },
+    metricIcon: {
+        width: 24,
+        height: 24,
+        borderRadius: 7,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     metricLabel: {
-        fontSize: theme.typography.sizes.label,
-        fontWeight: '600',
-        color: theme.colors.text.secondary,
-        textTransform: 'uppercase',
-        letterSpacing: theme.typography.tracking.labelTight,
-        marginBottom: theme.spacing.xs,
+        fontSize: 9,
+        fontWeight: '800',
+        color: theme.colors.text.tertiary,
+        letterSpacing: 1,
+    },
+    metricValueRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        gap: 4,
     },
     metricValue: {
-        fontSize: theme.typography.sizes.xxl,
+        fontSize: 26,
+        fontWeight: '900',
+        fontStyle: 'italic',
+        fontVariant: ['tabular-nums'],
+    },
+    metricUnit: {
+        fontSize: 10,
         fontWeight: '800',
-        color: theme.colors.text.primary,
+        color: theme.colors.text.tertiary,
+        letterSpacing: 1,
     },
-    volumeValue: {
-        color: theme.colors.status.active,
-    },
-    section: {
-        marginBottom: theme.spacing.xl,
-    },
-    sectionTitle: {
-        fontSize: theme.typography.sizes.label,
-        fontWeight: '600',
-        color: theme.colors.text.secondary,
-        textTransform: 'uppercase',
-        letterSpacing: theme.typography.tracking.labelTight,
-        marginBottom: theme.spacing.m,
-    },
-    neuralCard: {
+
+    // Muscle Section
+    muscleSection: {
         backgroundColor: theme.colors.ui.glass,
-        borderRadius: theme.borderRadius.l,
-        padding: theme.spacing.m,
+        borderRadius: theme.borderRadius.m,
+        padding: 12,
         borderWidth: 1,
         borderColor: theme.colors.ui.border,
-        gap: theme.spacing.m,
+        marginBottom: 8,
+    },
+    muscleSectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 14,
+    },
+    muscleSectionIcon: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    muscleSectionTitle: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: theme.colors.text.primary,
+        letterSpacing: 1,
     },
     muscleGroup: {
-        gap: theme.spacing.s,
+        marginBottom: 12,
     },
     primaryLabel: {
-        fontSize: theme.typography.sizes.s,
-        fontWeight: '700',
+        fontSize: 9,
+        fontWeight: '800',
         color: theme.colors.status.active,
-        textTransform: 'uppercase',
-        letterSpacing: theme.typography.tracking.tight,
-        marginBottom: theme.spacing.xs,
+        letterSpacing: 1.2,
+        marginBottom: 8,
     },
     synergistLabel: {
-        fontSize: theme.typography.sizes.s,
-        fontWeight: '600',
-        color: theme.colors.text.secondary,
-        textTransform: 'uppercase',
-        letterSpacing: theme.typography.tracking.tight,
-        marginBottom: theme.spacing.xs,
+        fontSize: 9,
+        fontWeight: '800',
+        color: theme.colors.text.tertiary,
+        letterSpacing: 1.2,
+        marginBottom: 8,
     },
     tagsRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: theme.spacing.s,
+        gap: 6,
     },
     primaryTag: {
-        backgroundColor: theme.colors.ui.glassStrong,
-        paddingHorizontal: theme.spacing.m,
-        paddingVertical: theme.spacing.xs,
-        borderRadius: theme.borderRadius.m,
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.15)',
+    },
+    primaryTagText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: theme.colors.status.active,
+        letterSpacing: 0.8,
     },
     synergistTag: {
         backgroundColor: theme.colors.ui.glassStrong,
-        paddingHorizontal: theme.spacing.m,
-        paddingVertical: theme.spacing.xs,
-        borderRadius: theme.borderRadius.m,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.ui.border,
     },
-    tagText: {
-        fontSize: theme.typography.sizes.s,
-        fontWeight: '600',
-        color: theme.colors.text.primary,
+    synergistTagText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: theme.colors.text.secondary,
+        letterSpacing: 0.8,
     },
 });
 

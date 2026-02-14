@@ -1,4 +1,4 @@
-import { theme, typographyStyles } from '@/constants/theme';
+import { theme } from '@/constants/theme';
 import { StyleSheet, Text, View } from 'react-native';
 
 interface PerformanceHistoryProps {
@@ -9,34 +9,32 @@ export default function PerformanceHistory({ recentPerformance }: PerformanceHis
   if (recentPerformance.length === 0) return null;
 
   return (
-    <View style={{ marginBottom: 30 }}>
-      <Text style={styles.historySectionTitle}>RECENT PERFORMANCE</Text>
-      <View style={styles.historyList}>
+    <View>
+      <Text style={styles.sectionLabel}>RECENT SETS</Text>
+      <View style={styles.list}>
         {recentPerformance.map((set, idx) => {
           const date = new Date(set.workout_date);
+          const day = date.getDate();
+          const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
           return (
-            <View key={idx} style={styles.historyItem}>
-              <View style={styles.historyItemMain}>
-                <View style={styles.dateContainer}>
-                  <Text style={styles.dateDay}>{date.getDate()}</Text>
-                  <Text style={styles.dateMonth}>
-                    {date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.workoutInfo}>
-                  <Text style={styles.workoutTitle} numberOfLines={1}>
-                    {set.workout_title || 'Workout'}
-                  </Text>
-                  <Text style={styles.workoutYear}>
-                    SET {set.set_number} {set.is_warmup ? '• WARMUP' : ''}
-                  </Text>
-                </View>
+            <View key={idx} style={styles.item}>
+              <View style={styles.dateBox}>
+                <Text style={styles.dateDay}>{day}</Text>
+                <Text style={styles.dateMonth}>{month}</Text>
               </View>
-              <View style={styles.historyItemRight}>
-                <Text style={styles.historyValue}>{set.weight}</Text>
-                <Text style={styles.historyUnit}>KG</Text>
-                <Text style={[styles.historyValue, { marginLeft: 8 }]}>×</Text>
-                <Text style={[styles.historyValue, { marginLeft: 4 }]}>{set.reps}</Text>
+              <View style={styles.info}>
+                <Text style={styles.workoutTitle} numberOfLines={1}>
+                  {set.workout_title || 'Workout'}
+                </Text>
+                <Text style={styles.setMeta}>
+                  SET {set.set_number}{set.is_warmup ? ' · WARMUP' : ''}
+                </Text>
+              </View>
+              <View style={styles.valueGroup}>
+                <Text style={styles.weight}>{set.weight}</Text>
+                <Text style={styles.unit}>kg</Text>
+                <Text style={styles.times}>×</Text>
+                <Text style={styles.reps}>{set.reps}</Text>
               </View>
             </View>
           );
@@ -47,34 +45,31 @@ export default function PerformanceHistory({ recentPerformance }: PerformanceHis
 }
 
 const styles = StyleSheet.create({
-  historySectionTitle: {
-    ...typographyStyles.labelMuted,
-    marginBottom: 15,
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: theme.colors.text.tertiary,
+    letterSpacing: 1.5,
+    marginBottom: 8,
     marginLeft: 4,
   },
-  historyList: {
-    gap: 8,
+  list: {
+    gap: 6,
   },
-  historyItem: {
+  item: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
+    padding: 12,
     backgroundColor: theme.colors.ui.glass,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: theme.colors.ui.border,
+    gap: 10,
   },
-  historyItemMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
-  },
-  dateContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  dateBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: theme.colors.ui.glassStrong,
     alignItems: 'center',
     justifyContent: 'center',
@@ -82,46 +77,57 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.ui.border,
   },
   dateDay: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '900',
     color: theme.colors.text.primary,
-    fontStyle: 'italic',
   },
   dateMonth: {
     fontSize: 8,
     fontWeight: '700',
     color: theme.colors.text.tertiary,
-    marginTop: -2,
+    marginTop: -1,
   },
-  workoutInfo: {
+  info: {
     flex: 1,
   },
   workoutTitle: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     color: theme.colors.text.primary,
-    fontStyle: 'italic',
     marginBottom: 2,
   },
-  workoutYear: {
+  setMeta: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.text.tertiary,
+    letterSpacing: 0.5,
+  },
+  valueGroup: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+  },
+  weight: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: theme.colors.text.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  unit: {
     fontSize: 10,
     fontWeight: '700',
     color: theme.colors.text.tertiary,
   },
-  historyItemRight: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
+  times: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.text.tertiary,
+    marginHorizontal: 2,
   },
-  historyValue: {
+  reps: {
     fontSize: 16,
     fontWeight: '900',
     color: theme.colors.text.primary,
-    fontStyle: 'italic',
-  },
-  historyUnit: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: theme.colors.text.tertiary,
+    fontVariant: ['tabular-nums'],
   },
 });

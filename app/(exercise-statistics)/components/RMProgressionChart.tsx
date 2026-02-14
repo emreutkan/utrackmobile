@@ -12,43 +12,32 @@ export default function RMProgressionChart({ rmChartData }: RMProgressionChartPr
   const [rmChartMode, setRmChartMode] = useState<'1RM' | 'PROGRESS'>('1RM');
 
   return (
-    <View style={styles.sectionCard}>
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionIconContainer}>
-          <Ionicons name="analytics" size={18} color={theme.colors.text.brand} />
+    <View style={styles.card}>
+      <View style={styles.header}>
+        <View style={styles.iconBox}>
+          <Ionicons name="analytics" size={16} color={theme.colors.text.brand} />
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.sectionTitle}>1RM PROGRESSION</Text>
-          <Text style={styles.sectionSubtitle}>
-            {rmChartMode === '1RM' ? 'ESTIMATED MAX OVER TIME' : 'PERCENTAGE CHANGE FROM START'}
+        <View style={styles.headerText}>
+          <Text style={styles.title}>1RM PROGRESSION</Text>
+          <Text style={styles.subtitle}>
+            {rmChartMode === '1RM' ? 'ESTIMATED MAX OVER TIME' : '% CHANGE FROM START'}
           </Text>
         </View>
-
-        <View style={styles.toggleContainer}>
+        <View style={styles.toggle}>
           <Pressable
             onPress={() => setRmChartMode('1RM')}
-            style={[styles.toggleButton, rmChartMode === '1RM' && styles.toggleButtonActive]}
+            style={[styles.toggleBtn, rmChartMode === '1RM' && styles.toggleBtnActive]}
           >
-            <Text
-              style={[
-                styles.toggleButtonText,
-                rmChartMode === '1RM' && styles.toggleButtonTextActive,
-              ]}
-            >
+            <Text style={[styles.toggleText, rmChartMode === '1RM' && styles.toggleTextActive]}>
               1RM
             </Text>
           </Pressable>
           <Pressable
             onPress={() => setRmChartMode('PROGRESS')}
-            style={[styles.toggleButton, rmChartMode === 'PROGRESS' && styles.toggleButtonActive]}
+            style={[styles.toggleBtn, rmChartMode === 'PROGRESS' && styles.toggleBtnActive]}
           >
-            <Text
-              style={[
-                styles.toggleButtonText,
-                rmChartMode === 'PROGRESS' && styles.toggleButtonTextActive,
-              ]}
-            >
-              PROGRESS
+            <Text style={[styles.toggleText, rmChartMode === 'PROGRESS' && styles.toggleTextActive]}>
+              %
             </Text>
           </Pressable>
         </View>
@@ -64,64 +53,64 @@ export default function RMProgressionChart({ rmChartData }: RMProgressionChartPr
 }
 
 const styles = StyleSheet.create({
-  sectionCard: {
+  card: {
     backgroundColor: theme.colors.ui.glass,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 12,
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
     borderColor: theme.colors.ui.border,
   },
-  sectionHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     marginBottom: 4,
   },
-  sectionIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+  iconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionTitle: {
-    fontSize: 13,
+  headerText: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 12,
     fontWeight: '900',
     color: theme.colors.text.primary,
-    fontStyle: 'italic',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
-  sectionSubtitle: {
+  subtitle: {
     fontSize: 9,
     fontWeight: '700',
     color: theme.colors.text.tertiary,
     letterSpacing: 0.5,
-    marginTop: 2,
+    marginTop: 1,
   },
-  toggleContainer: {
+  toggle: {
     flexDirection: 'row',
     backgroundColor: theme.colors.ui.glassStrong,
-    borderRadius: 10,
-    padding: 3,
-    gap: 4,
-  },
-  toggleButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
     borderRadius: 8,
+    padding: 2,
+    gap: 2,
   },
-  toggleButtonActive: {
+  toggleBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  toggleBtnActive: {
     backgroundColor: theme.colors.text.brand,
   },
-  toggleButtonText: {
+  toggleText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '800',
     color: theme.colors.text.tertiary,
-    fontStyle: 'italic',
   },
-  toggleButtonTextActive: {
+  toggleTextActive: {
     color: '#000',
   },
 });

@@ -55,10 +55,9 @@ export default function HistoryModal({ visible, onClose, supplement }: HistoryMo
             keyExtractor={(item) => item.id.toString()}
             renderItem={({ item, index }) => (
               <ReanimatedSwipeable
-                renderRightActions={(p, d) => (
+                renderRightActions={(p) => (
                   <SwipeAction
                     progress={p}
-                    dragX={d}
                     onPress={() => handleDelete(item.id)}
                     iconName="trash-outline"
                   />

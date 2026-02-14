@@ -58,7 +58,7 @@ const WorkoutSummaryScreen = () => {
 
   useEffect(() => {
     if (workoutId) fetchData();
-  }, [workoutId, fetchData]);
+  }, [workoutId]);
 
   if (isLoading) {
     return (

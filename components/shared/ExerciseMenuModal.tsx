@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   Pressable,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 
@@ -38,121 +37,122 @@ export const ExerciseMenuModal = ({
   onRemove,
   exerciseId,
 }: ExerciseMenuModalProps) => {
+
+  const handleAction = (action: () => void) => {
+    onClose();
+    // Small delay to let modal close before navigation
+    setTimeout(action, 150);
+  };
+
   return (
-    <Modal visible={visible} transparent={true} animationType="fade" presentationStyle="overFullScreen" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <View style={styles.content}>
+    <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+          {/* Exercise name header */}
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle} numberOfLines={1}>{exercise?.name?.toUpperCase()}</Text>
+          </View>
+
+          <View style={styles.menuGroup}>
             <Pressable
-              style={styles.menuItem}
-              onPress={() => {
-                onClose();
-                onShowInfo?.(exercise);
-              }}
+              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+              onPress={() => handleAction(() => onShowInfo?.(exercise))}
             >
-              <Ionicons
-                name="information-circle-outline"
-                size={22}
-                color={theme.colors.text.primary}
-                style={{ marginRight: 12 }}
-              />
-              <Text style={styles.menuItemText}>Info</Text>
+              <View style={[styles.menuIconWrap, { backgroundColor: 'rgba(99, 102, 241, 0.1)', borderColor: 'rgba(99, 102, 241, 0.2)' }]}>
+                <Ionicons name="information-circle" size={18} color={theme.colors.status.active} />
+              </View>
+              <View style={styles.menuTextContent}>
+                <Text style={styles.menuItemText}>Exercise Info</Text>
+                <Text style={styles.menuItemSub}>View details & instructions</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={theme.colors.text.tertiary} />
             </Pressable>
 
             <Pressable
-              style={styles.menuItem}
-              onPress={() => {
-                onClose();
-                onShowStatistics?.(exercise.id);
-              }}
+              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+              onPress={() => handleAction(() => onShowStatistics?.(exercise.id))}
             >
-              <Ionicons
-                name="stats-chart-outline"
-                size={22}
-                color={theme.colors.text.primary}
-                style={{ marginRight: 12 }}
-              />
-              <Text style={styles.menuItemText}>Statistics</Text>
+              <View style={[styles.menuIconWrap, { backgroundColor: 'rgba(52, 211, 153, 0.1)', borderColor: 'rgba(52, 211, 153, 0.2)' }]}>
+                <Ionicons name="stats-chart" size={18} color={theme.colors.status.success} />
+              </View>
+              <View style={styles.menuTextContent}>
+                <Text style={styles.menuItemText}>Statistics</Text>
+                <Text style={styles.menuItemSub}>View performance history</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={theme.colors.text.tertiary} />
             </Pressable>
 
             {onToggleLock && (
               <Pressable
-                style={styles.menuItem}
-                onPress={() => {
-                  onClose();
-                  onToggleLock(exerciseId);
-                }}
+                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                onPress={() => handleAction(() => onToggleLock(exerciseId))}
               >
-                <Ionicons
-                  name={isLocked ? 'lock-open-outline' : 'lock-closed-outline'}
-                  size={22}
-                  color={isLocked ? theme.colors.status.warning : theme.colors.text.primary}
-                  style={{ marginRight: 12 }}
-                />
-                <Text style={styles.menuItemText}>{isLocked ? 'Unlock' : 'Lock'}</Text>
-              </Pressable>
-            )}
-
-            {setsCount > 0 && onDeleteAllSets && (
-              <Pressable
-                style={[styles.menuItem, styles.menuItemDelete]}
-                onPress={() => {
-                  onClose();
-                  Alert.alert(
-                    'Delete All Sets',
-                    `Are you sure you want to delete all ${setsCount} set${setsCount > 1 ? 's' : ''}?`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Delete All',
-                        style: 'destructive',
-                        onPress: onDeleteAllSets,
-                      },
-                    ]
-                  );
-                }}
-              >
-                <Ionicons
-                  name="trash-outline"
-                  size={22}
-                  color={theme.colors.status.error}
-                  style={{ marginRight: 12 }}
-                />
-                <Text style={[styles.menuItemText, styles.menuItemTextDelete]}>
-                  Delete All Sets
-                </Text>
-              </Pressable>
-            )}
-
-            {onRemove && (
-              <Pressable
-                style={[styles.menuItem, styles.menuItemDelete]}
-                onPress={() => {
-                  onClose();
-                  Alert.alert('Delete Exercise', 'Are you sure you want to remove this exercise?', [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Delete',
-                      style: 'destructive',
-                      onPress: () => onRemove(exerciseId),
-                    },
-                  ]);
-                }}
-              >
-                <Ionicons
-                  name="trash-outline"
-                  size={22}
-                  color={theme.colors.status.error}
-                  style={{ marginRight: 12 }}
-                />
-                <Text style={[styles.menuItemText, styles.menuItemTextDelete]}>
-                  Delete Exercise
-                </Text>
+                <View style={[styles.menuIconWrap, { backgroundColor: 'rgba(255, 159, 10, 0.1)', borderColor: 'rgba(255, 159, 10, 0.2)' }]}>
+                  <Ionicons name={isLocked ? 'lock-open' : 'lock-closed'} size={18} color={theme.colors.status.warning} />
+                </View>
+                <View style={styles.menuTextContent}>
+                  <Text style={styles.menuItemText}>{isLocked ? 'Unlock Exercise' : 'Lock Exercise'}</Text>
+                  <Text style={styles.menuItemSub}>{isLocked ? 'Allow editing sets' : 'Prevent accidental edits'}</Text>
+                </View>
               </Pressable>
             )}
           </View>
+
+          {(setsCount > 0 || onRemove) && (
+            <View style={styles.dangerGroup}>
+              {setsCount > 0 && onDeleteAllSets && (
+                <Pressable
+                  style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                  onPress={() => {
+                    onClose();
+                    Alert.alert(
+                      'Delete All Sets',
+                      `Are you sure you want to delete all ${setsCount} set${setsCount > 1 ? 's' : ''}?`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Delete All', style: 'destructive', onPress: onDeleteAllSets },
+                      ]
+                    );
+                  }}
+                >
+                  <View style={[styles.menuIconWrap, { backgroundColor: 'rgba(255, 59, 48, 0.1)', borderColor: 'rgba(255, 59, 48, 0.2)' }]}>
+                    <Ionicons name="trash" size={18} color={theme.colors.status.error} />
+                  </View>
+                  <View style={styles.menuTextContent}>
+                    <Text style={[styles.menuItemText, styles.menuItemTextDanger]}>Delete All Sets</Text>
+                    <Text style={styles.menuItemSub}>{setsCount} set{setsCount > 1 ? 's' : ''} will be removed</Text>
+                  </View>
+                </Pressable>
+              )}
+
+              {onRemove && (
+                <Pressable
+                  style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                  onPress={() => {
+                    onClose();
+                    Alert.alert('Remove Exercise', 'This will remove the exercise and all its sets.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Remove', style: 'destructive', onPress: () => onRemove(exerciseId) },
+                    ]);
+                  }}
+                >
+                  <View style={[styles.menuIconWrap, { backgroundColor: 'rgba(255, 59, 48, 0.1)', borderColor: 'rgba(255, 59, 48, 0.2)' }]}>
+                    <Ionicons name="close-circle" size={18} color={theme.colors.status.error} />
+                  </View>
+                  <View style={styles.menuTextContent}>
+                    <Text style={[styles.menuItemText, styles.menuItemTextDanger]}>Remove Exercise</Text>
+                    <Text style={styles.menuItemSub}>Remove from workout</Text>
+                  </View>
+                </Pressable>
+              )}
+            </View>
+          )}
+
+          <Pressable style={({ pressed }) => [styles.cancelButton, pressed && styles.cancelButtonPressed]} onPress={onClose}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </Pressable>
         </View>
-      </TouchableWithoutFeedback>
+      </Pressable>
     </Modal>
   );
 };
@@ -160,44 +160,92 @@ export const ExerciseMenuModal = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+    paddingHorizontal: theme.spacing.m,
+    paddingBottom: 40,
   },
-  content: {
+  sheet: {
+    gap: theme.spacing.s,
+  },
+  sheetHeader: {
     backgroundColor: theme.colors.ui.glassStrong,
-    borderRadius: 24,
-    padding: 8,
-    minWidth: 220,
+    borderRadius: theme.borderRadius.l,
+    paddingVertical: 14,
+    paddingHorizontal: theme.spacing.l,
     borderWidth: 1,
     borderColor: theme.colors.ui.border,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 32,
-    elevation: 8,
+    alignItems: 'center',
+  },
+  sheetTitle: {
+    color: theme.colors.text.tertiary,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  menuGroup: {
+    backgroundColor: theme.colors.ui.glassStrong,
+    borderRadius: theme.borderRadius.l,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.ui.border,
+  },
+  dangerGroup: {
+    backgroundColor: theme.colors.ui.glassStrong,
+    borderRadius: theme.borderRadius.l,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.ui.border,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginHorizontal: 4,
-    marginVertical: 2,
+    paddingHorizontal: theme.spacing.m,
+    gap: 12,
   },
-  menuItemDelete: {
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.ui.border,
-    marginTop: 8,
+  menuItemPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  menuIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  menuTextContent: {
+    flex: 1,
+    gap: 1,
   },
   menuItemText: {
     color: theme.colors.text.primary,
-    fontSize: 17,
-    fontWeight: '500',
-    letterSpacing: -0.2,
+    fontSize: 15,
+    fontWeight: '600',
   },
-  menuItemTextDelete: {
+  menuItemSub: {
+    color: theme.colors.text.tertiary,
+    fontSize: 11,
+    fontWeight: '400',
+  },
+  menuItemTextDanger: {
     color: theme.colors.status.error,
+  },
+  cancelButton: {
+    backgroundColor: theme.colors.ui.glassStrong,
+    borderRadius: theme.borderRadius.l,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.ui.border,
+  },
+  cancelButtonPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  cancelText: {
+    color: theme.colors.text.primary,
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

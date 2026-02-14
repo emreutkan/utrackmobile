@@ -10,7 +10,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TouchableOpacity,
+    Pressable,
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -71,13 +71,13 @@ export default function UpgradeScreen() {
                 style={styles.gradientBg}
             />
             <View style={styles.backHeader}>
-                <TouchableOpacity
+                <Pressable
                     onPress={() => router.back()}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     style={styles.backButton}
                 >
                     <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
-                </TouchableOpacity>
+                </Pressable>
             </View>
             <ScrollView
                 contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20, marginTop: 16 }]}
@@ -115,26 +115,24 @@ export default function UpgradeScreen() {
                     ))}
                 </View>
 
-                <TouchableOpacity
+                <Pressable
                     style={[styles.upgradeButton, isLoading && styles.upgradeButtonDisabled]}
                     onPress={handleUpgrade}
                     disabled={isLoading}
-                    activeOpacity={0.8}
                 >
                     {isLoading ? (
                         <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
                         <Text style={styles.upgradeButtonText}>Upgrade to PRO</Text>
                     )}
-                </TouchableOpacity>
+                </Pressable>
 
-                <TouchableOpacity
+                <Pressable
                     style={styles.cancelButton}
                     onPress={() => router.back()}
-                    activeOpacity={0.8}
                 >
                     <Text style={styles.cancelButtonText}>Maybe Later</Text>
-                </TouchableOpacity>
+                </Pressable>
             </ScrollView>
         </View>
     );

@@ -1,5 +1,5 @@
 import { UserSupplement } from '@/api/types';
-import { SwipeAction } from '@/components/SwipeAction';
+import { SwipeAction } from '@/components/shared/SwipeAction';
 import { theme } from '@/constants/theme';
 import { useDeleteSupplementLog, useSupplementLogs } from '@/hooks/useSupplements';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +9,7 @@ import {
   Modal,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -33,16 +33,16 @@ export default function HistoryModal({ visible, onClose, supplement }: HistoryMo
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal visible={visible} animationType="slide" presentationStyle="formSheet">
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <View>
             <Text style={styles.modalTitle}>{supplement?.supplement_details.name} Logs</Text>
             <Text style={styles.modalSubtitle}>History</Text>
           </View>
-          <TouchableOpacity onPress={onClose}>
+          <Pressable onPress={onClose}>
             <Ionicons name="close-circle" size={30} color={theme.colors.text.zinc600} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {isLoading ? (

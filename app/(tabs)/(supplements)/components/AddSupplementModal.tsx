@@ -14,7 +14,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 
@@ -35,7 +35,7 @@ export default function AddSupplementModal({ visible, onClose }: AddSupplementMo
   const { data, fetchNextPage, hasNextPage } = useInfiniteSupplements(50);
   const addMutation = useAddUserSupplement();
 
-  const availableSupplements = data?.pages.flatMap((page) => page.results) || [];
+  const availableSupplements = data?.pages.flatMap((page) => ('results' in page && Array.isArray(page.results) ? page.results : Array.isArray(page) ? page : [])) ?? [];
 
   const handleClose = () => {
     onClose();
@@ -74,13 +74,13 @@ export default function AddSupplementModal({ visible, onClose }: AddSupplementMo
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal visible={visible} animationType="slide" presentationStyle="formSheet">
       <View style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>{step === 1 ? 'Add Supplement' : 'Details'}</Text>
-          <TouchableOpacity onPress={handleClose}>
+          <Pressable onPress={handleClose}>
             <Ionicons name="close-circle" size={30} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {step === 1 ? (
@@ -89,7 +89,7 @@ export default function AddSupplementModal({ visible, onClose }: AddSupplementMo
             keyExtractor={(item) => item.id.toString()}
             contentContainerStyle={{ padding: 16 }}
             renderItem={({ item }) => (
-              <TouchableOpacity
+              <Pressable
                 style={styles.selectionRow}
                 onPress={() => {
                   setFormData((prev) => ({
@@ -102,17 +102,16 @@ export default function AddSupplementModal({ visible, onClose }: AddSupplementMo
               >
                 <Text style={styles.selectionText}>{item.name}</Text>
                 <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
-              </TouchableOpacity>
+              </Pressable>
             )}
             ListFooterComponent={
               hasNextPage ? (
-                <TouchableOpacity
+                <Pressable
                   style={styles.loadMoreButton}
                   onPress={() => fetchNextPage()}
-                  activeOpacity={0.7}
                 >
                   <Text style={styles.loadMoreText}>Load More</Text>
-                </TouchableOpacity>
+                </Pressable>
               ) : null
             }
           />
@@ -124,9 +123,9 @@ export default function AddSupplementModal({ visible, onClose }: AddSupplementMo
             <ScrollView contentContainerStyle={styles.formContent}>
               <View style={styles.previewBanner}>
                 <Text style={styles.previewText}>{formData.base?.name}</Text>
-                <TouchableOpacity onPress={() => setStep(1)}>
+                <Pressable onPress={() => setStep(1)}>
                   <Text style={styles.changeLink}>Change</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               <Text style={styles.label}>DOSAGE ({formData.base?.dosage_unit})</Text>
@@ -143,7 +142,7 @@ export default function AddSupplementModal({ visible, onClose }: AddSupplementMo
               <Text style={styles.label}>FREQUENCY</Text>
               <View style={styles.pillRow}>
                 {['Daily', 'Weekly'].map((f) => (
-                  <TouchableOpacity
+                  <Pressable
                     key={f}
                     style={[
                       styles.pill,
@@ -159,7 +158,7 @@ export default function AddSupplementModal({ visible, onClose }: AddSupplementMo
                     >
                       {f}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 ))}
               </View>
 
@@ -172,9 +171,9 @@ export default function AddSupplementModal({ visible, onClose }: AddSupplementMo
                 placeholderTextColor={theme.colors.text.tertiary}
               />
 
-              <TouchableOpacity style={styles.saveButton} onPress={handleSubmit}>
+              <Pressable style={styles.saveButton} onPress={handleSubmit}>
                 <Text style={styles.saveButtonText}>Add Supplement</Text>
-              </TouchableOpacity>
+              </Pressable>
             </ScrollView>
           </KeyboardAvoidingView>
         )}

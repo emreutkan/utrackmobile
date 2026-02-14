@@ -1,7 +1,7 @@
 import { MuscleRecoveryItem } from '@/api/types';
 import { theme } from '@/constants/theme';
 import { StyleSheet, Text, View } from 'react-native';
-import { formatTimeRemaining, getStatusColor } from './helpers';
+import { formatTimeRemaining, getStatusColor } from '@/utils/recoveryStatusHelpers';
 
 interface MuscleCardProps {
   muscle: string;

@@ -1,4 +1,6 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { useDateStore } from '@/state/userStore';
 import {
   createWorkout,
   getActiveWorkout,
@@ -66,12 +68,14 @@ export const useWorkout = (workoutId: number | null) => {
   });
 };
 
-// Active workout query
+// Active workout query – one fetch shared by all consumers; no refetch on window/tab focus
 export const useActiveWorkout = () => {
   return useQuery({
     queryKey: ['active-workout'],
     queryFn: getActiveWorkout,
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 1000 * 60 * 2, // 2 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false, // use cache when another screen already fetched
   });
 };
 
@@ -99,7 +103,12 @@ export const useCompleteWorkout = () => {
     }: {
       workoutId: number;
       data?: { duration?: string; intensity?: number; notes?: string };
-    }) => completeWorkout(workoutId, data),
+    }) =>
+      completeWorkout(workoutId, {
+        duration: data?.duration != null ? Number(data.duration) : undefined,
+        intensity: data?.intensity as 'low' | 'medium' | 'high' | undefined,
+        notes: data?.notes,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workouts'] });
       queryClient.invalidateQueries({ queryKey: ['workouts-infinite'] });
@@ -116,6 +125,7 @@ export const useWorkoutSummary = (workoutId: number | null) => {
     queryKey: ['workout-summary', workoutId],
     queryFn: () => getWorkoutSummary(workoutId!),
     enabled: workoutId !== null,
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 };
 
@@ -124,11 +134,14 @@ export const useDeleteWorkout = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (workoutId: number) => deleteWorkout(workoutId),
-    onSuccess: () => {
+    onSuccess: (_, workoutId) => {
       queryClient.invalidateQueries({ queryKey: ['workouts'] });
       queryClient.invalidateQueries({ queryKey: ['workouts-infinite'] });
       queryClient.invalidateQueries({ queryKey: ['calendar'] });
       queryClient.invalidateQueries({ queryKey: ['today-status'] });
+      queryClient.invalidateQueries({ queryKey: ['active-workout'] });
+      queryClient.invalidateQueries({ queryKey: ['workout', workoutId] });
+      queryClient.invalidateQueries({ queryKey: ['workout-summary', workoutId] });
     },
   });
 };
@@ -246,16 +259,19 @@ export const useAvailableYears = () => {
 export const useCalendarStats = (year: number, month?: number, week?: number) => {
   return useQuery({
     queryKey: ['calendar-stats', year, month, week],
-    queryFn: () => getCalendarStats(year, month, week),
+    queryFn: () => getCalendarStats({ year, month, week }),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };
 
-// Today status query
-export const useTodayStatus = () => {
+// Today status query - pass date for status on that day (defaults to "today" when not provided)
+export const useTodayStatus = (date?: Date) => {
+  const dateStr = date
+    ? `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
+    : '';
   return useQuery({
-    queryKey: ['today-status'],
-    queryFn: checkToday,
+    queryKey: ['today-status', dateStr],
+    queryFn: () => checkToday(date ?? undefined),
     staleTime: 1000 * 30, // 30 seconds
   });
 };
@@ -281,4 +297,17 @@ export const useInvalidateWorkouts = () => {
 export const useInvalidateTodayStatus = () => {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: ['today-status'] });
+};
+
+/** Set selected date and invalidate today-status cache so the new date's data refetches. */
+export const useSetSelectedDate = () => {
+  const setToday = useDateStore((s) => s.setToday);
+  const queryClient = useQueryClient();
+  return useCallback(
+    (date: Date) => {
+      setToday(date);
+      queryClient.invalidateQueries({ queryKey: ['today-status'] });
+    },
+    [setToday, queryClient]
+  );
 };

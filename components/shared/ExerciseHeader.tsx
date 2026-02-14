@@ -1,7 +1,7 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface ExerciseHeaderProps {
     exercise: any;
@@ -25,13 +25,13 @@ export const ExerciseHeader = ({ exercise, isLocked, onMenuPress, showHistory, o
                             </>
                         )}
                     </Text>
-                    <TouchableOpacity 
+                    <Pressable 
                         onPress={onMenuPress}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         style={styles.menuButton}
                     >
                         <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.text.tertiary} />
-                    </TouchableOpacity>
+                    </Pressable>
                 </View>
 
                 <View style={styles.exerciseInfoRow}>
@@ -43,13 +43,13 @@ export const ExerciseHeader = ({ exercise, isLocked, onMenuPress, showHistory, o
                         )}
                     </View>
                     {onHistoryToggle && (
-                        <TouchableOpacity 
+                        <Pressable 
                             onPress={onHistoryToggle}
                             style={[styles.historyToggleButton, showHistory && styles.historyToggleButtonActive]}
                         >
                             <Ionicons name="time-outline" size={14} color={showHistory ? theme.colors.text.brand : theme.colors.text.tertiary} />
                             <Text style={[styles.historyToggleText, showHistory && styles.historyToggleTextActive]}>HISTORY</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                     )}
                 </View>
             </View>

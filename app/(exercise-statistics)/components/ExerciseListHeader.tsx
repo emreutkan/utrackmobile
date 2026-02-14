@@ -1,7 +1,7 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface ExerciseListHeaderProps {
   paddingTop: number;
@@ -10,9 +10,9 @@ interface ExerciseListHeaderProps {
 export default function ExerciseListHeader({ paddingTop }: ExerciseListHeaderProps) {
   return (
     <View style={[styles.header, { paddingTop: paddingTop + 10 }]}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+      <Pressable onPress={() => router.back()} style={styles.backButton}>
         <Ionicons name="chevron-back" size={24} color="#FFF" />
-      </TouchableOpacity>
+      </Pressable>
       <View style={styles.headerTitleContainer}>
         <Text style={styles.headerTitle}>EXERCISE STATS</Text>
         <Text style={styles.headerSubtitle}>SELECT AN EXERCISE</Text>

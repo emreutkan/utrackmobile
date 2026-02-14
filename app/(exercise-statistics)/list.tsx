@@ -1,4 +1,6 @@
 import { getExercises } from '@/api/Exercises';
+import { PaginatedResponse } from '@/api/types/pagination';
+import { Exercise } from '@/api/types/index';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,17 +30,18 @@ export default function ExerciseListScreen() {
       }
       try {
         const pageToFetch = reset ? 1 : page + 1;
-        const data = await getExercises(searchQuery, pageToFetch);
+        const data = await getExercises(searchQuery, pageToFetch) as PaginatedResponse<Exercise> | Exercise[] | undefined;
 
-        if (data?.results) {
+        if (data && typeof data === 'object' && 'results' in data) {
+          const paginated = data as PaginatedResponse<Exercise>;
           if (reset) {
-            setExercises(data.results);
+            setExercises(paginated.results);
             setPage(1);
           } else {
-            setExercises((prev) => [...prev, ...data.results]);
+            setExercises((prev) => [...prev, ...paginated.results]);
             setPage(pageToFetch);
           }
-          setHasMore(!!data.next);
+          setHasMore(!!paginated.next);
         } else if (Array.isArray(data)) {
           if (reset) {
             setExercises(data);

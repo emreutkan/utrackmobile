@@ -1,7 +1,7 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface ExerciseCardProps {
   exercise: {
@@ -14,10 +14,9 @@ interface ExerciseCardProps {
 
 export default function ExerciseCard({ exercise }: ExerciseCardProps) {
   return (
-    <TouchableOpacity
+    <Pressable
       style={styles.exerciseCard}
       onPress={() => router.push(`/(exercise-statistics)/${exercise.id}`)}
-      activeOpacity={0.7}
     >
       <View style={styles.exerciseInfo}>
         <View style={styles.exerciseIcon}>
@@ -32,7 +31,7 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
         </View>
       </View>
       <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

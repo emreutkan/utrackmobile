@@ -1,7 +1,7 @@
 import { theme, typographyStyles } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface UpgradePromptProps {
     feature: string;
@@ -22,24 +22,22 @@ export default function UpgradePrompt({
 
     if (compact) {
         return (
-            <TouchableOpacity
+            <Pressable
                 style={styles.compactCard}
                 onPress={handleUpgrade}
-                activeOpacity={0.8}
             >
                 <View style={styles.compactContent}>
                     <Text style={styles.compactText}>{feature} - PRO Feature</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={theme.colors.text.secondary} />
-            </TouchableOpacity>
+            </Pressable>
         );
     }
 
     return (
-        <TouchableOpacity
+        <Pressable
             style={styles.card}
             onPress={handleUpgrade}
-            activeOpacity={0.8}
         >
             <View style={styles.header}>
                 <View>
@@ -52,7 +50,7 @@ export default function UpgradePrompt({
             <View style={styles.badge}>
                 <Text style={styles.badgeText}>PRO</Text>
             </View>
-        </TouchableOpacity>
+        </Pressable>
         )
 }
 

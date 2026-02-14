@@ -1,5 +1,6 @@
 import { checkEmail, checkName, checkPassword, login, register } from '@/api/Auth';
 import { getErrorMessage } from '@/api/errorHandler';
+import { storeAccessToken, storeRefreshToken } from '@/hooks/Storage';
 import {
   CheckPasswordRequest,
   LoginRequest,
@@ -22,7 +23,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -332,6 +333,8 @@ export default function AuthScreen() {
       };
       const result = await login(loginRequest);
       if (typeof result === 'object' && result.access && result.refresh) {
+        await storeAccessToken(result.access);
+        await storeRefreshToken(result.refresh);
         router.replace('/(home)');
       } else {
         showAlert(
@@ -379,6 +382,8 @@ export default function AuthScreen() {
       };
       const result = await register(registerRequest);
       if (typeof result === 'object' && result.access && result.refresh) {
+        await storeAccessToken(result.access);
+        await storeRefreshToken(result.refresh);
         router.replace('/(home)');
       } else {
         showAlert(
@@ -423,14 +428,12 @@ export default function AuthScreen() {
         </View>
 
         <View style={styles.middleSection}>
-          <View style={styles.titleContainer}>
-            <TouchableOpacity onPress={handleForceTap} activeOpacity={0.8}>
-              <Text style={typographyStyles.hero}>
-                FORCE
-                <Text style={{ color: theme.colors.status.rest }}>.</Text>
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <Pressable style={styles.titleContainer} onPress={handleForceTap} hitSlop={16}>
+            <Text style={typographyStyles.hero}>
+              FORCE
+              <Text style={{ color: theme.colors.status.rest }}>.</Text>
+            </Text>
+          </Pressable>
           <Text style={styles.heroSubtitle}>
             {currentStep === 'password' ? 'BUILT FOR YOU' : 'BUILT FOR EXCELLENCE'}
           </Text>
@@ -476,13 +479,12 @@ export default function AuthScreen() {
                 <Animated.View style={animatedEmailButtonStyle}>
                   <View style={styles.seperatorWide} />
                   <View style={styles.splitButtonContainer}>
-                    <TouchableOpacity
+                    <Pressable
                       style={[styles.splitButton, styles.splitButtonLeft]}
                       onPress={(e) => {
                         e.preventDefault();
                         handleStartRegister();
                       }}
-                      activeOpacity={0.8}
                       disabled={email.length === 0 || validating}
                     >
                       {validating && currentStep === 'email' ? (
@@ -490,9 +492,9 @@ export default function AuthScreen() {
                       ) : (
                         <Text style={styles.splitButtonText}>REGISTER</Text>
                       )}
-                    </TouchableOpacity>
+                    </Pressable>
                     <View style={styles.splitButtonDivider} />
-                    <TouchableOpacity
+                    <Pressable
                       style={[
                         styles.splitButton,
                         styles.splitButtonRight,
@@ -502,13 +504,12 @@ export default function AuthScreen() {
                         e.preventDefault();
                         handleContinueFromEmail();
                       }}
-                      activeOpacity={0.8}
                       disabled={email.length === 0 || validating}
                     >
                       <Text style={[styles.splitButtonText, styles.splitButtonTextPrimary]}>
                         CONTINUE
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 </Animated.View>
               </>
@@ -517,17 +518,16 @@ export default function AuthScreen() {
               <>
                 <View style={styles.passwordStepContainer}>
                   <Animated.View style={animatedBackButtonStyle}>
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.backButton}
                       onPress={() => {
                         setCurrentStep('email');
                         setName('');
                         setIsRegistering(false);
                       }}
-                      activeOpacity={0.7}
                     >
                       <Ionicons name="chevron-back" size={20} color={theme.colors.text.primary} />
-                    </TouchableOpacity>
+                    </Pressable>
                   </Animated.View>
                   <TextInput
                     style={styles.inputTop}
@@ -552,13 +552,12 @@ export default function AuthScreen() {
                 )}
                 <Animated.View style={animatedNameButtonStyle}>
                   <View style={styles.seperatorWide} />
-                  <TouchableOpacity
+                  <Pressable
                     style={[styles.inputBottom, styles.inputBottomPrimary]}
                     onPress={(e) => {
                       e.preventDefault();
                       handleContinueFromName();
                     }}
-                    activeOpacity={0.8}
                     disabled={name.length === 0 || validating}
                   >
                     {validating && currentStep === 'name' ? (
@@ -568,14 +567,14 @@ export default function AuthScreen() {
                         CONTINUE
                       </Text>
                     )}
-                  </TouchableOpacity>
+                  </Pressable>
                 </Animated.View>
               </>
             ) : (
               <>
                 <View style={styles.passwordStepContainer}>
                   <Animated.View style={animatedBackButtonStyle}>
-                    <TouchableOpacity
+                    <Pressable
                       style={styles.backButton}
                       onPress={() => {
                         if (isRegistering) {
@@ -585,10 +584,9 @@ export default function AuthScreen() {
                         }
                         setPassword('');
                       }}
-                      activeOpacity={0.7}
                     >
                       <Ionicons name="chevron-back" size={20} color={theme.colors.text.primary} />
-                    </TouchableOpacity>
+                    </Pressable>
                   </Animated.View>
                   <View style={styles.inputWrapper}>
                     <Ionicons
@@ -618,13 +616,12 @@ export default function AuthScreen() {
                   </View>
                 </View>
                 {!isRegistering && currentStep === 'password' && (
-                  <TouchableOpacity
+                  <Pressable
                     style={styles.forgotPasswordLink}
                     onPress={() => router.push('/(auth)/request-reset')}
-                    activeOpacity={0.7}
                   >
                     <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 )}
                 {validating && currentStep === 'password' && (
                   <View style={styles.validatingContainer}>
@@ -635,13 +632,12 @@ export default function AuthScreen() {
                 <Animated.View style={animatedPasswordButtonStyle}>
                   <View style={styles.seperatorWide} />
                   {isRegistering ? (
-                    <TouchableOpacity
+                    <Pressable
                       style={[styles.inputBottom, styles.inputBottomPrimary]}
                       onPress={(e) => {
                         e.preventDefault();
                         handleRegister();
                       }}
-                      activeOpacity={0.8}
                       disabled={loading || password.length === 0 || validating}
                     >
                       {loading || validating ? (
@@ -651,15 +647,14 @@ export default function AuthScreen() {
                           REGISTER
                         </Text>
                       )}
-                    </TouchableOpacity>
+                    </Pressable>
                   ) : (
-                    <TouchableOpacity
+                    <Pressable
                       style={[styles.inputBottom, styles.inputBottomPrimary]}
                       onPress={(e) => {
                         e.preventDefault();
                         handleLogin();
                       }}
-                      activeOpacity={0.8}
                       disabled={loading || password.length === 0}
                     >
                       {loading ? (
@@ -669,7 +664,7 @@ export default function AuthScreen() {
                           LOGIN
                         </Text>
                       )}
-                    </TouchableOpacity>
+                    </Pressable>
                   )}
                 </Animated.View>
               </>
@@ -678,10 +673,9 @@ export default function AuthScreen() {
 
           <Animated.View style={animatedSocialButtonsStyle}>
             <View style={styles.socialContainer}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.socialButton}
                 onPress={() => handleSocialLogin('Google')}
-                activeOpacity={0.8}
                 disabled={!request}
               >
                 {loading && response?.type !== 'success' && request ? (
@@ -692,17 +686,16 @@ export default function AuthScreen() {
                     <Text style={styles.socialButtonText}>GOOGLE</Text>
                   </>
                 )}
-              </TouchableOpacity>
+              </Pressable>
 
               {Platform.OS === 'ios' && (
-                <TouchableOpacity
+                <Pressable
                   style={styles.socialButton}
                   onPress={() => handleSocialLogin('Apple')}
-                  activeOpacity={0.8}
                 >
                   <Ionicons name="logo-apple" size={24} color={theme.colors.text.primary} />
                   <Text style={styles.socialButtonText}>APPLE</Text>
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           </Animated.View>

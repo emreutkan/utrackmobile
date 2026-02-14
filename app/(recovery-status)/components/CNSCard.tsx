@@ -2,7 +2,7 @@ import { CNSRecoveryItem } from '@/api/types';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
-import { formatTimeRemaining, getStatusColor } from './helpers';
+import { formatTimeRemaining, getStatusColor } from '@/utils/recoveryStatusHelpers';
 
 interface CNSCardProps {
   data: CNSRecoveryItem;

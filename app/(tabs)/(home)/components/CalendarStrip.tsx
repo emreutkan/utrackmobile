@@ -2,9 +2,11 @@ import { CalendarDay } from '@/api/types/index';
 import { getCalendar } from '@/api/Workout';
 import { theme, typographyStyles } from '@/constants/theme';
 import { useDateStore } from '@/state/userStore';
+import { useSetSelectedDate } from '@/hooks/useWorkout';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
+import { CalendarStripSkeleton } from './homeLoadingSkeleton';
 
 interface CalendarStripProps {
   onPress: () => void;
@@ -12,7 +14,9 @@ interface CalendarStripProps {
 
 export default function CalendarStrip({ onPress }: CalendarStripProps) {
   const today = useDateStore((state) => state.today);
+  const setSelectedDate = useSetSelectedDate();
   const [calendarData, setCalendarData] = useState<CalendarDay[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const getCurrentWeekNumber = (d: Date) => {
     const start = new Date(d.getFullYear(), 0, 1);
@@ -21,6 +25,7 @@ export default function CalendarStrip({ onPress }: CalendarStripProps) {
   };
 
   const fetchCalendarData = useCallback(async () => {
+    setLoading(true);
     try {
       const now = new Date();
       const currentWeek = getCurrentWeekNumber(now);
@@ -31,6 +36,8 @@ export default function CalendarStrip({ onPress }: CalendarStripProps) {
       }
     } catch (error) {
       console.error('Error fetching calendar:', error);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -50,35 +57,43 @@ export default function CalendarStrip({ onPress }: CalendarStripProps) {
     (today.getDate() + new Date(today.getFullYear(), today.getMonth(), 1).getDay()) / 7
   );
 
+  if (loading) {
+    return <CalendarStripSkeleton />;
+  }
+
   return (
     <View style={styles.calendarStrip}>
-      <View style={styles.calendarHeader}>
+      <Pressable style={styles.calendarHeader} onPress={onPress}>
         <Text style={typographyStyles.labelMuted}>OVERVIEW</Text>
         <Text style={styles.calendarWeek}>
           {currentMonth}, WEEK {weekNumber.toString().padStart(2, '0')}
         </Text>
-      </View>
+      </Pressable>
 
       <View style={styles.calendarRow}>
         {Array.from({ length: 7 }).map((_, i) => {
           const d = new Date(startOfWeek);
           d.setDate(d.getDate() + i);
-          const isToday = d.toDateString() === today.toDateString();
+          const isSelected = d.toDateString() === today.toDateString();
+          const isCalendarToday = d.toDateString() === new Date().toDateString();
           const dateStr = d.toISOString().split('T')[0];
           const dayData = calendarData.find((cd) => cd.date === dateStr);
           const hasActivity = dayData?.has_workout || dayData?.is_rest_day;
 
           return (
-            <TouchableOpacity
+            <Pressable
               key={i}
-              style={[styles.dayCell, isToday && styles.dayCellActive]}
-              onPress={onPress}
-              activeOpacity={0.7}
+              style={[
+                styles.dayCell,
+                isSelected && styles.dayCellActive,
+                isCalendarToday && styles.dayCellTodayBorder,
+              ]}
+              onPress={() => setSelectedDate(new Date(d.getFullYear(), d.getMonth(), d.getDate()))}
             >
-              <Text style={[styles.dayName, isToday && styles.dayNameActive]}>
+              <Text style={[styles.dayName, isSelected && styles.dayNameActive]}>
                 {d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase().slice(0, 3)}
               </Text>
-              <Text style={[styles.dayDate, isToday && styles.dayDateActive]}>
+              <Text style={[styles.dayDate, isSelected && styles.dayDateActive]}>
                 {d.getDate().toString().padStart(2, '0')}
               </Text>
               <View style={styles.dayDotContainer}>
@@ -86,7 +101,7 @@ export default function CalendarStrip({ onPress }: CalendarStripProps) {
                   <View
                     style={[
                       styles.dayDot,
-                      isToday
+                      isSelected
                         ? styles.dayDotActive
                         : dayData?.has_workout
                         ? styles.dayDotWorkout
@@ -95,7 +110,7 @@ export default function CalendarStrip({ onPress }: CalendarStripProps) {
                   />
                 )}
               </View>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
@@ -132,6 +147,10 @@ const styles = StyleSheet.create({
   },
   dayCellActive: {
     backgroundColor: theme.colors.status.rest,
+  },
+  dayCellTodayBorder: {
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
   },
   dayName: {
     fontSize: theme.typography.sizes.label,

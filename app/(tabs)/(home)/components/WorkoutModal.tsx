@@ -14,7 +14,7 @@ import {
     StyleSheet,
     Text,
     TextInput,
-    TouchableOpacity,
+    Pressable,
     View
 } from 'react-native';
 
@@ -183,6 +183,7 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
 
     return (
         <Modal
+            presentationStyle="overFullScreen"
             visible={visible}
             transparent
             animationType="slide"
@@ -192,18 +193,17 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.modalOverlay}
             >
-                <TouchableOpacity
+                <Pressable
                     style={styles.modalBackdrop}
-                    activeOpacity={1}
                     onPress={onClose}
                 />
 
                 <View style={styles.sheetContainer}>
                     <View style={styles.header}>
                         <Text style={styles.modalTitle}>{title}</Text>
-                        <TouchableOpacity onPress={onClose} style={styles.closeIcon}>
+                        <Pressable onPress={onClose} style={styles.closeIcon}>
                             <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
-                        </TouchableOpacity>
+                        </Pressable>
                     </View>
 
                     <View style={styles.formContainer}>
@@ -221,7 +221,7 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
 
                         {mode === 'log' && (
                             <View style={styles.dateSection}>
-                                <TouchableOpacity
+                                <Pressable
                                     style={[styles.dateButton, showDatePicker && styles.dateButtonActive]}
                                     onPress={toggleDatePicker}
                                 >
@@ -241,7 +241,7 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
                                             style={{ transform: [{ rotate: showDatePicker ? '90deg' : '0deg' }] }}
                                         />
                                     </View>
-                                </TouchableOpacity>
+                                </Pressable>
 
                                 {showDatePicker && (
                                     <View style={styles.datePickerContainer}>
@@ -260,13 +260,13 @@ export default function WorkoutModal({ visible, onClose, mode, onSuccess }: Work
                             </View>
                         )}
 
-                        <TouchableOpacity
+                        <Pressable
                             style={[styles.primaryButton, !workoutTitle.trim() && styles.btnDisabled]}
                             onPress={handleSubmit}
                             disabled={!workoutTitle.trim()}
                         >
                             <Text style={styles.primaryButtonText}>{buttonText}</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                     </View>
                 </View>
             </KeyboardAvoidingView>

@@ -12,10 +12,10 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
+  FlatList,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -91,39 +91,41 @@ export default function SupplementsScreen() {
             style={styles.gradientBg}
           />
 
-          <ScrollView
+          <FlatList
+            data={userSupplements}
+            keyExtractor={(item) => item.supplement_details.id.toString()}
             contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
             showsVerticalScrollIndicator={false}
-          >
-            <SupplementsHeader onAddPress={() => setModals((m) => ({ ...m, add: true }))} />
-
-            <ProgressCard loggedCount={loggedCount} totalCount={totalCount} />
-
-            {userSupplements.length > 0 && (
+            ListHeaderComponent={
               <>
-                <Text style={styles.sectionHeader}>ACTIVE</Text>
-                {userSupplements.map((item) => (
-                  <SupplementCard
-                    key={item.supplement_details.id}
-                    item={item}
-                    isLogged={todayLogsMap.get(item.supplement_details.id) || false}
-                    onLog={() => handleLog(item)}
-                    onPress={() => openHistory(item)}
-                  />
-                ))}
-                {hasNextPage && (
-                  <TouchableOpacity
-                    style={styles.loadMoreButton}
-                    onPress={() => fetchNextPage()}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.loadMoreText}>Load More</Text>
-                  </TouchableOpacity>
+                <SupplementsHeader onAddPress={() => setModals((m) => ({ ...m, add: true }))} />
+                <ProgressCard loggedCount={loggedCount} totalCount={totalCount} />
+                {userSupplements.length > 0 && (
+                  <Text style={styles.sectionHeader}>ACTIVE</Text>
                 )}
               </>
+            }
+            renderItem={({ item }) => (
+              <SupplementCard
+                item={item}
+                isLogged={todayLogsMap.get(item.supplement_details.id) || false}
+                onLog={() => handleLog(item)}
+                onPress={() => openHistory(item)}
+              />
             )}
-
-            {userSupplements.length === 0 && (
+            ListFooterComponent={
+              <>
+                {hasNextPage && (
+                  <Pressable
+                    style={styles.loadMoreButton}
+                    onPress={() => fetchNextPage()}
+                  >
+                    <Text style={styles.loadMoreText}>Load More</Text>
+                  </Pressable>
+                )}
+              </>
+            }
+            ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <View style={styles.emptyIcon}>
                   <Ionicons name="nutrition" size={32} color="#8E8E93" />
@@ -131,8 +133,8 @@ export default function SupplementsScreen() {
                 <Text style={styles.emptyTitle}>No Supplements</Text>
                 <Text style={styles.emptyText}>Add supplements to track your daily intake.</Text>
               </View>
-            )}
-          </ScrollView>
+            }
+          />
 
           <AddSupplementModal
             visible={modals.add}

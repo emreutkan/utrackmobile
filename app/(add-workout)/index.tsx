@@ -1,4 +1,4 @@
-import WorkoutDetailView from '@/components/WorkoutDetailView';
+import WorkoutDetailView from '@/components/shared/workout/WorkoutDetailView';
 import { theme } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';

@@ -1,7 +1,7 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 import NeuralBarChart from './NeuralBarChart';
 
 interface RMProgressionChartProps {
@@ -25,7 +25,7 @@ export default function RMProgressionChart({ rmChartData }: RMProgressionChartPr
         </View>
 
         <View style={styles.toggleContainer}>
-          <TouchableOpacity
+          <Pressable
             onPress={() => setRmChartMode('1RM')}
             style={[styles.toggleButton, rmChartMode === '1RM' && styles.toggleButtonActive]}
           >
@@ -37,8 +37,8 @@ export default function RMProgressionChart({ rmChartData }: RMProgressionChartPr
             >
               1RM
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             onPress={() => setRmChartMode('PROGRESS')}
             style={[styles.toggleButton, rmChartMode === 'PROGRESS' && styles.toggleButtonActive]}
           >
@@ -50,7 +50,7 @@ export default function RMProgressionChart({ rmChartData }: RMProgressionChartPr
             >
               PROGRESS
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 

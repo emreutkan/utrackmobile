@@ -2,7 +2,7 @@ import { theme, typographyStyles } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface HomeHeaderProps {
   today: Date;
@@ -17,7 +17,7 @@ export default function HomeHeader({ today, insets }: HomeHeaderProps) {
           FORCE
           <Text style={{ color: theme.colors.status.active }}>.</Text>
         </Text>
-        <TouchableOpacity
+        <Pressable
           onPress={() => router.push('/(account)')}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           style={styles.gearButton}
@@ -27,7 +27,7 @@ export default function HomeHeader({ today, insets }: HomeHeaderProps) {
             size={24}
             color={theme.colors.text.secondary}
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
       <View style={styles.header}>
         <Text style={styles.headerDate}>

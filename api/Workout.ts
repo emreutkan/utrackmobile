@@ -50,8 +50,9 @@ export const createWorkout = async (
   return response.json();
 };
 
-export const getActiveWorkout = async (): Promise<CreateWorkoutResponse | any> => {
-  const response = await apiClient.get(GET_ACTIVE_WORKOUT_URL);
+export const getActiveWorkout = async (): Promise<CreateWorkoutResponse | null> => {
+  const response = await apiClient.get(GET_ACTIVE_WORKOUT_URL, { throwHttpErrors: false });
+  if (response.status === 404) return null;
   return response.json();
 };
 
@@ -182,8 +183,17 @@ export const getCalendarStats = async (period: {
   return response.json();
 };
 
-export const checkToday = async (): Promise<CheckTodayResponse | any> => {
-  const response = await apiClient.get(CHECK_TODAY_URL);
+export const checkToday = async (date?: Date): Promise<CheckTodayResponse | any> => {
+  const searchParams: Record<string, string> = {};
+  if (date) {
+    const y = date.getFullYear();
+    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+    const d = date.getDate().toString().padStart(2, '0');
+    searchParams.date = `${y}-${m}-${d}`;
+  }
+  const response = await apiClient.get(CHECK_TODAY_URL, {
+    searchParams: Object.keys(searchParams).length ? searchParams : undefined,
+  });
   return response.json();
 };
 

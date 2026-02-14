@@ -17,7 +17,7 @@ import {
     StyleSheet,
     Text,
     TextInput,
-    TouchableOpacity,
+    Pressable,
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -158,9 +158,9 @@ export default function VolumeAnalysisScreen() {
                         <Text style={styles.chartTitle}>{selectedMuscle}</Text>
                         <Text style={styles.chartSubtitle}>Weekly Volume History</Text>
                     </View>
-                    <TouchableOpacity onPress={() => setSelectedMuscle(null)} style={styles.closeChartBtn}>
+                    <Pressable onPress={() => setSelectedMuscle(null)} style={styles.closeChartBtn}>
                         <Ionicons name="close" size={20} color="#8E8E93" />
-                    </TouchableOpacity>
+                    </Pressable>
                 </View>
 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chartScroll}>
@@ -188,10 +188,9 @@ export default function VolumeAnalysisScreen() {
         const isSelected = selectedMuscle === item.muscle_group;
 
         return (
-            <TouchableOpacity 
+            <Pressable 
                 style={[styles.rowCard, isSelected && styles.rowCardActive]} 
                 onPress={() => setSelectedMuscle(item.muscle_group)}
-                activeOpacity={0.7}
             >
                 <View style={styles.rowHeader}>
                     <View style={styles.rowTitleContainer}>
@@ -209,7 +208,7 @@ export default function VolumeAnalysisScreen() {
                     <Text style={styles.rowStatText}>{item.total_sets} Sets</Text>
                     <Text style={styles.rowStatText}>Max: {item.max_volume.toFixed(0)}</Text>
                 </View>
-            </TouchableOpacity>
+            </Pressable>
         );
     };
 
@@ -219,10 +218,12 @@ export default function VolumeAnalysisScreen() {
                 colors={['rgba(99, 101, 241, 0.13)', 'transparent']}
                 style={StyleSheet.absoluteFillObject}
             />
-            <UnifiedHeader 
-                title="Volume Analysis" 
-                rightButton={{ icon: "filter", onPress: () => setIsFilterVisible(true) }} 
-            />
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Volume Analysis</Text>
+                <Pressable onPress={() => setIsFilterVisible(true)} style={styles.headerButton}>
+                    <Ionicons name="filter" size={22} color={theme.colors.text.primary} />
+                </Pressable>
+            </View>
 
             {isLoading ? (
                 <View style={[styles.centerFill, { marginTop: 58 }]}>
@@ -234,44 +235,46 @@ export default function VolumeAnalysisScreen() {
                     <Text style={styles.emptyText}>No data found</Text>
                 </View>
             ) : (
-                <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20, marginTop: 58 }]}>
-                    {!analysis.is_pro && analysis.weeks_limit && (
-                        <UpgradePrompt
-                            compact
-                            feature={`Viewing last ${analysis.weeks_limit} weeks only`}
-                            message="Upgrade to PRO for unlimited history"
-                        />
-                    )}
-                    
-                    <View style={styles.statsRow}>
-                        <View style={styles.statChip}>
-                            <Text style={styles.statChipValue}>{totalStats.workouts}</Text>
-                            <Text style={styles.statChipLabel}>WORKOUTS</Text>
-                        </View>
-                        <View style={styles.statChip}>
-                            <Text style={styles.statChipValue}>{totalStats.sets}</Text>
-                            <Text style={styles.statChipLabel}>TOTAL SETS</Text>
-                        </View>
-                        <View style={styles.statChip}>
-                            <Text style={styles.statChipValue}>{analysis.period?.total_weeks || 12}</Text>
-                            <Text style={styles.statChipLabel}>WEEKS</Text>
-                        </View>
-                    </View>
+                <FlatList
+                    data={summaryStats}
+                    keyExtractor={(item) => item.muscle_group}
+                    contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20, marginTop: 58 }]}
+                    showsVerticalScrollIndicator={false}
+                    ListHeaderComponent={
+                        <>
+                            {!analysis.is_pro && analysis.weeks_limit && (
+                                <UpgradePrompt
+                                    compact
+                                    feature={`Viewing last ${analysis.weeks_limit} weeks only`}
+                                    message="Upgrade to PRO for unlimited history"
+                                />
+                            )}
 
-                    {renderChart()}
+                            <View style={styles.statsRow}>
+                                <View style={styles.statChip}>
+                                    <Text style={styles.statChipValue}>{totalStats.workouts}</Text>
+                                    <Text style={styles.statChipLabel}>WORKOUTS</Text>
+                                </View>
+                                <View style={styles.statChip}>
+                                    <Text style={styles.statChipValue}>{totalStats.sets}</Text>
+                                    <Text style={styles.statChipLabel}>TOTAL SETS</Text>
+                                </View>
+                                <View style={styles.statChip}>
+                                    <Text style={styles.statChipValue}>{analysis.period?.total_weeks || 12}</Text>
+                                    <Text style={styles.statChipLabel}>WEEKS</Text>
+                                </View>
+                            </View>
 
-                    <Text style={styles.sectionTitle}>MUSCLE GROUPS</Text>
-                    <FlatList
-                        data={summaryStats}
-                        renderItem={renderMuscleRow}
-                        keyExtractor={i => i.muscle_group}
-                        scrollEnabled={false}
-                    />
+                            {renderChart()}
 
-                </ScrollView>
+                            <Text style={styles.sectionTitle}>MUSCLE GROUPS</Text>
+                        </>
+                    }
+                    renderItem={renderMuscleRow}
+                />
             )}
 
-            <Modal visible={isFilterVisible} transparent animationType="fade" onRequestClose={() => setIsFilterVisible(false)}>
+            <Modal visible={isFilterVisible} transparent animationType="fade" presentationStyle="overFullScreen" onRequestClose={() => setIsFilterVisible(false)}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
                         <Text style={styles.modalTitle}>Analysis Period</Text>
@@ -288,12 +291,12 @@ export default function VolumeAnalysisScreen() {
                             <Text style={styles.inputUnit}>Weeks</Text>
                         </View>
                         <View style={styles.modalActions}>
-                            <TouchableOpacity style={styles.btnCancel} onPress={() => setIsFilterVisible(false)}>
+                            <Pressable style={styles.btnCancel} onPress={() => setIsFilterVisible(false)}>
                                 <Text style={styles.btnTextCancel}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.btnApply} onPress={() => { setIsFilterVisible(false); loadAnalysis(); }}>
+                            </Pressable>
+                            <Pressable style={styles.btnApply} onPress={() => { setIsFilterVisible(false); loadAnalysis(); }}>
                                 <Text style={styles.btnTextApply}>Apply</Text>
-                            </TouchableOpacity>
+                            </Pressable>
                         </View>
                     </View>
                 </KeyboardAvoidingView>
@@ -311,6 +314,9 @@ export default function VolumeAnalysisScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#000000' },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, height: 56 },
+    headerTitle: { fontSize: 17, fontWeight: '700', color: '#FFF' },
+    headerButton: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
     centerFill: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     scrollContent: { padding: 16 },
     emptyText: { color: '#8E8E93', marginTop: 16, fontSize: 16 },

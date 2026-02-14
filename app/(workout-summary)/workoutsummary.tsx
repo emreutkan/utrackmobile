@@ -8,11 +8,11 @@ import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
-  ScrollView,
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,8 +34,8 @@ const WorkoutSummaryScreen = () => {
         getWorkout(parseInt(workoutId)),
         getWorkoutSummary(parseInt(workoutId)),
       ]);
-      if (wData && !wData.error) setWorkout(wData);
-      if (sData && !sData.error) setSummary(sData);
+      if (wData && !(wData as { error?: unknown }).error) setWorkout(wData);
+      if (sData && !(sData as { error?: unknown }).error) setSummary(sData);
     } catch (error: any) {
       console.error(getErrorMessage(error as Error));
     } finally {
@@ -94,189 +94,195 @@ const WorkoutSummaryScreen = () => {
       />
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#FFF" />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.headerTitle}>SESSION SUMMARY</Text>
         <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView
+      <FlatList
+        data={workout.exercises || []}
+        keyExtractor={(item, index) => `exercise-${index}`}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
-      >
-        <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.heroSection}>
-          <View style={styles.scoreContainer}>
-            <Svg width="160" height="160" viewBox="0 0 100 100">
-              <Defs>
-                <LinearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1">
-                  <Stop offset="0" stopColor={scoreColor} stopOpacity="1" />
-                  <Stop offset="1" stopColor={scoreColor} stopOpacity="0.5" />
-                </LinearGradient>
-              </Defs>
-              <Path
-                d="M 50 10 A 40 40 0 1 1 49.9 10"
-                fill="none"
-                stroke="rgba(255,255,255,0.05)"
-                strokeWidth="8"
-              />
-              <Path
-                d="M 50 10 A 40 40 0 1 1 49.9 10"
-                fill="none"
-                stroke="url(#scoreGrad)"
-                strokeWidth="8"
-                strokeDasharray={`${(score / 10) * 251.2} 251.2`}
-                strokeLinecap="round"
-              />
-            </Svg>
-            <View style={styles.scoreTextWrapper}>
-              <Text style={[styles.scoreValue, { color: scoreColor }]}>{score.toFixed(1)}</Text>
-              <Text style={styles.scoreLabel}>PERFORMANCE</Text>
-            </View>
-          </View>
-
-          <View style={styles.workoutInfo}>
-            <Text style={styles.workoutTitle}>
-              {workout.title?.toUpperCase() || 'UNTITLED SESSION'}
-            </Text>
-            <Text style={styles.workoutDate}>
-              {new Date(workout.created_at)
-                .toLocaleDateString(undefined, {
-                  weekday: 'long',
-                  month: 'short',
-                  day: 'numeric',
-                })
-                .toUpperCase()}
-            </Text>
-          </View>
-        </Animated.View>
-
-        <View style={styles.neuralGrid}>
-          <View style={styles.neuralRow}>
-            <StatsCard
-              icon="time"
-              value={formatDuration(workout.duration)}
-              label="Duration"
-              unit="MIN"
-              color={theme.colors.text.brand}
-            />
-            <StatsCard
-              icon="barbell"
-              value={(totalVolume / 1000).toFixed(1)}
-              label="Volume"
-              unit="TONS"
-              color={theme.colors.status.warning}
-            />
-          </View>
-          <View style={styles.neuralRow}>
-            <StatsCard
-              icon="layers"
-              value={
-                workout.exercises
-                  ?.reduce((acc: number, ex: any) => acc + (ex.sets?.length || 0), 0)
-                  ?.toString() || '0'
-              }
-              label="Sets"
-              unit="TOTAL"
-              color={theme.colors.status.rest}
-            />
-            <StatsCard
-              icon="flash"
-              value={workout.exercises?.length?.toString() || '0'}
-              label="Exercises"
-              unit="COUNT"
-              color={theme.colors.status.error}
-            />
-          </View>
-        </View>
-
-        {summary && (
-          <Animated.View entering={FadeInDown.delay(600)} style={styles.analysisSection}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.neuralIconContainer}>
-                <Ionicons name="analytics" size={20} color={theme.colors.text.brand} />
+        ListHeaderComponent={
+          <>
+            <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.heroSection}>
+              <View style={styles.scoreContainer}>
+                <Svg width="160" height="160" viewBox="0 0 100 100">
+                  <Defs>
+                    <LinearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1">
+                      <Stop offset="0" stopColor={scoreColor} stopOpacity="1" />
+                      <Stop offset="1" stopColor={scoreColor} stopOpacity="0.5" />
+                    </LinearGradient>
+                  </Defs>
+                  <Path
+                    d="M 50 10 A 40 40 0 1 1 49.9 10"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.05)"
+                    strokeWidth="8"
+                  />
+                  <Path
+                    d="M 50 10 A 40 40 0 1 1 49.9 10"
+                    fill="none"
+                    stroke="url(#scoreGrad)"
+                    strokeWidth="8"
+                    strokeDasharray={`${(score / 10) * 251.2} 251.2`}
+                    strokeLinecap="round"
+                  />
+                </Svg>
+                <View style={styles.scoreTextWrapper}>
+                  <Text style={[styles.scoreValue, { color: scoreColor }]}>{score.toFixed(1)}</Text>
+                  <Text style={styles.scoreLabel}>PERFORMANCE</Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.neuralTitle}>NEURAL ANALYSIS</Text>
-                <Text style={styles.neuralSubtitle}>PERFORMANCE INSIGHTS</Text>
+
+              <View style={styles.workoutInfo}>
+                <Text style={styles.workoutTitle}>
+                  {workout.title?.toUpperCase() || 'UNTITLED SESSION'}
+                </Text>
+                <Text style={styles.workoutDate}>
+                  {new Date(workout.created_at)
+                    .toLocaleDateString(undefined, {
+                      weekday: 'long',
+                      month: 'short',
+                      day: 'numeric',
+                    })
+                    .toUpperCase()}
+                </Text>
+              </View>
+            </Animated.View>
+
+            <View style={styles.neuralGrid}>
+              <View style={styles.neuralRow}>
+                <StatsCard
+                  icon="time"
+                  value={formatDuration(workout.duration)}
+                  label="Duration"
+                  unit="MIN"
+                  color={theme.colors.text.brand}
+                />
+                <StatsCard
+                  icon="barbell"
+                  value={(totalVolume / 1000).toFixed(1)}
+                  label="Volume"
+                  unit="TONS"
+                  color={theme.colors.status.warning}
+                />
+              </View>
+              <View style={styles.neuralRow}>
+                <StatsCard
+                  icon="layers"
+                  value={
+                    workout.exercises
+                      ?.reduce((acc: number, ex: any) => acc + (ex.sets?.length || 0), 0)
+                      ?.toString() || '0'
+                  }
+                  label="Sets"
+                  unit="TOTAL"
+                  color={theme.colors.status.rest}
+                />
+                <StatsCard
+                  icon="flash"
+                  value={workout.exercises?.length?.toString() || '0'}
+                  label="Exercises"
+                  unit="COUNT"
+                  color={theme.colors.status.error}
+                />
               </View>
             </View>
 
-            <View style={styles.analysisContainer}>
-              {summary.positives && Object.values(summary.positives).length > 0 && (
-                <View style={styles.analysisCard}>
-                  <Text style={[styles.analysisHeader, { color: theme.colors.status.rest }]}>
-                    OPTIMIZED
-                  </Text>
-                  {Object.values(summary.positives).map((item: any, i) => (
-                    <AnalysisRow key={i} message={item.message} type="positive" />
-                  ))}
+            {summary && (
+              <Animated.View entering={FadeInDown.delay(600)} style={styles.analysisSection}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.neuralIconContainer}>
+                    <Ionicons name="analytics" size={20} color={theme.colors.text.brand} />
+                  </View>
+                  <View>
+                    <Text style={styles.neuralTitle}>NEURAL ANALYSIS</Text>
+                    <Text style={styles.neuralSubtitle}>PERFORMANCE INSIGHTS</Text>
+                  </View>
                 </View>
-              )}
 
-              {summary.negatives && Object.values(summary.negatives).length > 0 && (
-                <View style={styles.analysisCard}>
-                  <Text style={[styles.analysisHeader, { color: theme.colors.status.error }]}>
-                    CRITICAL
-                  </Text>
-                  {Object.values(summary.negatives).map((item: any, i) => (
-                    <AnalysisRow key={i} message={item.message} type="negative" />
-                  ))}
+                <View style={styles.analysisContainer}>
+                  {summary.positives && Object.values(summary.positives).length > 0 && (
+                    <View style={styles.analysisCard}>
+                      <Text style={[styles.analysisHeader, { color: theme.colors.status.rest }]}>
+                        OPTIMIZED
+                      </Text>
+                      {Object.values(summary.positives).map((item: any, i) => (
+                        <AnalysisRow key={i} message={item.message} type="positive" />
+                      ))}
+                    </View>
+                  )}
+
+                  {summary.negatives && Object.values(summary.negatives).length > 0 && (
+                    <View style={styles.analysisCard}>
+                      <Text style={[styles.analysisHeader, { color: theme.colors.status.error }]}>
+                        CRITICAL
+                      </Text>
+                      {Object.values(summary.negatives).map((item: any, i) => (
+                        <AnalysisRow key={i} message={item.message} type="negative" />
+                      ))}
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
 
-            {!summary.is_pro && (
-              <UpgradePrompt
-                feature="Advanced Workout Insights"
-                message="Unlock deeper somatic analysis and 1RM tracking"
-              />
+                {!summary.is_pro && (
+                  <UpgradePrompt
+                    feature="Advanced Workout Insights"
+                    message="Unlock deeper somatic analysis and 1RM tracking"
+                  />
+                )}
+              </Animated.View>
             )}
-          </Animated.View>
-        )}
 
-        <Animated.View entering={FadeInDown.delay(700)} style={styles.logSection}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.neuralIconContainer}>
-              <Ionicons name="list" size={20} color={theme.colors.text.brand} />
-            </View>
-            <View>
-              <Text style={styles.neuralTitle}>EXERCISE LOG</Text>
-              <Text style={styles.neuralSubtitle}>SESSION BREAKDOWN</Text>
-            </View>
-          </View>
-
-          <View style={styles.logContainer}>
-            {workout.exercises?.map((ex: any, i: number) => (
-              <View
-                key={i}
-                style={[styles.logRow, i !== workout.exercises.length - 1 && styles.borderBottom]}
-              >
-                <View style={styles.logLeft}>
-                  <Text style={styles.logName} numberOfLines={1}>
-                    {ex.exercise?.name || ex.name}
-                  </Text>
-                  <Text style={styles.logSubtext}>
-                    {ex.sets?.length} SETS • BEST{' '}
-                    {Math.max(...(ex.sets?.map((s: any) => s.weight) || [0]))}KG
-                  </Text>
+            <Animated.View entering={FadeInDown.delay(700)} style={styles.logSection}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.neuralIconContainer}>
+                  <Ionicons name="list" size={20} color={theme.colors.text.brand} />
                 </View>
-                <View style={styles.logRight}>
-                  <Ionicons name="chevron-forward" size={16} color={theme.colors.text.tertiary} />
+                <View>
+                  <Text style={styles.neuralTitle}>EXERCISE LOG</Text>
+                  <Text style={styles.neuralSubtitle}>SESSION BREAKDOWN</Text>
                 </View>
               </View>
-            ))}
+            </Animated.View>
+          </>
+        }
+        renderItem={({ item: ex, index: i }) => (
+          <View
+            style={[
+              styles.logRow,
+              i !== (workout.exercises?.length || 0) - 1 && styles.borderBottom,
+            ]}
+          >
+            <View style={styles.logLeft}>
+              <Text style={styles.logName} numberOfLines={1}>
+                {ex.exercise?.name ?? (ex as { name?: string }).name}
+              </Text>
+              <Text style={styles.logSubtext}>
+                {ex.sets?.length} SETS • BEST {Math.max(...(ex.sets?.map((s: any) => s.weight) || [0]))}KG
+              </Text>
+            </View>
+            <View style={styles.logRight}>
+              <Ionicons name="chevron-forward" size={16} color={theme.colors.text.tertiary} />
+            </View>
           </View>
-        </Animated.View>
-
-        {/* Finish Button */}
-        <Animated.View entering={FadeInDown.delay(800)} style={styles.footer}>
-          <TouchableOpacity style={styles.doneButton} onPress={() => router.replace('/(home)')}>
-            <Text style={styles.doneButtonText}>ACKNOWLEDGE</Text>
-            <Ionicons name="checkmark-done" size={20} color="#FFF" />
-          </TouchableOpacity>
-        </Animated.View>
-      </ScrollView>
+        )}
+        ListFooterComponent={
+          <>
+            {/* Finish Button */}
+            <Animated.View entering={FadeInDown.delay(800)} style={styles.footer}>
+              <Pressable style={styles.doneButton} onPress={() => router.replace('/(home)')}>
+                <Text style={styles.doneButtonText}>ACKNOWLEDGE</Text>
+                <Ionicons name="checkmark-done" size={20} color="#FFF" />
+              </Pressable>
+            </Animated.View>
+          </>
+        }
+      />
     </View>
   );
 };

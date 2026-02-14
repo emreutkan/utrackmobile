@@ -7,11 +7,13 @@ export function formatDate(
   const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) return '';
 
-  const options: Intl.DateTimeFormatOptions = {
-    short: { month: 'short', day: 'numeric' },
-    medium: { month: 'short', day: 'numeric', year: 'numeric' },
-    long: { month: 'long', day: 'numeric', year: 'numeric' },
-  }[format];
+  const options: Intl.DateTimeFormatOptions = (
+    {
+      short: { month: 'short', day: 'numeric' },
+      medium: { month: 'short', day: 'numeric', year: 'numeric' },
+      long: { month: 'long', day: 'numeric', year: 'numeric' },
+    } as const
+  )[format] as Intl.DateTimeFormatOptions;
 
   return d.toLocaleDateString('en-US', options);
 }
@@ -45,6 +47,20 @@ export function formatDateTime(date: Date | string | null | undefined): string {
   if (isNaN(d.getTime())) return '';
 
   return `${formatDate(d, 'medium')} at ${formatTime(d)}`;
+}
+
+/** Parse YYYY-MM-DD as local date (noon to avoid TZ shifts). */
+export function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Format Date to YYYY-MM-DD for API. */
+export function toDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 export function getRelativeTime(date: Date | string | null | undefined): string {

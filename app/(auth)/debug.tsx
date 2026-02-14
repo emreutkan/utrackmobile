@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { storeAccessToken, storeRefreshToken } from '@/hooks/Storage';
 import { useLogin } from '@/hooks/useAuth';
 export default function DebugView() {
   const router = useRouter();
@@ -16,7 +17,10 @@ export default function DebugView() {
         email: 'irfanemreutkan@outlook.com',
         password: 'irfanemreutkan@outlook.com',
       });
-      console.log('data', data);
+      if (data?.access && data?.refresh) {
+        await storeAccessToken(data.access);
+        await storeRefreshToken(data.refresh);
+      }
       router.replace('/(home)');
     } catch (error) {
       console.error('Error during debug login:', error);
@@ -29,16 +33,16 @@ export default function DebugView() {
         style={StyleSheet.absoluteFillObject}
       />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.title}>Debug Menu</Text>
       </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Actions</Text>
-          <TouchableOpacity
+          <Pressable
             style={[styles.button, { backgroundColor: '#c084fc', marginBottom: 12 }]}
             onPress={() => router.push('/hero')}
           >
@@ -49,19 +53,19 @@ export default function DebugView() {
               style={{ marginRight: 8 }}
             />
             <Text style={styles.buttonText}>Go to Hero Screen</Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity style={styles.button} onPress={handleDebugLogin}>
+          <Pressable style={styles.button} onPress={handleDebugLogin}>
             <Text style={styles.buttonText}>Debug Login</Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={[styles.button, { marginTop: 12, backgroundColor: '#32D74B' }]}
-            onPress={() => router.push('/(home)/loadingHome?fromDebug=true')}
+            onPress={() => router.replace('/(home)')}
           >
-            <Ionicons name="refresh-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.buttonText}>Test Loading Screen</Text>
-          </TouchableOpacity>
+            <Ionicons name="home-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.buttonText}>Go to Home</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </View>

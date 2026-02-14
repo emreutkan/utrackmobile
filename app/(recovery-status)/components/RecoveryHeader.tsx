@@ -1,14 +1,14 @@
 import { commonStyles, theme, typographyStyles } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 export default function RecoveryHeader() {
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={() => router.back()} style={commonStyles.backButton}>
+      <Pressable onPress={() => router.back()} style={commonStyles.backButton}>
         <Ionicons name="chevron-back" size={24} color={theme.colors.text.zinc600} />
-      </TouchableOpacity>
+      </Pressable>
       <View style={{ flex: 1 }}>
         <Text style={typographyStyles.h2}>RECOVERY</Text>
         <Text

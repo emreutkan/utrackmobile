@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, StyleSheet, Text, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HERO_SEEN_KEY = '@force_hero_seen';
@@ -122,14 +122,13 @@ export default function HeroScreen() {
           },
         ]}
       >
-        <TouchableOpacity
+        <Pressable
           style={styles.primaryButton}
           onPress={handleStartLogging}
-          activeOpacity={0.95}
         >
           <Text style={styles.primaryButtonText}>START LOGGING</Text>
           <Ionicons name="arrow-forward" size={20} color={theme.colors.text.primary} />
-        </TouchableOpacity>
+        </Pressable>
       </Animated.View>
     </View>
   );

@@ -1,6 +1,7 @@
 import { theme } from '@/constants/theme';
+import { useDateStore } from '@/state/userStore';
 import React from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, Pressable, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useCreateWorkout } from '@/hooks/useWorkout';
 
@@ -22,6 +23,9 @@ export default function StartWorkoutMenu({
   onRefresh,
 }: StartWorkoutMenuProps) {
   const createWorkoutMutation = useCreateWorkout();
+  const selectedDate = useDateStore((s) => s.today);
+  const isSelectedToday =
+    selectedDate.toDateString() === new Date().toDateString();
 
   if (!visible) return null;
 
@@ -38,22 +42,25 @@ export default function StartWorkoutMenu({
 
   return (
     <>
-      <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
       <Animated.View
         style={[styles.popover, { top: menuLayout.y, left: menuLayout.x, width: menuLayout.width }]}
       >
         <View style={styles.popoverBlur}>
-          <TouchableOpacity
-            style={styles.popoverItem}
-            onPress={() => {
-              onClose();
-              onNewWorkout();
-            }}
-          >
-            <Text style={styles.popoverText}>New Workout</Text>
-          </TouchableOpacity>
-          <View style={styles.divider} />
-          <TouchableOpacity
+          {isSelectedToday && (
+            <>
+              <Pressable
+                style={styles.popoverItem}
+                onPress={() => {
+                  onClose();
+                  onNewWorkout();
+                }}
+              >
+                <Text style={styles.popoverText}>New Workout</Text>
+              </Pressable>
+              <View style={styles.divider} />
+            </>
+          )}
+          <Pressable
             style={styles.popoverItem}
             onPress={() => {
               onClose();
@@ -61,11 +68,11 @@ export default function StartWorkoutMenu({
             }}
           >
             <Text style={styles.popoverText}>Log Previous</Text>
-          </TouchableOpacity>
+          </Pressable>
           <View style={styles.divider} />
-          <TouchableOpacity style={styles.popoverItem} onPress={handleRestDay}>
+          <Pressable style={styles.popoverItem} onPress={handleRestDay}>
             <Text style={styles.popoverText}>Rest Day</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </Animated.View>
     </>

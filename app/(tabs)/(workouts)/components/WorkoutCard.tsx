@@ -1,8 +1,8 @@
 import { Workout } from '@/api/types/workout';
 import { theme, typographyStyles } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { formatWorkoutDate, formatWorkoutVolume } from './workoutFormatters';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
+import { formatWorkoutDate, formatWorkoutVolume } from '@/utils/workoutFormatters';
 
 interface WorkoutCardProps {
   workout: Workout;
@@ -25,13 +25,13 @@ export default function WorkoutCard({ workout, onOpenMenu, onViewDetail }: Worko
         </View>
         {!isRestDay && (
           <View style={styles.cardTopRight}>
-            <TouchableOpacity onPress={() => onOpenMenu(workout)} style={styles.moreButton}>
+            <Pressable onPress={() => onOpenMenu(workout)} style={styles.moreButton}>
               <Ionicons
                 name="ellipsis-horizontal"
                 size={20}
                 color={theme.colors.text.tertiary}
               />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
       </View>
@@ -67,10 +67,9 @@ export default function WorkoutCard({ workout, onOpenMenu, onViewDetail }: Worko
       )}
 
       {!isRestDay && (
-        <TouchableOpacity
+        <Pressable
           style={styles.viewDetailButton}
           onPress={() => onViewDetail(workout.id)}
-          activeOpacity={0.7}
         >
           <Text style={styles.viewDetailText}>VIEW DETAIL</Text>
           <Ionicons
@@ -79,7 +78,7 @@ export default function WorkoutCard({ workout, onOpenMenu, onViewDetail }: Worko
             color={theme.colors.status.active}
             style={{ transform: [{ rotate: '45deg' }] }}
           />
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   );

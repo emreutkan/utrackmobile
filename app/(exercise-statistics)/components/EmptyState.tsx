@@ -1,7 +1,7 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 export default function EmptyState() {
   return (
@@ -13,9 +13,9 @@ export default function EmptyState() {
       <Text style={styles.emptySubtext}>
         Complete workouts with this exercise to track your performance.
       </Text>
-      <TouchableOpacity style={styles.emptyButton} onPress={() => router.replace('/(home)')}>
+      <Pressable style={styles.emptyButton} onPress={() => router.replace('/(home)')}>
         <Text style={styles.emptyButtonText}>START TRAINING</Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

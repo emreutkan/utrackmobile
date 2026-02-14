@@ -2,7 +2,7 @@ import { theme } from '@/constants/theme';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { usePathname, useRouter, useSegments } from 'expo-router';
 import React, { useEffect } from 'react';
-import { LayoutChangeEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LayoutChangeEvent, StyleSheet, Text, Pressable, View } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -103,9 +103,8 @@ const TabButton = ({ tab, isActive, onPress }: TabButtonProps) => {
   };
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={() => onPress(tab.route)}
-      activeOpacity={0.7}
       style={styles.tabWrapper}
     >
       <Animated.View style={[styles.tabButton, animatedContainerStyle]}>
@@ -128,7 +127,7 @@ const TabButton = ({ tab, isActive, onPress }: TabButtonProps) => {
           </Animated.View>
         </View>
       </Animated.View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

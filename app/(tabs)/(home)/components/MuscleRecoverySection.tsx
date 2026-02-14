@@ -2,8 +2,9 @@ import { MuscleRecoveryItem } from '@/api/types/index';
 import { theme, typographyStyles } from '@/constants/theme';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 import { useRecoveryStatus } from '@/hooks/useWorkout';
+import { MuscleRecoverySkeleton } from './homeLoadingSkeleton';
 
 interface MuscleRecoverySectionProps {
   onPress?: () => void;
@@ -51,15 +52,19 @@ const MuscleRecoveryCard = ({ muscle, status }: { muscle: string; status: Muscle
 };
 
 export default function MuscleRecoverySection({ onPress }: MuscleRecoverySectionProps) {
-  const { data: recoveryData, refetch } = useRecoveryStatus();
+  const { data: recoveryData, refetch, isLoading } = useRecoveryStatus();
 
-  const recoveryStatus = recoveryData?.recovery_status || {};
+  const recoveryStatus = (recoveryData?.recovery_status ?? {}) as Record<string, MuscleRecoveryItem>;
 
   useFocusEffect(
     useCallback(() => {
       refetch();
     }, [refetch])
   );
+
+  if (isLoading) {
+    return <MuscleRecoverySkeleton />;
+  }
 
   // Get top 3 recovering muscles, sorted by hours until recovery
   // Show muscles that are not fully recovered (recovery_percentage < 100)
@@ -77,10 +82,9 @@ export default function MuscleRecoverySection({ onPress }: MuscleRecoverySection
   }
 
   return (
-    <TouchableOpacity
+    <Pressable
       style={styles.container}
       onPress={onPress}
-      activeOpacity={onPress ? 0.7 : 1}
     >
       <View style={styles.header}>
         <Text style={typographyStyles.h3}>MUSCLE RECOVERY</Text>
@@ -92,7 +96,7 @@ export default function MuscleRecoverySection({ onPress }: MuscleRecoverySection
           <MuscleRecoveryCard key={muscle} muscle={muscle} status={status} />
         ))}
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

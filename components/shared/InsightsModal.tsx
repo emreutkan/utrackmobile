@@ -1,7 +1,7 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { FlatList, Modal, StyleSheet, Text, Pressable, TouchableWithoutFeedback, View } from 'react-native';
 
 interface InsightsModalProps {
     visible: boolean;
@@ -10,10 +10,48 @@ interface InsightsModalProps {
 }
 
 export const InsightsModal = ({ visible, onClose, set }: InsightsModalProps) => {
+    const flattenedData = useMemo(() => {
+        const data: Array<
+            | { type: 'section'; title: string; icon: string; color: string }
+            | { type: 'item'; insight: any; isGood: boolean }
+        > = [];
+
+        if (set.insights?.good && Object.keys(set.insights.good).length > 0) {
+            data.push({
+                type: 'section',
+                title: 'Good',
+                icon: 'checkmark-circle',
+                color: theme.colors.status.success,
+            });
+            Object.entries(set.insights.good).forEach(([key, insight]: [string, any]) => {
+                data.push({ type: 'item', insight, isGood: true });
+            });
+        }
+
+        if (set.insights?.bad && Object.keys(set.insights.bad).length > 0) {
+            data.push({
+                type: 'section',
+                title: 'Areas to Improve',
+                icon: 'alert-circle',
+                color: theme.colors.status.error,
+            });
+            Object.entries(set.insights.bad).forEach(([key, insight]: [string, any]) => {
+                data.push({ type: 'item', insight, isGood: false });
+            });
+        }
+
+        return data;
+    }, [set.insights]);
+
+    const hasNoInsights =
+        !set.insights ||
+        (Object.keys(set.insights.good || {}).length === 0 &&
+            Object.keys(set.insights.bad || {}).length === 0);
+
     return (
         <Modal
+            presentationStyle="formSheet"
             visible={visible}
-            transparent
             animationType="fade"
             onRequestClose={onClose}
         >
@@ -23,81 +61,72 @@ export const InsightsModal = ({ visible, onClose, set }: InsightsModalProps) => 
                         <View style={styles.content}>
                             <View style={styles.header}>
                                 <Text style={styles.title}>Set {set.set_number} Insights</Text>
-                                <TouchableOpacity onPress={onClose}>
+                                <Pressable onPress={onClose}>
                                     <Ionicons name="close" size={24} color={theme.colors.text.primary} />
-                                </TouchableOpacity>
+                                </Pressable>
                             </View>
-                            
-                            <ScrollView style={styles.body}>
-                                {set.insights?.good && Object.keys(set.insights.good).length > 0 && (
-                                    <View style={styles.section}>
-                                        <View style={styles.sectionHeader}>
-                                            <Ionicons name="checkmark-circle" size={20} color={theme.colors.status.success} />
-                                            <Text style={styles.sectionTitle}>Good</Text>
-                                        </View>
-                                        {Object.entries(set.insights.good).map(([key, insight]: [string, any]) => (
-                                            <View key={key} style={styles.item}>
-                                                <Text style={styles.reason}>{insight.reason}</Text>
+
+                            <FlatList
+                                data={flattenedData}
+                                keyExtractor={(item, index) =>
+                                    item.type === 'section' ? `section-${item.title}` : `item-${index}`
+                                }
+                                style={styles.body}
+                                showsVerticalScrollIndicator={false}
+                                renderItem={({ item }) => {
+                                    if (item.type === 'section') {
+                                        return (
+                                            <View style={styles.section}>
+                                                <View style={styles.sectionHeader}>
+                                                    <Ionicons
+                                                        name={item.icon as any}
+                                                        size={20}
+                                                        color={item.color}
+                                                    />
+                                                    <Text style={styles.sectionTitle}>{item.title}</Text>
+                                                </View>
                                             </View>
-                                        ))}
-                                    </View>
-                                )}
-                                
-                                {set.insights?.bad && Object.keys(set.insights.bad).length > 0 && (
-                                    <View style={styles.section}>
-                                        <View style={styles.sectionHeader}>
-                                            <Ionicons name="alert-circle" size={20} color={theme.colors.status.error} />
-                                            <Text style={styles.sectionTitle}>Areas to Improve</Text>
+                                        );
+                                    }
+
+                                    const insight = item.insight;
+                                    return (
+                                        <View style={styles.item}>
+                                            <Text style={styles.reason}>{insight.reason}</Text>
+                                            {insight.current_reps && (
+                                                <Text style={styles.detail}>Current: {insight.current_reps} reps</Text>
+                                            )}
+                                            {insight.optimal_range && (
+                                                <Text style={styles.detail}>Optimal: {insight.optimal_range}</Text>
+                                            )}
+                                            {insight.current_tut && (
+                                                <Text style={styles.detail}>Current TUT: {insight.current_tut}s</Text>
+                                            )}
+                                            {insight.seconds_per_rep && (
+                                                <Text style={styles.detail}>{insight.seconds_per_rep}s per rep</Text>
+                                            )}
+                                            {insight.set_position && (
+                                                <Text style={styles.detail}>Set Position: {insight.set_position}</Text>
+                                            )}
+                                            {insight.total_sets && (
+                                                <Text style={styles.detail}>Total Sets: {insight.total_sets}</Text>
+                                            )}
+                                            {insight.optimal_sets && (
+                                                <Text style={styles.detail}>Optimal: {insight.optimal_sets}</Text>
+                                            )}
                                         </View>
-                                        {Object.entries(set.insights.bad).map(([key, insight]: [string, any]) => (
-                                            <View key={key} style={styles.item}>
-                                                <Text style={styles.reason}>{insight.reason}</Text>
-                                                {insight.current_reps && (
-                                                    <Text style={styles.detail}>
-                                                        Current: {insight.current_reps} reps
-                                                    </Text>
-                                                )}
-                                                {insight.optimal_range && (
-                                                    <Text style={styles.detail}>
-                                                        Optimal: {insight.optimal_range}
-                                                    </Text>
-                                                )}
-                                                {insight.current_tut && (
-                                                    <Text style={styles.detail}>
-                                                        Current TUT: {insight.current_tut}s
-                                                    </Text>
-                                                )}
-                                                {insight.seconds_per_rep && (
-                                                    <Text style={styles.detail}>
-                                                        {insight.seconds_per_rep}s per rep
-                                                    </Text>
-                                                )}
-                                                {insight.set_position && (
-                                                    <Text style={styles.detail}>
-                                                        Set Position: {insight.set_position}
-                                                    </Text>
-                                                )}
-                                                {insight.total_sets && (
-                                                    <Text style={styles.detail}>
-                                                        Total Sets: {insight.total_sets}
-                                                    </Text>
-                                                )}
-                                                {insight.optimal_sets && (
-                                                    <Text style={styles.detail}>
-                                                        Optimal: {insight.optimal_sets}
-                                                    </Text>
-                                                )}
-                                            </View>
-                                        ))}
-                                    </View>
-                                )}
-                                
-                                {(!set.insights || (Object.keys(set.insights.good || {}).length === 0 && Object.keys(set.insights.bad || {}).length === 0)) && (
-                                    <View style={styles.section}>
-                                        <Text style={styles.noInsightsText}>No insights available for this set.</Text>
-                                    </View>
-                                )}
-                            </ScrollView>
+                                    );
+                                }}
+                                ListEmptyComponent={
+                                    hasNoInsights ? (
+                                        <View style={styles.section}>
+                                            <Text style={styles.noInsightsText}>
+                                                No insights available for this set.
+                                            </Text>
+                                        </View>
+                                    ) : null
+                                }
+                            />
                         </View>
                     </TouchableWithoutFeedback>
                 </View>

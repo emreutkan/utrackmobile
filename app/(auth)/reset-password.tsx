@@ -10,7 +10,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -82,9 +82,9 @@ export default function ResetPasswordScreen() {
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color={theme.colors.status.error} />
           <Text style={styles.errorText}>Invalid Reset Link</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(auth)')}>
+          <Pressable style={styles.backButton} onPress={() => router.replace('/(auth)')}>
             <Text style={styles.backButtonText}>Go to Login</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     );
@@ -101,13 +101,12 @@ export default function ResetPasswordScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
       >
-        <TouchableOpacity
+        <Pressable
           style={styles.backButton}
           onPress={() => router.back()}
-          activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
-        </TouchableOpacity>
+        </Pressable>
 
         <View style={styles.formContainer}>
           <Text style={styles.title}>Reset Password</Text>
@@ -127,7 +126,7 @@ export default function ResetPasswordScreen() {
                 autoCorrect={false}
                 editable={!loading}
               />
-              <TouchableOpacity
+              <Pressable
                 onPress={() => setShowPassword(!showPassword)}
                 style={styles.eyeIcon}
               >
@@ -136,7 +135,7 @@ export default function ResetPasswordScreen() {
                   size={20}
                   color={theme.colors.text.tertiary}
                 />
-              </TouchableOpacity>
+              </Pressable>
             </View>
             <Text style={styles.hint}>Must be at least 8 characters</Text>
           </View>
@@ -155,7 +154,7 @@ export default function ResetPasswordScreen() {
                 autoCorrect={false}
                 editable={!loading}
               />
-              <TouchableOpacity
+              <Pressable
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                 style={styles.eyeIcon}
               >
@@ -164,22 +163,21 @@ export default function ResetPasswordScreen() {
                   size={20}
                   color={theme.colors.text.tertiary}
                 />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
 
-          <TouchableOpacity
+          <Pressable
             style={[styles.submitButton, loading && styles.submitButtonDisabled]}
             onPress={handleResetPassword}
             disabled={loading}
-            activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.submitButtonText}>Reset Password</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </View>

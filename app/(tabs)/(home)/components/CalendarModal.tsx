@@ -3,7 +3,7 @@ import { theme } from '@/constants/theme';
 import { useDateStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface CalendarModalProps {
     visible: boolean;
@@ -61,6 +61,7 @@ export default function CalendarModal({
 
     return (
         <Modal
+            presentationStyle="overFullScreen"
             visible={visible}
             animationType="slide"
             transparent={true}
@@ -70,9 +71,9 @@ export default function CalendarModal({
                 <View style={styles.calendarModalContent}>
                     <View style={styles.calendarModalHeader}>
                         <Text style={styles.calendarModalTitle}>Calendar</Text>
-                        <TouchableOpacity onPress={onClose}>
+                        <Pressable onPress={onClose}>
                             <Ionicons name="close" size={24} color={theme.colors.text.primary} />
-                        </TouchableOpacity>
+                        </Pressable>
                     </View>
                     {calendarStats && (
                         <View style={styles.weekStatsRow}>
@@ -91,28 +92,28 @@ export default function CalendarModal({
                         </View>
                     )}
                     <View style={styles.calendarControls}>
-                        <TouchableOpacity
+                        <Pressable
                             onPress={handlePreviousMonth}
                             style={styles.calendarNavButton}
                         >
                             <Ionicons name="chevron-back" size={20} color={theme.colors.status.active} />
-                        </TouchableOpacity>
+                        </Pressable>
 
-                        <TouchableOpacity
+                        <Pressable
                             onPress={handleYearSelect}
                             style={styles.calendarMonthYear}
                         >
                             <Text style={styles.calendarMonthYearText}>
                                 {new Date(selectedYear, selectedMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                             </Text>
-                        </TouchableOpacity>
+                        </Pressable>
 
-                        <TouchableOpacity
+                        <Pressable
                             onPress={handleNextMonth}
                             style={styles.calendarNavButton}
                         >
                             <Ionicons name="chevron-forward" size={20} color={theme.colors.status.active} />
-                        </TouchableOpacity>
+                        </Pressable>
                     </View>
 
                     <View style={styles.calendarGridContainer}>
@@ -140,7 +141,7 @@ export default function CalendarModal({
                                     const isToday = date.toDateString() === today.toDateString();
 
                                     days.push(
-                                        <TouchableOpacity
+                                        <Pressable
                                             key={i}
                                             style={[
                                                 styles.calendarDayCell,
@@ -148,7 +149,6 @@ export default function CalendarModal({
                                                 isToday && styles.calendarDayCellToday
                                             ]}
                                             onPress={() => onDayClick(dateStr, dayData)}
-                                            activeOpacity={0.7}
                                         >
                                             <Text style={[
                                                 styles.calendarDayNumber,
@@ -165,7 +165,7 @@ export default function CalendarModal({
                                                     <View style={styles.calendarRestDayDot} />
                                                 )}
                                             </View>
-                                        </TouchableOpacity>
+                                        </Pressable>
                                     );
                                 }
                                 return days;

@@ -6,6 +6,7 @@ import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { Stack } from 'expo-router';
 import { useMemo, useState, useEffect } from 'react';
 import {
+    FlatList,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -13,15 +14,15 @@ import {
     StyleSheet,
     Text,
     TextInput,
-    TouchableOpacity,
+    Pressable,
     View,
     Share
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMeasurements } from '@/hooks/useMeasurements';
 import { useUser, useWeightHistory, useUpdateWeight } from '@/hooks/useUser';
-import { MiniTrendGraph } from './components/MiniTrendGraph';
-import { NeuralTrendChart } from './components/NeuralTrendChart';
+import { MiniTrendGraph } from '@/components/calculations/MiniTrendGraph';
+import { NeuralTrendChart } from '@/components/calculations/NeuralTrendChart';
 import { useQueryClient } from '@tanstack/react-query';
 
 // ============================================================================
@@ -128,22 +129,22 @@ export default function MeasurementsScreen() {
     const renderBiometrics = () => (
         <>
             <View style={styles.cardsRow}>
-                <TouchableOpacity style={styles.biometricCard} onPress={openWeightModal} activeOpacity={0.8} onLayout={(e) => setCardWidth(e.nativeEvent.layout.width)}>
+                <Pressable style={[styles.biometricCard, { width: cardWidth }]} onPress={openWeightModal}>
                     <View style={styles.cardHeader}>
                         <View style={styles.cardHeaderLeft}><Ionicons name="scale-outline" size={16} color={theme.colors.text.brand} /><Text style={styles.cardLabel}>WEIGHT</Text></View>
                         <Ionicons name="remove-outline" size={18} color={theme.colors.text.tertiary} />
                     </View>
                     <View style={styles.cardValueRow}><Text style={styles.cardValue}>{currentWeight ? currentWeight.toFixed(1) : '--'}</Text><Text style={styles.cardUnit}>KG</Text></View>
                     <View style={styles.cardGraphWrapper}><MiniTrendGraph data={weightMiniData} color={theme.colors.text.brand} width={cardWidth} /></View>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.biometricCard} onPress={openBodyFatModal} activeOpacity={0.8}>
+                </Pressable>
+                <Pressable style={[styles.biometricCard, { width: cardWidth }]} onPress={openBodyFatModal}>
                     <View style={styles.cardHeader}>
                         <View style={styles.cardHeaderLeft}><Ionicons name="body-outline" size={16} color={theme.colors.status.rest} /><Text style={styles.cardLabel}>BODY FAT</Text></View>
                         <Ionicons name="pulse" size={18} color={theme.colors.status.rest} />
                     </View>
                     <View style={styles.cardValueRow}><Text style={styles.cardValue}>{latestBodyFat ? parseFloat(latestBodyFat.toString()).toFixed(1) : '--'}</Text><Text style={styles.cardUnit}>%</Text></View>
                     <View style={styles.cardGraphWrapper}><MiniTrendGraph data={bodyFatMiniData} color={theme.colors.status.rest} width={cardWidth} /></View>
-                </TouchableOpacity>
+                </Pressable>
             </View>
 
             <View style={styles.neuralTrendSection}>
@@ -163,11 +164,11 @@ export default function MeasurementsScreen() {
             </View>
 
             <View style={styles.historySection}>
-                <View style={styles.historyHeader}><Text style={styles.historySectionTitle}>HISTORY</Text><TouchableOpacity onPress={handleRefresh}><Ionicons name="refresh" size={16} color={theme.colors.text.secondary} /></TouchableOpacity></View>
+                <View style={styles.historyHeader}><Text style={styles.historySectionTitle}>HISTORY</Text><Pressable onPress={handleRefresh}><Ionicons name="refresh" size={16} color={theme.colors.text.secondary} /></Pressable></View>
                 {sortedHistory.length > 0 ? (
                     <View style={styles.historyContainer}>
                         {sortedHistory.map((item) => (
-                            <TouchableOpacity key={item.id} style={styles.historyCard} activeOpacity={0.7}>
+                            <Pressable key={item.date} style={styles.historyItem}>
                                 <View style={styles.historyContent}>
                                     <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</Text>
                                     <View style={styles.historyMetricsContainer}>
@@ -177,7 +178,7 @@ export default function MeasurementsScreen() {
                                     </View>
                                 </View>
                                 <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
-                            </TouchableOpacity>
+                            </Pressable>
                         ))}
                     </View>
                 ) : (
@@ -226,10 +227,10 @@ export default function MeasurementsScreen() {
                         <Text style={styles.resultUnit}>KG</Text>
                     </View>
                     {calculatedMax && (
-                        <TouchableOpacity style={styles.shareBtn} onPress={handleShareMax}>
+                        <Pressable style={styles.shareBtn} onPress={handleShareMax}>
                             <Ionicons name="share-outline" size={16} color={theme.colors.text.brand} />
                             <Text style={styles.shareBtnText}>SHARE PERFORMANCE</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                     )}
                 </View>
             </View>
@@ -263,29 +264,97 @@ export default function MeasurementsScreen() {
             <ExpoLinearGradient colors={['rgba(99, 101, 241, 0.13)', 'transparent']} style={styles.gradientBg} />
 
             <View style={styles.tabHeader}>
-                <TouchableOpacity
+                <Pressable
                     style={[styles.tabItem, activeTab === 'biometrics' && styles.tabItemActive]}
                     onPress={() => setActiveTab('biometrics')}
                 >
                     <Text style={[styles.tabText, activeTab === 'biometrics' && styles.tabTextActive]}>BIOMETRICS</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </Pressable>
+                <Pressable
                     style={[styles.tabItem, activeTab === 'calculator' && styles.tabItemActive]}
                     onPress={() => setActiveTab('calculator')}
                 >
                     <Text style={[styles.tabText, activeTab === 'calculator' && styles.tabTextActive]}>1RM CALC</Text>
-                </TouchableOpacity>
+                </Pressable>
             </View>
 
-            <ScrollView
-                contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-            >
-                {activeTab === 'biometrics' ? renderBiometrics() : renderCalculator()}
-            </ScrollView>
+            {activeTab === 'biometrics' ? (
+                <FlatList
+                    data={sortedHistory}
+                    keyExtractor={(item: { date: string }, index: number) => `history-${index}`}
+                    contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    ListHeaderComponent={
+                        <>
+                            <View style={styles.cardsRow}>
+                                <Pressable style={[styles.biometricCard, { width: cardWidth }]} onPress={openWeightModal}>
+                                    <View style={styles.cardHeader}>
+                                        <View style={styles.cardHeaderLeft}><Ionicons name="scale-outline" size={16} color={theme.colors.text.brand} /><Text style={styles.cardLabel}>WEIGHT</Text></View>
+                                        <Ionicons name="remove-outline" size={18} color={theme.colors.text.tertiary} />
+                                    </View>
+                                    <View style={styles.cardValueRow}><Text style={styles.cardValue}>{currentWeight ? currentWeight.toFixed(1) : '--'}</Text><Text style={styles.cardUnit}>KG</Text></View>
+                                    <View style={styles.cardGraphWrapper}><MiniTrendGraph data={weightMiniData} color={theme.colors.text.brand} width={cardWidth} /></View>
+                                </Pressable>
+                                <Pressable style={[styles.biometricCard, { width: cardWidth }]} onPress={openBodyFatModal}>
+                                    <View style={styles.cardHeader}>
+                                        <View style={styles.cardHeaderLeft}><Ionicons name="body-outline" size={16} color={theme.colors.status.rest} /><Text style={styles.cardLabel}>BODY FAT</Text></View>
+                                        <Ionicons name="pulse" size={18} color={theme.colors.status.rest} />
+                                    </View>
+                                    <View style={styles.cardValueRow}><Text style={styles.cardValue}>{latestBodyFat ? parseFloat(latestBodyFat.toString()).toFixed(1) : '--'}</Text><Text style={styles.cardUnit}>%</Text></View>
+                                    <View style={styles.cardGraphWrapper}><MiniTrendGraph data={bodyFatMiniData} color={theme.colors.status.rest} width={cardWidth} /></View>
+                                </Pressable>
+                            </View>
 
-            <Modal visible={modals.weight} transparent animationType="fade">
+                            <View style={styles.neuralTrendSection}>
+                                <View style={styles.graphCard}>
+                                    <View style={styles.neuralTrendHeader}>
+                                        <View style={styles.neuralTrendHeaderMain}>
+                                            <View style={styles.neuralTrendIconContainer}><Ionicons name="stats-chart" size={20} color={theme.colors.text.brand} /></View>
+                                            <View><Text style={styles.neuralTrendTitle}>NEURAL TREND</Text><Text style={styles.neuralTrendSubtitle}>SOMATIC PROGRESS GRAPH</Text></View>
+                                        </View>
+                                        <View style={styles.legendContainer}>
+                                            <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: theme.colors.text.brand }]} /><Text style={styles.legendText}>MASS</Text></View>
+                                            <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: theme.colors.status.rest }]} /><Text style={styles.legendText}>FAT %</Text></View>
+                                        </View>
+                                    </View>
+                                    <NeuralTrendChart weightData={weightGraphData} bodyFatData={bodyFatGraphData} />
+                                </View>
+                            </View>
+
+                            <View style={styles.historySection}>
+                                <View style={styles.historyHeader}><Text style={styles.historySectionTitle}>HISTORY</Text><Pressable onPress={handleRefresh}><Ionicons name="refresh" size={16} color={theme.colors.text.secondary} /></Pressable></View>
+                            </View>
+                        </>
+                    }
+                    renderItem={({ item }) => (
+                        <Pressable key={item.date} style={styles.historyItem}>
+                            <View style={styles.historyContent}>
+                                <Text style={styles.historyDate}>{new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</Text>
+                                <View style={styles.historyMetricsContainer}>
+                                    <View style={styles.historyMetric}><Text style={styles.historyValue}>{item.weight}</Text><Text style={styles.historyUnit}>KG</Text></View>
+                                    <View style={styles.historySeparator} />
+                                    <View style={styles.historyMetric}><Text style={styles.historyBfValue}>{item.bodyfat ? parseFloat(item.bodyfat.toString()).toFixed(1) : '--.-'}</Text><Text style={styles.historyBfUnit}>%</Text></View>
+                                </View>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
+                        </Pressable>
+                    )}
+                    ListEmptyComponent={
+                        <View style={styles.emptyState}><Ionicons name="list" size={48} color={theme.colors.text.secondary} /><Text style={styles.emptyText}>No logs recorded yet.</Text></View>
+                    }
+                />
+            ) : (
+                <ScrollView
+                    contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {renderCalculator()}
+                </ScrollView>
+            )}
+
+            <Modal visible={modals.weight} transparent animationType="fade" presentationStyle="overFullScreen">
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
                         <Text style={styles.modalTitle}>Update Weight</Text>
@@ -294,8 +363,8 @@ export default function MeasurementsScreen() {
                             <Text style={styles.bigInputSuffix}>kg</Text>
                         </View>
                         <View style={styles.modalActions}>
-                            <TouchableOpacity style={styles.btnCancel} onPress={() => setModals(prev => ({ ...prev, weight: false }))}><Text style={styles.btnText}>Cancel</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.btnSave} onPress={handleSaveWeight}><Text style={styles.btnText}>Save</Text></TouchableOpacity>
+                            <Pressable style={styles.btnCancel} onPress={() => setModals(prev => ({ ...prev, weight: false }))}><Text style={styles.btnText}>Cancel</Text></Pressable>
+                            <Pressable style={styles.btnSave} onPress={handleSaveWeight}><Text style={styles.btnText}>Save</Text></Pressable>
                         </View>
                     </View>
                 </KeyboardAvoidingView>
@@ -343,6 +412,7 @@ const styles = StyleSheet.create({
     historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.m },
     historySectionTitle: { ...typographyStyles.labelMuted },
     historyContainer: { gap: theme.spacing.m },
+    historyItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.colors.ui.glass, borderRadius: 35, padding: 24, borderWidth: 1, borderColor: theme.colors.ui.border },
     historyCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.colors.ui.glass, borderRadius: 35, padding: 24, borderWidth: 1, borderColor: theme.colors.ui.border },
     historyContent: { flex: 1 },
     historyDate: { fontSize: 11, fontWeight: '800', color: theme.colors.text.tertiary, marginBottom: 12, letterSpacing: 1 },

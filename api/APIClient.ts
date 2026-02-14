@@ -8,8 +8,25 @@ import {
 } from '../hooks/Storage';
 import { REFRESH_TOKEN_URL, BACKEND_URL } from './types';
 import { RefreshTokenResponse } from './types/auth';
-// Backend configurations
-// const BACKEND_URL = 'api.utrack.irfanemreutkan.com';
+
+const GET_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+type GetCacheEntry = {
+  body: string;
+  etag?: string;
+  lastModified?: string;
+  timestamp: number;
+};
+
+const getCache = new Map<string, GetCacheEntry>();
+
+function getCacheKey(request: Request): string {
+  return request.url;
+}
+
+function isGetCacheFresh(entry: GetCacheEntry): boolean {
+  return Date.now() - entry.timestamp < GET_CACHE_TTL_MS;
+}
 
 const apiClient = ky.create({
   prefixUrl: BACKEND_URL,
@@ -22,12 +39,46 @@ const apiClient = ky.create({
         if (token) {
           request.headers.set('Authorization', `Bearer ${token}`);
         }
+        // For GET: add conditional headers so server can return 304 when unchanged
+        if (request.method === 'GET') {
+          const key = getCacheKey(request);
+          const entry = getCache.get(key);
+          if (entry && isGetCacheFresh(entry)) {
+            if (entry.etag) request.headers.set('If-None-Match', entry.etag);
+            if (entry.lastModified) request.headers.set('If-Modified-Since', entry.lastModified);
+          }
+        }
         console.log('request', request);
       },
     ],
     afterResponse: [
       async (request, options, response) => {
         console.log('[API] afterResponse - Status:', response.status, 'URL:', request.url);
+
+        // GET 304 Not Modified → use cached body and return as 200 so callers get data
+        if (request.method === 'GET' && response.status === 304) {
+          const key = getCacheKey(request);
+          const entry = getCache.get(key);
+          if (entry) {
+            return new Response(entry.body, {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          }
+        }
+
+        // GET 200 → store body and cache headers for future 304
+        if (request.method === 'GET' && response.status === 200) {
+          const key = getCacheKey(request);
+          const clone = response.clone();
+          const body = await clone.text();
+          getCache.set(key, {
+            body,
+            etag: response.headers.get('ETag') ?? undefined,
+            lastModified: response.headers.get('Last-Modified') ?? undefined,
+            timestamp: Date.now(),
+          });
+        }
 
         if (response.status !== 401) {
           return response;

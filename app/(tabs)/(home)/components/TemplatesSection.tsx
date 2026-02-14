@@ -5,14 +5,15 @@ import { useUser } from '@/hooks/useUser';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, Pressable, View } from 'react-native';
 import { useTemplateWorkouts, useDeleteTemplateWorkout, useStartTemplateWorkout } from '@/hooks/useWorkout';
+import { TemplatesSectionSkeleton } from './homeLoadingSkeleton';
 
 const FREE_TEMPLATE_LIMIT = 3;
 
 export default function TemplatesSection() {
   const { data: user } = useUser();
-  const { data: templatesData, refetch } = useTemplateWorkouts();
+  const { data: templatesData, refetch, isLoading: templatesLoading } = useTemplateWorkouts();
   const deleteTemplateMutation = useDeleteTemplateWorkout();
   const startTemplateMutation = useStartTemplateWorkout();
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
@@ -74,6 +75,10 @@ export default function TemplatesSection() {
     ]);
   };
 
+  if (templatesLoading) {
+    return <TemplatesSectionSkeleton />;
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.sectionHeader}>
@@ -81,10 +86,9 @@ export default function TemplatesSection() {
           <View style={styles.headerIndicator} />
           <Text style={styles.sectionTitle}>WORKOUT TEMPLATES</Text>
         </View>
-        <TouchableOpacity
+        <Pressable
           style={[styles.createButton, !canCreateTemplate && styles.createButtonDisabled]}
           onPress={handleCreatePress}
-          activeOpacity={0.7}
         >
           <Ionicons name="add" size={20} color="#FFFFFF" />
           <Text style={styles.createButtonText}>NEW</Text>
@@ -95,22 +99,21 @@ export default function TemplatesSection() {
               </Text>
             </View>
           )}
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={templates}
+        keyExtractor={(item) => item.id.toString()}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.templateList}
         snapToInterval={280 + theme.spacing.m}
         decelerationRate="fast"
-      >
-        {templates.map((tpl) => (
-          <TouchableOpacity
-            key={tpl.id}
+        renderItem={({ item: tpl }) => (
+          <Pressable
             style={styles.templateCard}
             onPress={() => handleTemplatePress(tpl)}
-            activeOpacity={0.9}
           >
             <View style={styles.cardHeader}>
               <View style={styles.templateIcon}>
@@ -134,16 +137,15 @@ export default function TemplatesSection() {
                 <Text style={styles.startButtonText}>START</Text>
               </View>
             </View>
-          </TouchableOpacity>
-        ))}
-
-        {templates.length === 0 && (
+          </Pressable>
+        )}
+        ListEmptyComponent={
           <View style={styles.emptyCard}>
             <Ionicons name="duplicate-outline" size={32} color={theme.colors.text.zinc700} />
             <Text style={styles.emptyText}>NO TEMPLATES YET</Text>
           </View>
-        )}
-      </ScrollView>
+        }
+      />
 
       <UpgradeModal
         visible={showUpgradeModal}

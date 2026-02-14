@@ -8,7 +8,12 @@
       "Bash(test:*)",
       "Bash(wc:*)",
       "Bash(npx expo start --clear)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(for file in ExerciseSearchModal MaintenanceScreen RestTimerBar TrainingIntensityCard UpgradeModal UpgradePrompt WorkoutModal)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(done)",
+      "Bash(find:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

@@ -1,20 +1,15 @@
 import Animated, {
-  useSharedValue,
   useAnimatedStyle,
+  useSharedValue,
   withRepeat,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { View, ScrollView, StyleSheet } from 'react-native';
-
-import { theme } from '@/constants/theme';
 import { useEffect } from 'react';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { theme } from '@/constants/theme';
 
-interface LoadingSkeletonProps {
-  type?: 'workout' | 'recovery' | 'templates';
-}
-
-const LoadingSkeleton = ({ type = 'workout' }: LoadingSkeletonProps) => {
+const useShimmer = () => {
   const opacity = useSharedValue(0.3);
   useEffect(() => {
     opacity.value = withRepeat(
@@ -23,62 +18,190 @@ const LoadingSkeleton = ({ type = 'workout' }: LoadingSkeletonProps) => {
       true
     );
   }, [opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
-  if (type === 'templates') {
-    return (
-      <View style={styles.skeletonTemplatesContainer}>
-        <View style={styles.skeletonHeader} />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 16 }}
-        >
-          {[1, 2].map((i) => (
-            <Animated.View key={i} style={[styles.skeletonTemplateCard, animatedStyle]} />
-          ))}
-        </ScrollView>
-      </View>
-    );
-  }
-
-  return (
-    <View style={[styles.skeletonContainer, type === 'recovery' && { height: 200 }]}>
-      <Animated.View
-        style={[styles.skeletonCard, animatedStyle, type === 'recovery' && { height: 180 }]}
-      />
-    </View>
-  );
+  return useAnimatedStyle(() => ({ opacity: opacity.value }));
 };
 
+const SkeletonBox = ({
+  animatedStyle,
+  style,
+}: {
+  animatedStyle: ReturnType<typeof useShimmer>;
+  style?: object;
+}) => (
+  <Animated.View
+    style={[
+      styles.skeletonBase,
+      style,
+      animatedStyle,
+    ]}
+  />
+);
+
+/** Skeleton for ActiveSection / Start Workout card */
+export function ActiveSectionSkeleton() {
+  const shimmer = useShimmer();
+  return (
+    <View style={styles.activeContainer}>
+      <View style={styles.activeUpper}>
+        <View>
+          <View style={styles.activeBars} />
+          <SkeletonBox animatedStyle={shimmer} style={styles.activeTitle} />
+          <SkeletonBox animatedStyle={shimmer} style={styles.activeSubtitle} />
+        </View>
+        <SkeletonBox animatedStyle={shimmer} style={styles.activeIcon} />
+      </View>
+    </View>
+  );
+}
+
+/** Skeleton for CalendarStrip */
+export function CalendarStripSkeleton() {
+  const shimmer = useShimmer();
+  return (
+    <View style={styles.calendarContainer}>
+      <View style={styles.calendarHeader}>
+        <SkeletonBox animatedStyle={shimmer} style={styles.calendarLabel} />
+        <SkeletonBox animatedStyle={shimmer} style={styles.calendarWeek} />
+      </View>
+      <View style={styles.calendarRow}>
+        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+          <SkeletonBox key={i} animatedStyle={shimmer} style={styles.calendarDay} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** Skeleton for MuscleRecoverySection */
+export function MuscleRecoverySkeleton() {
+  const shimmer = useShimmer();
+  return (
+    <View style={styles.recoveryContainer}>
+      <View style={styles.recoveryHeader}>
+        <SkeletonBox animatedStyle={shimmer} style={styles.recoveryTitle} />
+        <SkeletonBox animatedStyle={shimmer} style={styles.recoverySubtitle} />
+      </View>
+      <View style={styles.recoveryCards}>
+        {[1, 2, 3].map((i) => (
+          <SkeletonBox key={i} animatedStyle={shimmer} style={styles.recoveryCard} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** Skeleton for TemplatesSection */
+export function TemplatesSectionSkeleton() {
+  const shimmer = useShimmer();
+  return (
+    <View style={styles.templatesContainer}>
+      <View style={styles.templatesHeader}>
+        <SkeletonBox animatedStyle={shimmer} style={styles.templatesTitle} />
+        <SkeletonBox animatedStyle={shimmer} style={styles.templatesButton} />
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.templatesScroll}
+      >
+        {[1, 2].map((i) => (
+          <SkeletonBox key={i} animatedStyle={shimmer} style={styles.templateCard} />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  // Skeleton
-  skeletonContainer: { marginBottom: theme.spacing.m },
-  skeletonCard: {
-    width: '100%',
-    height: 160,
+  skeletonBase: {
+    backgroundColor: theme.colors.ui.glass,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.ui.border,
+  },
+  // Active section
+  activeContainer: {
+    marginBottom: theme.spacing.m,
+    padding: theme.spacing.xxl,
     backgroundColor: theme.colors.ui.glass,
     borderRadius: theme.borderRadius.xxl,
     borderWidth: 1,
     borderColor: theme.colors.ui.border,
   },
-  skeletonTemplatesContainer: { marginTop: theme.spacing.m },
-  skeletonHeader: {
-    width: 150,
-    height: 14,
+  activeUpper: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  activeBars: {
+    width: 24,
+    height: 12,
     backgroundColor: theme.colors.ui.glass,
     borderRadius: 4,
+    marginBottom: theme.spacing.s,
+    opacity: 0.8,
+  },
+  activeTitle: { width: 120, height: 14, marginBottom: theme.spacing.s },
+  activeSubtitle: { width: 160, height: 12 },
+  activeIcon: { width: 48, height: 48, borderRadius: 24 },
+  // Calendar strip
+  calendarContainer: { marginVertical: theme.spacing.l },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: theme.spacing.m,
   },
-  skeletonTemplateCard: {
+  calendarLabel: { width: 80, height: 12 },
+  calendarWeek: { width: 100, height: 12 },
+  calendarRow: { flexDirection: 'row', gap: theme.spacing.xs },
+  calendarDay: {
+    flex: 1,
+    height: 64,
+    borderRadius: theme.borderRadius.xxl,
+  },
+  // Recovery
+  recoveryContainer: { marginBottom: theme.spacing.m },
+  recoveryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.m,
+    paddingHorizontal: theme.spacing.xs,
+  },
+  recoveryTitle: { width: 140, height: 14 },
+  recoverySubtitle: { width: 60, height: 12 },
+  recoveryCards: { gap: theme.spacing.s },
+  recoveryCard: {
+    height: 56,
+    borderRadius: theme.borderRadius.l,
+  },
+  // Templates
+  templatesContainer: { marginVertical: theme.spacing.m },
+  templatesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.m,
+    paddingHorizontal: theme.spacing.xs,
+  },
+  templatesTitle: { width: 160, height: 14 },
+  templatesButton: { width: 72, height: 32, borderRadius: 20 },
+  templatesScroll: { gap: theme.spacing.m, paddingBottom: 8 },
+  templateCard: {
     width: 280,
     height: 120,
-    backgroundColor: theme.colors.ui.glass,
     borderRadius: theme.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: theme.colors.ui.border,
   },
 });
 
-export default LoadingSkeleton;
+// Legacy default export for loading screen (compose all sections)
+export default function LoadingSkeleton({
+  type = 'workout',
+}: {
+  type?: 'workout' | 'recovery' | 'templates' | 'calendar';
+}) {
+  if (type === 'templates') return <TemplatesSectionSkeleton />;
+  if (type === 'recovery') return <MuscleRecoverySkeleton />;
+  if (type === 'calendar') return <CalendarStripSkeleton />;
+  return <ActiveSectionSkeleton />;
+}

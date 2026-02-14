@@ -6,7 +6,7 @@ import {
   Modal,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
@@ -39,11 +39,11 @@ export const ExerciseMenuModal = ({
   exerciseId,
 }: ExerciseMenuModalProps) => {
   return (
-    <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent={true} animationType="fade" presentationStyle="overFullScreen" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <View style={styles.content}>
-            <TouchableOpacity
+            <Pressable
               style={styles.menuItem}
               onPress={() => {
                 onClose();
@@ -57,9 +57,9 @@ export const ExerciseMenuModal = ({
                 style={{ marginRight: 12 }}
               />
               <Text style={styles.menuItemText}>Info</Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
+            <Pressable
               style={styles.menuItem}
               onPress={() => {
                 onClose();
@@ -73,10 +73,10 @@ export const ExerciseMenuModal = ({
                 style={{ marginRight: 12 }}
               />
               <Text style={styles.menuItemText}>Statistics</Text>
-            </TouchableOpacity>
+            </Pressable>
 
             {onToggleLock && (
-              <TouchableOpacity
+              <Pressable
                 style={styles.menuItem}
                 onPress={() => {
                   onClose();
@@ -90,11 +90,11 @@ export const ExerciseMenuModal = ({
                   style={{ marginRight: 12 }}
                 />
                 <Text style={styles.menuItemText}>{isLocked ? 'Unlock' : 'Lock'}</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
 
             {setsCount > 0 && onDeleteAllSets && (
-              <TouchableOpacity
+              <Pressable
                 style={[styles.menuItem, styles.menuItemDelete]}
                 onPress={() => {
                   onClose();
@@ -121,11 +121,11 @@ export const ExerciseMenuModal = ({
                 <Text style={[styles.menuItemText, styles.menuItemTextDelete]}>
                   Delete All Sets
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
 
             {onRemove && (
-              <TouchableOpacity
+              <Pressable
                 style={[styles.menuItem, styles.menuItemDelete]}
                 onPress={() => {
                   onClose();
@@ -148,7 +148,7 @@ export const ExerciseMenuModal = ({
                 <Text style={[styles.menuItemText, styles.menuItemTextDelete]}>
                   Delete Exercise
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         </View>

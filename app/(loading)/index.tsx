@@ -1,45 +1,72 @@
-import { theme, typographyStyles } from '@/constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
-import { ScrollView as RNScrollView, StyleSheet, Text, View } from 'react-native';
-import LoadingSkeleton from '@/app/(tabs)/(home)/components/homeLoadingSkeleton';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { getAccessToken, getRefreshToken } from '@/hooks/Storage';
+import { useUser } from '@/hooks/useUser';
 
 export default function LoadingScreen() {
-  const insets = useSafeAreaInsets();
+  const [hasTokens, setHasTokens] = React.useState<boolean | null>(null);
+
+  // Check if tokens exist
+  useEffect(() => {
+    const checkTokens = async () => {
+      try {
+        const accessToken = await getAccessToken();
+        const refreshToken = await getRefreshToken();
+        const hasAny = !!(accessToken || refreshToken);
+        setHasTokens(hasAny);
+      } catch (error) {
+        console.error('[LOADING] Error checking tokens:', error);
+        setHasTokens(false);
+      }
+    };
+
+    checkTokens();
+  }, []);
+
+  // Fetch user data if tokens exist
+  const { data: user, isLoading } = useUser({
+    enabled: hasTokens === true,
+  });
+
+  // Navigate based on auth state
+  useEffect(() => {
+    // Still checking tokens
+    if (hasTokens === null) return;
+
+    // No tokens → go to auth
+    if (hasTokens === false) {
+      router.replace('/(auth)');
+      return;
+    }
+
+    // Has tokens but still loading user data
+    if (isLoading) return;
+
+    // Has tokens and user data loaded → go to home
+    if (user !== undefined) {
+      router.replace('/(home)');
+      return;
+    }
+
+    // Has tokens but failed to load user → go to auth
+    if (!isLoading && user === undefined) {
+      router.replace('/(auth)');
+    }
+  }, [hasTokens, user, isLoading]);
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <LinearGradient
-        colors={['rgba(99, 101, 241, 0.13)', 'transparent']}
-        style={styles.gradientBg}
-      />
-      <RNScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.forceHeader}>
-          <Text style={typographyStyles.h1}>
-            FORCE<Text style={{ color: theme.colors.status.active }}>.</Text>
-          </Text>
-        </View>
-        <LoadingSkeleton />
-        <LoadingSkeleton type="recovery" />
-        <LoadingSkeleton type="templates" />
-      </RNScrollView>
+    <View style={styles.container}>
+      <ActivityIndicator size="large" color="#6366f1" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  gradientBg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  scrollContent: { padding: theme.spacing.s },
-  forceHeader: {
-    alignItems: 'flex-start',
-    marginBottom: theme.spacing.m,
-    marginTop: theme.spacing.s,
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#020205',
   },
 });

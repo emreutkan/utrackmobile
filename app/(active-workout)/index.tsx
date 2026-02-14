@@ -1,12 +1,12 @@
 import ExerciseSearchModal from '@/components/ExerciseSearchModal';
-import WorkoutDetailView from '@/components/WorkoutDetailView';
+import WorkoutDetailView from '@/components/shared/workout/WorkoutDetailView';
 import { theme } from '@/constants/theme';
 import { useActiveWorkoutStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useActiveWorkout, useCompleteWorkout, useRestTimerState } from '@/hooks/useWorkout';
 import { useAddExerciseToWorkout, useRemoveExerciseFromWorkout, useAddSetToExercise, useDeleteSet } from '@/hooks/useExercises';
@@ -244,23 +244,21 @@ export default function ActiveWorkoutScreen() {
             />
             <View style={[styles.WorkoutFooter, { paddingBottom: insets.bottom + 16 }]}>
                 <View style={styles.footerContent}>
-                    <TouchableOpacity
+                    <Pressable
                         style={styles.completeWorkoutButton}
                         onPress={handleFinishWorkout}
-                        activeOpacity={0.8}
                     >
                         <Ionicons name="checkmark-done" size={20} color="white" style={{ marginRight: 8 }} />
                         <Text style={styles.completeWorkoutButtonText}>FINISH WORKOUT</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </Pressable>
+                    <Pressable
                         onPress={() => {
                             setIsModalVisible(true);
                         }}
                         style={styles.fabButton}
-                        activeOpacity={0.8}
                     >
                         <Ionicons name="add" size={28} color="white" />
-                    </TouchableOpacity>
+                    </Pressable>
                 </View>
             </View>
         </View>

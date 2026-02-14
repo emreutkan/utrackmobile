@@ -1,5 +1,6 @@
 import { getRecoveryStatus } from '@/api/Workout';
-import { CNSRecovery, MuscleRecoveryItem, RecoveryStatusResponse } from '@/api/types';
+import { MuscleRecoveryItem, RecoveryStatusResponse } from '@/api/types';
+import { CNSRecoveryItem } from '@/api/types/workout';
 import UpgradePrompt from '@/components/UpgradePrompt';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,22 +9,22 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CNSCard from './components/CNSCard';
-import { getCategory } from './components/helpers';
+import { getCategory } from '@/utils/recoveryStatusHelpers';
 import MuscleCard from './components/MuscleCard';
 import RecoveryHeader from './components/RecoveryHeader';
 
 export default function RecoveryStatusScreen() {
   const insets = useSafeAreaInsets();
   const [statusMap, setStatusMap] = useState<Record<string, MuscleRecoveryItem>>({});
-  const [cnsRecovery, setCnsRecovery] = useState<CNSRecovery | null>(null);
+  const [cnsRecovery, setCnsRecovery] = useState<CNSRecoveryItem | null>(null);
   const [isPro, setIsPro] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,7 +60,7 @@ export default function RecoveryStatusScreen() {
     loadData();
   }, []);
 
-  const { stats, groupedData } = useMemo(() => {
+  const { stats, groupedData, flattenedData } = useMemo(() => {
     const entries = Object.entries(statusMap);
     const total = entries.length;
     const recovered = entries.filter(([_, d]) => d.is_recovered || d.recovery_percentage >= 90).length;
@@ -81,9 +82,22 @@ export default function RecoveryStatusScreen() {
       groups[cat].sort((a, b) => a[1].recovery_percentage - b[1].recovery_percentage);
     });
 
+    // Flatten data for FlatList
+    const flattened: Array<{ type: 'section'; category: string } | { type: 'muscle'; muscle: string; data: MuscleRecoveryItem }> = [];
+    (['Upper Body', 'Lower Body', 'Core'] as const).forEach((category) => {
+      const items = groups[category];
+      if (items && items.length > 0) {
+        flattened.push({ type: 'section', category });
+        items.forEach(([muscle, data]) => {
+          flattened.push({ type: 'muscle', muscle, data });
+        });
+      }
+    });
+
     return {
       stats: { total, recovered, avg },
       groupedData: groups,
+      flattenedData: flattened,
     };
   }, [statusMap]);
 
@@ -101,8 +115,13 @@ export default function RecoveryStatusScreen() {
           <ActivityIndicator size="large" color={theme.colors.status.active} />
         </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={flattenedData}
+          keyExtractor={(item, index) =>
+            item.type === 'section' ? `section-${item.category}` : `muscle-${item.muscle}-${index}`
+          }
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom }]}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -110,45 +129,45 @@ export default function RecoveryStatusScreen() {
               tintColor={theme.colors.status.active}
             />
           }
-        >
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>System Recovery</Text>
-            {isPro ? (
-              cnsRecovery && !cnsRecovery.is_recovered && cnsRecovery.cns_load > 0 ? (
-                <CNSCard data={cnsRecovery} />
-              ) : null
-            ) : (
-              <UpgradePrompt
-                feature="CNS Recovery Tracking"
-                message="Track your Central Nervous System recovery to optimize training"
-              />
-            )}
-          </View>
-
-          {(['Upper Body', 'Lower Body', 'Core'] as const).map((category) => {
-            const items = groupedData[category];
-            if (!items || items.length === 0) return null;
-
-            return (
-              <View key={category} style={styles.section}>
-                <Text style={styles.sectionTitle}>{category}</Text>
-                <View style={styles.grid}>
-                  {items.map(([m, data]) => (
-                    <MuscleCard key={m} muscle={m} data={data} />
-                  ))}
+          ListHeaderComponent={
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>System Recovery</Text>
+              {isPro ? (
+                cnsRecovery && !cnsRecovery.is_recovered && cnsRecovery.cns_load > 0 ? (
+                  <CNSCard data={cnsRecovery} />
+                ) : null
+              ) : (
+                <UpgradePrompt
+                  feature="CNS Recovery Tracking"
+                  message="Track your Central Nervous System recovery to optimize training"
+                />
+              )}
+            </View>
+          }
+          renderItem={({ item }) => {
+            if (item.type === 'section') {
+              return (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>{item.category}</Text>
                 </View>
+              );
+            }
+            return (
+              <View style={styles.grid}>
+                <MuscleCard muscle={item.muscle} data={item.data} />
               </View>
             );
-          })}
-
-          {(!stats || (stats.avg === 0 && stats.recovered === 0)) && (
-            <View style={styles.emptyState}>
-              <Ionicons name="fitness-outline" size={64} color={theme.colors.ui.border} />
-              <Text style={styles.emptyText}>No recovery data available.</Text>
-              <Text style={styles.emptySub}>Complete workouts to track muscle fatigue.</Text>
-            </View>
-          )}
-        </ScrollView>
+          }}
+          ListEmptyComponent={
+            (!stats || (stats.avg === 0 && stats.recovered === 0)) ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="fitness-outline" size={64} color={theme.colors.ui.border} />
+                <Text style={styles.emptyText}>No recovery data available.</Text>
+                <Text style={styles.emptySub}>Complete workouts to track muscle fatigue.</Text>
+              </View>
+            ) : null
+          }
+        />
       )}
     </View>
   );

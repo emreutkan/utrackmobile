@@ -1,5 +1,5 @@
 import ExerciseSearchModal from '@/components/ExerciseSearchModal';
-import WorkoutDetailView from '@/components/WorkoutDetailView';
+import WorkoutDetailView from '@/components/shared/workout/WorkoutDetailView';
 import { commonStyles, theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,7 +11,7 @@ import {
   Modal,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -158,23 +158,23 @@ export default function WorkoutDetailScreen() {
         style={StyleSheet.absoluteFillObject}
       />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={commonStyles.backButton}>
+        <Pressable onPress={() => router.back()} style={commonStyles.backButton}>
           <Ionicons name="chevron-back" size={24} color={theme.colors.text.zinc600} />
-        </TouchableOpacity>
+        </Pressable>
         <View style={{ flex: 1 }} />
         {!isEditMode ? (
           <View style={styles.headerActions}>
-            <TouchableOpacity onPress={() => setIsEditMode(true)} style={commonStyles.iconButton}>
+            <Pressable onPress={() => setIsEditMode(true)} style={commonStyles.iconButton}>
               <Ionicons name="create-outline" size={24} color={theme.colors.text.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleDeleteWorkout} style={commonStyles.iconButton}>
+            </Pressable>
+            <Pressable onPress={handleDeleteWorkout} style={commonStyles.iconButton}>
               <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         ) : (
-          <TouchableOpacity onPress={() => setIsEditMode(false)} style={commonStyles.iconButton}>
+          <Pressable onPress={() => setIsEditMode(false)} style={commonStyles.iconButton}>
             <Text style={styles.doneText}>Done</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 
@@ -202,20 +202,19 @@ export default function WorkoutDetailScreen() {
       )}
 
       <Modal
+            presentationStyle="formSheet"
         visible={isMenuVisible}
-        transparent
         animationType="fade"
         onRequestClose={() => setIsMenuVisible(false)}
       >
-        <TouchableOpacity
+        <Pressable
           style={styles.modalBackdrop}
-          activeOpacity={1}
           onPress={() => setIsMenuVisible(false)}
         >
           <View style={styles.modalContent}>
             <View style={styles.menuContainer}>
               <Text style={styles.menuHeader}>Options</Text>
-              <TouchableOpacity
+              <Pressable
                 style={styles.menuItem}
                 onPress={() => {
                   setIsMenuVisible(false);
@@ -225,15 +224,15 @@ export default function WorkoutDetailScreen() {
                 <Ionicons name="create-outline" size={22} color="#FFF" />
                 <Text style={styles.menuText}>Edit Workout</Text>
                 <Ionicons name="chevron-forward" size={16} color="#545458" />
-              </TouchableOpacity>
+              </Pressable>
               <View style={styles.menuDivider} />
-              <TouchableOpacity style={styles.menuItem} onPress={handleDeleteWorkout}>
+              <Pressable style={styles.menuItem} onPress={handleDeleteWorkout}>
                 <Ionicons name="trash-outline" size={22} color="#FF3B30" />
                 <Text style={[styles.menuText, { color: '#FF3B30' }]}>Delete Workout</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
-        </TouchableOpacity>
+        </Pressable>
       </Modal>
 
       <ExerciseSearchModal
@@ -246,14 +245,13 @@ export default function WorkoutDetailScreen() {
       {isEditMode && (
         <View style={[styles.floatingBarContainer, { bottom: insets.bottom + 20 }]}>
           <View style={styles.blurPill}>
-            <TouchableOpacity
+            <Pressable
               style={styles.addButton}
               onPress={() => setIsSearchVisible(true)}
-              activeOpacity={0.7}
             >
               <Ionicons name="add-circle-outline" size={24} color="#FFF" />
               <Text style={styles.addButtonText}>Add Exercise</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       )}

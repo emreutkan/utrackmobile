@@ -1,7 +1,7 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface StatisticsHeaderProps {
   exerciseName?: string;
@@ -11,18 +11,18 @@ interface StatisticsHeaderProps {
 export default function StatisticsHeader({ exerciseName, onRefresh }: StatisticsHeaderProps) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+      <Pressable onPress={() => router.back()} style={styles.backButton}>
         <Ionicons name="chevron-back" size={24} color={theme.colors.text.primary} />
-      </TouchableOpacity>
+      </Pressable>
       <View style={styles.headerTitleContainer}>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {exerciseName || 'STATISTICS'}
         </Text>
         <Text style={styles.headerSubtitle}>PERFORMANCE ANALYSIS</Text>
       </View>
-      <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
+      <Pressable onPress={onRefresh} style={styles.refreshButton}>
         <Ionicons name="refresh" size={20} color={theme.colors.text.secondary} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

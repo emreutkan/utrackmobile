@@ -1,17 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { getAccessToken, getRefreshToken } from '@/hooks/Storage';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, usePathname, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useUser } from '@/hooks/useUser';
-const queryClient = new QueryClient();
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2, // 2 min: use cache, no refetch until stale
+      gcTime: 1000 * 60 * 10,   // 10 min: keep unused cache
+      refetchOnWindowFocus: false,
+      refetchOnMount: true,     // refetch when mounting only if data is stale
+    },
+  },
+});
 
 export const unstable_settings = {
-  initialRouteName: 'index',
+  initialRouteName: '(loading)',
 };
 
 export default function RootLayout() {
@@ -29,51 +39,64 @@ export default function RootLayout() {
 }
 
 function AppNavigator() {
-  const [hasTokens, setHasTokens] = useState<boolean | null>(null); // null = checking
-  const [loadAuth, setLoadAuth] = useState(false);
+  const [hasTokens, setHasTokens] = useState<boolean | null>(null);
+  const pathname = usePathname();
 
-  // First, check if tokens exist
-  useEffect(() => {
-    checkTokens();
-  }, []);
-
+  // Check tokens when navigating to protected routes (e.g., after login)
   const checkTokens = async () => {
     try {
       const accessToken = await getAccessToken();
       const refreshToken = await getRefreshToken();
-      setHasTokens(!!(accessToken || refreshToken));
+      const hasAny = !!(accessToken || refreshToken);
+      setHasTokens(hasAny);
     } catch (error) {
       console.error('[AUTH] Error checking tokens:', error);
       setHasTokens(false);
     }
   };
 
-  const { data, isLoading } = useUser({
+  // Re-check tokens when navigating to protected routes
+  useEffect(() => {
+    if (pathname && (pathname.includes('(home)') || pathname.includes('(tabs)'))) {
+      checkTokens();
+    }
+  }, [pathname]);
+
+  // Fetch user data to protect routes
+  const { data: user } = useUser({
     enabled: hasTokens === true,
   });
+
+  // Protect against accessing protected routes without auth
   useEffect(() => {
-    if (isLoading === false) {
-      setLoadAuth(true);
+    if (hasTokens === false && pathname != null && !pathname.includes('(auth)') && !pathname.includes('(loading)')) {
+      router.replace('/(auth)');
     }
-    if (!hasTokens) {
-      setLoadAuth(true);
+  }, [hasTokens, pathname]);
+
+  // Redirect from auth/hero to home when logged in
+  useEffect(() => {
+    const onUnauthRoute =
+      pathname != null &&
+      (pathname.includes('(auth)') || pathname.includes('(hero)'));
+    const shouldGoHome = hasTokens === true && user !== undefined && onUnauthRoute;
+
+    if (shouldGoHome) {
+      router.replace('/(home)');
     }
-    console.log('loadAuth', loadAuth);
-  }, [isLoading, hasTokens]);
+  }, [hasTokens, user, pathname]);
 
   return (
-    <React.Fragment>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: 'black' },
-        }}
-      ></Stack>
-      <Stack.Protected guard={loadAuth}>
-        <Stack.Screen name="(hero)" />
-        <Stack.Screen name="(auth)" />
-      </Stack.Protected>
-      <Stack.Protected guard={data !== undefined}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: 'black' },
+      }}
+    >
+      <Stack.Screen name="(loading)" />
+      <Stack.Screen name="(hero)" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Protected guard={user !== undefined}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="(account)" options={{ headerShown: false }} />
         <Stack.Screen name="(add-exercise)" />
@@ -83,7 +106,8 @@ function AppNavigator() {
         <Stack.Screen name="(templates)" />
         <Stack.Screen name="(volume-analysis)" />
         <Stack.Screen name="(recovery-status)" />
+        <Stack.Screen name="(workout-summary)" />
       </Stack.Protected>
-    </React.Fragment>
+    </Stack>
   );
 }

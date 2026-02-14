@@ -3,7 +3,7 @@ import { theme } from '@/constants/theme';
 import { useActiveWorkout, useDeleteWorkout, useInfiniteWorkouts } from '@/hooks/useWorkout';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -57,9 +57,8 @@ export default function WorkoutsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      refetchActiveWorkout();
       refetchWorkouts();
-    }, [refetchActiveWorkout, refetchWorkouts])
+    }, [refetchWorkouts])
   );
 
   const handleRefresh = useCallback(async () => {

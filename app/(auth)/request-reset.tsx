@@ -10,7 +10,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,13 +65,12 @@ export default function RequestResetScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
       >
-        <TouchableOpacity
+        <Pressable
           style={styles.backButton}
           onPress={() => router.back()}
-          activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
-        </TouchableOpacity>
+        </Pressable>
 
         <View style={styles.formContainer}>
           <Text style={styles.title}>Reset Password</Text>
@@ -94,26 +93,24 @@ export default function RequestResetScreen() {
             />
           </View>
 
-          <TouchableOpacity
+          <Pressable
             style={[styles.submitButton, loading && styles.submitButtonDisabled]}
             onPress={handleRequestReset}
             disabled={loading}
-            activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.submitButtonText}>Send Reset Link</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.backToLoginButton}
             onPress={() => router.back()}
-            activeOpacity={0.7}
           >
             <Text style={styles.backToLoginText}>Back to Login</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </View>

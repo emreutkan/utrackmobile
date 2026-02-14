@@ -1,7 +1,7 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface UpgradeModalProps {
     visible: boolean;
@@ -25,8 +25,8 @@ export default function UpgradeModal({
 
     return (
         <Modal
+            presentationStyle="formSheet"
             visible={visible}
-            transparent
             animationType="fade"
             onRequestClose={onClose}
         >
@@ -68,20 +68,18 @@ export default function UpgradeModal({
                     </View>
 
                     <View style={styles.actions}>
-                        <TouchableOpacity 
+                        <Pressable 
                             style={styles.upgradeButton}
                             onPress={handleUpgrade}
-                            activeOpacity={0.8}
                         >
                             <Text style={styles.upgradeButtonText}>Upgrade to PRO</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
+                        </Pressable>
+                        <Pressable 
                             style={styles.cancelButton}
                             onPress={onClose}
-                            activeOpacity={0.8}
                         >
                             <Text style={styles.cancelButtonText}>Maybe Later</Text>
-                        </TouchableOpacity>
+                        </Pressable>
                     </View>
                 </View>
             </View>

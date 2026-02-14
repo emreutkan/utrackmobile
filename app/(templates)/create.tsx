@@ -14,7 +14,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -140,13 +140,13 @@ export default function CreateTemplateScreen() {
 
           <View style={styles.exercisesHeader}>
             <Text style={styles.sectionLabel}>EXERCISES ({selectedExercises.length})</Text>
-            <TouchableOpacity
+            <Pressable
               onPress={() => setIsModalVisible(true)}
               style={styles.addInlineButton}
             >
               <Ionicons name="add" size={18} color={theme.colors.status.active} />
               <Text style={styles.addInlineText}>ADD</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {selectedExercises.length > 0 ? (
@@ -171,11 +171,10 @@ export default function CreateTemplateScreen() {
         <Animated.View
           style={[styles.footer, createButtonStyle, { paddingBottom: insets.bottom + 16 }]}
         >
-          <TouchableOpacity
+          <Pressable
             style={[styles.createButton, isCreating && styles.createButtonLoading]}
             onPress={handleCreate}
             disabled={isCreating}
-            activeOpacity={0.9}
           >
             {isCreating ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -190,7 +189,7 @@ export default function CreateTemplateScreen() {
                 <Text style={styles.createButtonText}>CONFIRM TEMPLATE</Text>
               </>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </Animated.View>
       </KeyboardAvoidingView>
 

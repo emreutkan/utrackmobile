@@ -1,6 +1,6 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface SupplementsHeaderProps {
   onAddPress: () => void;
@@ -12,9 +12,9 @@ export default function SupplementsHeader({ onAddPress }: SupplementsHeaderProps
       <View style={styles.headerLeft}>
         <Text style={styles.mainTitle}>SUPPLEMENT STACK</Text>
       </View>
-      <TouchableOpacity style={styles.addButton} onPress={onAddPress} activeOpacity={0.7}>
+      <Pressable style={styles.addButton} onPress={onAddPress}>
         <Ionicons name="add" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

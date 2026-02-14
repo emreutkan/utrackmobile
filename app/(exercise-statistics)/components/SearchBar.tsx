@@ -1,6 +1,6 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TextInput, Pressable, View } from 'react-native';
 
 interface SearchBarProps {
   value: string;
@@ -22,9 +22,9 @@ export default function SearchBar({ value, onChangeText }: SearchBarProps) {
           autoCapitalize="none"
         />
         {value.length > 0 && (
-          <TouchableOpacity onPress={() => onChangeText('')}>
+          <Pressable onPress={() => onChangeText('')}>
             <Ionicons name="close-circle" size={18} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     </View>

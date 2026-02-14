@@ -16,7 +16,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -136,7 +136,7 @@ export default function AccountScreen() {
         style={styles.gradientBg}
       />
       <View style={styles.backHeader}>
-        <TouchableOpacity
+        <Pressable
           onPress={() => router.back()}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           style={styles.backButton}
@@ -146,7 +146,7 @@ export default function AccountScreen() {
             size={24}
             color={theme.colors.text.primary}
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
@@ -197,10 +197,9 @@ export default function AccountScreen() {
           <Text style={styles.sectionHeaderText}>ANALYTICS</Text>
         </View>
         <View style={styles.settingsContainer}>
-          <TouchableOpacity
+          <Pressable
             style={styles.settingCard}
             onPress={() => router.push('/(exercise-statistics)/list')}
-            activeOpacity={0.7}
           >
             <View style={[styles.iconBox, { backgroundColor: 'rgba(99, 102, 241, 0.1)' }]}>
               <Ionicons name="barbell-outline" size={20} color={theme.colors.text.brand} />
@@ -210,11 +209,10 @@ export default function AccountScreen() {
               <Text style={styles.settingSubtitle}>VIEW PERFORMANCE BY EXERCISE</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </Pressable>
+          <Pressable
             style={styles.settingCard}
             onPress={() => router.push('/(prs)')}
-            activeOpacity={0.7}
           >
             <View style={[styles.iconBox, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
               <Ionicons name="medal-outline" size={20} color="#10B981" />
@@ -224,7 +222,7 @@ export default function AccountScreen() {
               {/* <Text style={styles.settingSubtitle}>{stats?.total_prs || 0} RECORDS TRACKED</Text> */}
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Biometrics Section */}
@@ -232,10 +230,9 @@ export default function AccountScreen() {
           <Text style={styles.sectionHeaderText}>BIOMETRICS</Text>
         </View>
         <View style={styles.settingsContainer}>
-          <TouchableOpacity
+          <Pressable
             style={styles.settingCard}
             onPress={() => toggleModal('weight', true)}
-            activeOpacity={0.7}
           >
             <View style={styles.iconBox}>
               <Ionicons name="scale-outline" size={20} color="#FFFFFF" />
@@ -247,12 +244,11 @@ export default function AccountScreen() {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.settingCard}
             onPress={() => toggleModal('height', true)}
-            activeOpacity={0.7}
           >
             <View style={styles.iconBox}>
               <Ionicons name="resize-outline" size={20} color="#FFFFFF" />
@@ -264,12 +260,11 @@ export default function AccountScreen() {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.settingCard}
             onPress={() => toggleModal('gender', true)}
-            activeOpacity={0.7}
           >
             <View style={styles.iconBox}>
               <Ionicons name="body-outline" size={20} color="#FFFFFF" />
@@ -279,17 +274,16 @@ export default function AccountScreen() {
               <Text style={styles.settingSubtitle}>{user?.gender?.toUpperCase() || 'NOT SET'}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionHeaderText}>SUBSCRIPTION</Text>
         </View>
         <View style={styles.settingsContainer}>
-          <TouchableOpacity
+          <Pressable
             style={styles.settingCard}
             // onPress={() => router.push('/(account)/upgrade')}
-            activeOpacity={0.7}
           >
             <View
               style={[
@@ -322,17 +316,16 @@ export default function AccountScreen() {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionHeaderText}>ACCOUNT</Text>
         </View>
         <View style={styles.settingsContainer}>
-          <TouchableOpacity
+          <Pressable
             style={styles.settingCard}
             onPress={() => toggleModal('password', true)}
-            activeOpacity={0.7}
           >
             <View style={styles.iconBox}>
               <Ionicons name="shield-checkmark-outline" size={20} color="#FFFFFF" />
@@ -342,12 +335,11 @@ export default function AccountScreen() {
               <Text style={styles.settingSubtitle}>SECURE YOUR ACCOUNT</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.settingCard}
             onPress={() => router.push('/(permissions)')}
-            activeOpacity={0.7}
           >
             <View style={styles.iconBox}>
               <Ionicons name="pulse-outline" size={20} color="#FFFFFF" />
@@ -357,12 +349,11 @@ export default function AccountScreen() {
               <Text style={styles.settingSubtitle}>SYNC BIOMETRICS</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.settingCard}
             onPress={() => handleLogout()}
-            activeOpacity={0.7}
           >
             <View style={[styles.iconBox, { backgroundColor: 'rgba(255, 69, 58, 0.1)' }]}>
               <Ionicons name="log-out-outline" size={20} color={theme.colors.status.error} />
@@ -373,11 +364,12 @@ export default function AccountScreen() {
               </Text>
               <Text style={styles.settingSubtitle}>EXIT SESSION</Text>
             </View>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </ScrollView>
 
       <Modal
+            presentationStyle="formSheet"
         visible={modals.height}
         transparent
         animationType="fade"
@@ -408,13 +400,13 @@ export default function AccountScreen() {
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.btnCancel}
                 onPress={() => toggleModal('height', false)}
               >
                 <Text style={styles.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={styles.btnSave}
                 onPress={() => handleSave('height')}
                 disabled={isSaving}
@@ -424,13 +416,14 @@ export default function AccountScreen() {
                 ) : (
                   <Text style={styles.btnSaveText}>Save</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
       <Modal
+            presentationStyle="formSheet"
         visible={modals.weight}
         transparent
         animationType="fade"
@@ -461,13 +454,13 @@ export default function AccountScreen() {
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.btnCancel}
                 onPress={() => toggleModal('weight', false)}
               >
                 <Text style={styles.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={styles.btnSave}
                 onPress={() => handleSave('weight')}
                 disabled={isSaving}
@@ -477,13 +470,14 @@ export default function AccountScreen() {
                 ) : (
                   <Text style={styles.btnSaveText}>Save</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
       <Modal
+            presentationStyle="formSheet"
         visible={modals.gender}
         transparent
         animationType="fade"
@@ -495,7 +489,7 @@ export default function AccountScreen() {
             <Text style={styles.modalSubtitle}>For physiological calculations.</Text>
 
             <View style={styles.genderRow}>
-              <TouchableOpacity
+              <Pressable
                 style={[styles.genderCard, formData.gender === 'male' && styles.genderCardActive]}
                 onPress={() => setFormData({ ...formData, gender: 'male' })}
               >
@@ -516,9 +510,9 @@ export default function AccountScreen() {
                 >
                   Male
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 style={[styles.genderCard, formData.gender === 'female' && styles.genderCardActive]}
                 onPress={() => setFormData({ ...formData, gender: 'female' })}
               >
@@ -539,17 +533,17 @@ export default function AccountScreen() {
                 >
                   Female
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.btnCancel}
                 onPress={() => toggleModal('gender', false)}
               >
                 <Text style={styles.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={styles.btnSave}
                 onPress={() => handleSave('gender')}
                 disabled={isSaving}
@@ -559,13 +553,14 @@ export default function AccountScreen() {
                 ) : (
                   <Text style={styles.btnSaveText}>Update</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>
       </Modal>
 
       <Modal
+            presentationStyle="formSheet"
         visible={modals.password}
         transparent
         animationType="fade"
@@ -600,13 +595,13 @@ export default function AccountScreen() {
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.btnCancel}
                 onPress={() => toggleModal('password', false)}
               >
                 <Text style={styles.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 style={styles.btnSave}
                 onPress={() => handleSave('password')}
                 disabled={isSaving}
@@ -616,7 +611,7 @@ export default function AccountScreen() {
                 ) : (
                   <Text style={styles.btnSaveText}>Change</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </KeyboardAvoidingView>

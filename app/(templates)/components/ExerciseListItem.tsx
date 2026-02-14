@@ -1,7 +1,7 @@
 import { Exercise } from '@/api/types/workout';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface ExerciseListItemProps {
   exercise: Exercise;
@@ -33,23 +33,23 @@ export default function ExerciseListItem({
         </Text>
       </View>
       <View style={styles.exerciseActions}>
-        <TouchableOpacity
+        <Pressable
           onPress={onMoveUp}
           disabled={index === 0}
           style={[styles.orderButton, index === 0 && styles.orderButtonDisabled]}
         >
           <Ionicons name="chevron-up" size={20} color={theme.colors.text.secondary} />
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           onPress={onMoveDown}
           disabled={index === totalCount - 1}
           style={[styles.orderButton, index === totalCount - 1 && styles.orderButtonDisabled]}
         >
           <Ionicons name="chevron-down" size={20} color={theme.colors.text.secondary} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onRemove} style={styles.removeButton}>
+        </Pressable>
+        <Pressable onPress={onRemove} style={styles.removeButton}>
           <Ionicons name="trash-outline" size={18} color={theme.colors.status.error} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );

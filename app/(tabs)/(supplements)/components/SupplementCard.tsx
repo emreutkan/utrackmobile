@@ -1,7 +1,7 @@
 import { UserSupplement } from '@/api/types';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface SupplementCardProps {
   item: UserSupplement;
@@ -12,7 +12,7 @@ interface SupplementCardProps {
 
 export default function SupplementCard({ item, isLogged, onLog, onPress }: SupplementCardProps) {
   return (
-    <TouchableOpacity style={styles.supplementCard} activeOpacity={0.7} onPress={onPress}>
+    <Pressable style={styles.supplementCard} onPress={onPress}>
       <View style={styles.supplementIcon}>
         <Ionicons name="medical-outline" size={24} color={theme.colors.text.secondary} />
       </View>
@@ -24,17 +24,16 @@ export default function SupplementCard({ item, isLogged, onLog, onPress }: Suppl
           {item.supplement_details.description}
         </Text>
       </View>
-      <TouchableOpacity
+      <Pressable
         style={[styles.logButton, isLogged && styles.logButtonDone]}
         onPress={onLog}
-        activeOpacity={0.8}
         disabled={isLogged}
       >
         <Text style={[styles.logButtonText, isLogged && styles.logButtonTextDone]}>
           {isLogged ? 'LOGGED' : 'LOG'}
         </Text>
-      </TouchableOpacity>
-    </TouchableOpacity>
+      </Pressable>
+    </Pressable>
   );
 }
 

@@ -1,14 +1,14 @@
 import { commonStyles, theme, typographyStyles } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 export default function WorkoutsHeader() {
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={() => router.back()} style={commonStyles.backButton}>
+      <Pressable onPress={() => router.back()} style={commonStyles.backButton}>
         <Ionicons name="chevron-back" size={24} color={theme.colors.text.zinc600} />
-      </TouchableOpacity>
+      </Pressable>
       <Text style={typographyStyles.h2}>RECORDS</Text>
     </View>
   );

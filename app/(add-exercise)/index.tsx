@@ -31,6 +31,7 @@ export default function AddExerciseScreen() {
     return (
         <View style={styles.container}>
             <Modal
+            presentationStyle="formSheet"
                 visible={isVisible}
                 onRequestClose={handleClose}
             >

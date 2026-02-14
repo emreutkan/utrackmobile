@@ -2,11 +2,12 @@ import { updateExerciseOrder } from '@/api/Exercises';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useRef, useState } from 'react';
-import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, Text, Pressable, View } from 'react-native';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ExerciseCard } from './ExerciseCard';
+import { ActiveWorkoutExerciseCard } from './ActiveWorkoutExerciseCard';
+import { EditWorkoutExerciseCard } from './EditWorkoutExerciseCard';
 import { ViewOnlyExerciseCard } from './ViewOnlyExerciseCard';
 
 interface WorkoutExerciseDetailsViewProps {
@@ -112,29 +113,61 @@ export default function WorkoutExerciseDetailsView({
 
     const renderItems = ({item, drag, isActive: isDragging, getIndex}: {item: any, drag: () => void, isActive: boolean, getIndex: () => number | undefined}) => {
         const exerciseIndex = getIndex() ?? 0;
-        const exerciseCard = (
-            <ExerciseCard
-                key={item.order}
-                workoutExercise={item}
-                isLocked={lockedExerciseIds.has(item.id)}
-                isEditMode={isEditMode}
-                isViewOnly={isViewOnly}
-                onToggleLock={toggleLock}
-                onRemove={onRemoveExercise}
-                onAddSet={handleAddSet}
-                onDeleteSet={onDeleteSet}
-                onUpdateSet={handleUpdateSet}
-                swipeControl={swipeControl}
-                onInputFocus={() => {
-                    onInputFocus?.(exerciseIndex);
-                }}
-                onShowInfo={(exercise: any) => setSelectedExerciseInfo(exercise)}
-                onShowStatistics={onShowStatistics}
-                isActive={isActive}
-                drag={drag}
-                exerciseIndex={exerciseIndex}
-            />
-        );
+
+        let exerciseCard;
+
+        // Use appropriate card based on mode
+        if (isViewOnly || (!isActive && !isEditMode)) {
+            // View-only mode
+            exerciseCard = (
+                <ViewOnlyExerciseCard
+                    key={item.order}
+                    exercise={item.exercise || item}
+                    sets={item.sets || []}
+                />
+            );
+        } else if (isActive) {
+            // Active workout mode
+            exerciseCard = (
+                <ActiveWorkoutExerciseCard
+                    key={item.order}
+                    workoutExercise={item}
+                    isLocked={lockedExerciseIds.has(item.id)}
+                    onToggleLock={toggleLock}
+                    onRemove={onRemoveExercise}
+                    onAddSet={handleAddSet}
+                    onDeleteSet={onDeleteSet ?? (() => {})}
+                    swipeControl={swipeControl}
+                    onInputFocus={() => {
+                        onInputFocus?.(exerciseIndex);
+                    }}
+                    onShowInfo={(exercise: any) => setSelectedExerciseInfo(exercise)}
+                    onShowStatistics={onShowStatistics}
+                    drag={drag}
+                    exerciseIndex={exerciseIndex}
+                />
+            );
+        } else {
+            // Edit mode (past workout)
+            exerciseCard = (
+                <EditWorkoutExerciseCard
+                    key={item.order}
+                    workoutExercise={item}
+                    isLocked={lockedExerciseIds.has(item.id)}
+                    onToggleLock={toggleLock}
+                    onRemove={onRemoveExercise}
+                    onAddSet={handleAddSet}
+                    onDeleteSet={onDeleteSet ?? (() => {})}
+                    swipeControl={swipeControl}
+                    onInputFocus={() => {
+                        onInputFocus?.(exerciseIndex);
+                    }}
+                    onShowInfo={(exercise: any) => setSelectedExerciseInfo(exercise)}
+                    onShowStatistics={onShowStatistics}
+                    drag={drag}
+                />
+            );
+        }
 
         // Only use ScaleDecorator when inside DraggableFlatList
         if (isViewOnly && !isActive) {
@@ -196,21 +229,21 @@ export default function WorkoutExerciseDetailsView({
             </View>
 
             <Modal
+                presentationStyle="formSheet"
                 visible={selectedExerciseInfo !== null}
                 animationType="slide"
-                presentationStyle="pageSheet"
                 onRequestClose={() => setSelectedExerciseInfo(null)}
             >
                 {selectedExerciseInfo && (
                     <View style={styles.modalContainer}>
                         <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
                             <Text style={styles.modalTitle}>{selectedExerciseInfo.name}</Text>
-                            <TouchableOpacity 
+                            <Pressable 
                                 onPress={() => setSelectedExerciseInfo(null)}
                                 style={styles.modalCloseButton}
                             >
                                 <Ionicons name="close" size={24} color="#FFFFFF" />
-                            </TouchableOpacity>
+                            </Pressable>
                         </View>
                         
                         <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer}>

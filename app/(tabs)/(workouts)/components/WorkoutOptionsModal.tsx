@@ -1,6 +1,6 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface WorkoutOptionsModalProps {
   visible: boolean;
@@ -22,13 +22,12 @@ export default function WorkoutOptionsModal({
   const isDisabled = workoutId === null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+    <Modal visible={visible} transparent animationType="fade" presentationStyle="overFullScreen" onRequestClose={onClose}>
         <View style={styles.modalContent}>
           <View style={styles.menuContainer}>
             <Text style={styles.menuHeader}>Workout Options</Text>
 
-            <TouchableOpacity
+            <Pressable
               disabled={isDisabled}
               style={styles.menuItem}
               onPress={() => {
@@ -42,11 +41,11 @@ export default function WorkoutOptionsModal({
               </View>
               <Text style={styles.menuText}>See Summary</Text>
               <Ionicons name="chevron-forward" size={16} color="#545458" />
-            </TouchableOpacity>
+            </Pressable>
 
             <View style={styles.menuDivider} />
 
-            <TouchableOpacity
+            <Pressable
               disabled={isDisabled}
               style={styles.menuItem}
               onPress={() => {
@@ -60,11 +59,11 @@ export default function WorkoutOptionsModal({
               </View>
               <Text style={styles.menuText}>Edit Workout</Text>
               <Ionicons name="chevron-forward" size={16} color="#545458" />
-            </TouchableOpacity>
+            </Pressable>
 
             <View style={styles.menuDivider} />
 
-            <TouchableOpacity
+            <Pressable
               disabled={isDisabled}
               style={styles.menuItem}
               onPress={() => {
@@ -77,10 +76,9 @@ export default function WorkoutOptionsModal({
                 <Ionicons name="trash-outline" size={20} color="#FF453A" />
               </View>
               <Text style={[styles.menuText, { color: '#FF453A' }]}>Delete Workout</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
-      </TouchableOpacity>
     </Modal>
   );
 }

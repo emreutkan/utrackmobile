@@ -1,7 +1,8 @@
 import { CalendarDay, CalendarStats, Workout } from '@/api/types/index';
-import CalendarModal from '@/components/CalendarModal';
-import WorkoutModal from '@/components/WorkoutModal';
+import CalendarModal from './components/CalendarModal';
+import WorkoutModal from './components/WorkoutModal';
 import { theme } from '@/constants/theme';
+import { parseLocalDate } from '@/utils/dateTime';
 import { useDateStore } from '@/state/userStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -14,11 +15,13 @@ import HomeHeader from './components/HomeHeader';
 import MuscleRecoverySection from './components/MuscleRecoverySection';
 import StartWorkoutMenu from './components/StartWorkoutMenu';
 import TemplatesSection from './components/TemplatesSection';
-import { useDeleteWorkout, useWorkouts } from '@/hooks/useWorkout';
+import { getCalendar, getCalendarStats } from '@/api/Workout';
+import { useDeleteWorkout, useSetSelectedDate, useWorkouts, useCreateWorkout } from '@/hooks/useWorkout';
 
 export default function Home() {
   const insets = useSafeAreaInsets();
   const today = useDateStore((state) => state.today);
+  const setSelectedDate = useSetSelectedDate();
 
   // UI State
   const [refreshing, setRefreshing] = useState(false);
@@ -39,6 +42,7 @@ export default function Home() {
 
   // React Query hooks
   const deleteWorkoutMutation = useDeleteWorkout();
+  const createWorkoutMutation = useCreateWorkout();
   const { data: workoutsData, refetch: refetchWorkouts } = useWorkouts(1, 100);
 
   const onRefresh = async () => {
@@ -74,6 +78,26 @@ export default function Home() {
     });
   };
 
+  const handleNewWorkout = () => {
+    setModalMode('create');
+    setModalVisible(true);
+  };
+
+  const handleLogPrevious = () => {
+    setModalMode('log');
+    setModalVisible(true);
+  };
+
+  const handleRestDay = async () => {
+    try {
+      await createWorkoutMutation.mutateAsync({ title: 'Rest Day', is_rest_day: true });
+      onRefresh();
+    } catch (error) {
+      console.error('Error creating rest day:', error);
+      Alert.alert('Error', 'Failed to create rest day');
+    }
+  };
+
   const fetchCalendar = async (year: number, month?: number) => {
     try {
       const result = await getCalendar(year, month);
@@ -101,6 +125,9 @@ export default function Home() {
     dayData: CalendarDay | undefined | null
   ) => {
     if (!dayData) return;
+
+    // Set overview selected date so active card and header use it; invalidates today-status cache
+    setSelectedDate(parseLocalDate(dateStr));
 
     // Refresh workouts data to ensure we have the latest
     await refetchWorkouts();
@@ -172,6 +199,9 @@ export default function Home() {
           onDeleteWorkout={handleDeleteWorkout}
           startButtonRef={startButtonRef}
           onStartWorkoutPress={handleStartWorkoutPress}
+          onNewWorkout={handleNewWorkout}
+          onLogPrevious={handleLogPrevious}
+          onRestDay={handleRestDay}
         />
 
         <CalendarStrip onPress={() => setShowCalendarModal(true)} />

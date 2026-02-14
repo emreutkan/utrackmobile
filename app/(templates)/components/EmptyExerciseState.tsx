@@ -1,6 +1,6 @@
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface EmptyExerciseStateProps {
   onPress: () => void;
@@ -8,13 +8,13 @@ interface EmptyExerciseStateProps {
 
 export default function EmptyExerciseState({ onPress }: EmptyExerciseStateProps) {
   return (
-    <TouchableOpacity style={styles.emptyState} onPress={onPress} activeOpacity={0.7}>
+    <View style={styles.emptyState}>
       <View style={styles.emptyIconContainer}>
         <Ionicons name="barbell-outline" size={32} color={theme.colors.text.zinc700} />
       </View>
       <Text style={styles.emptyText}>NO EXERCISES ADDED</Text>
       <Text style={styles.emptySubtext}>TAP TO START BUILDING YOUR STACK</Text>
-    </TouchableOpacity>
+    </View>
   );
 }
 

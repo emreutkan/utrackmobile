@@ -24,6 +24,7 @@ import HistoryModal from './components/HistoryModal';
 import ProgressCard from './components/ProgressCard';
 import SupplementCard from './components/SupplementCard';
 import SupplementsHeader from './components/SupplementsHeader';
+import SupplementsLoadingSkeleton from './components/SupplementsLoadingSkeleton';
 import { LogUserSupplementRequest } from '@/api/Supplements';
 
 export default function SupplementsScreen() {
@@ -79,17 +80,18 @@ export default function SupplementsScreen() {
   const loggedCount = getLoggedCount();
   const totalCount = userSupplements.length;
 
+  if (isLoading) {
+    return <SupplementsLoadingSkeleton />;
+  }
+
   return (
     <>
-      {isLoading ? (
-        <ActivityIndicator size="large" color={theme.colors.status.active} />
-      ) : (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-          <Stack.Screen options={{ headerShown: false }} />
-          <LinearGradient
-            colors={['rgba(99, 101, 241, 0.13)', 'transparent']}
-            style={styles.gradientBg}
-          />
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <LinearGradient
+          colors={['rgba(99, 101, 241, 0.13)', 'transparent']}
+          style={styles.gradientBg}
+        />
 
           <FlatList
             data={userSupplements}
@@ -101,7 +103,7 @@ export default function SupplementsScreen() {
                 <SupplementsHeader onAddPress={() => setModals((m) => ({ ...m, add: true }))} />
                 <ProgressCard loggedCount={loggedCount} totalCount={totalCount} />
                 {userSupplements.length > 0 && (
-                  <Text style={styles.sectionHeader}>ACTIVE</Text>
+                  <Text style={styles.sectionHeader}>ACTIVE SUPPLEMENTS</Text>
                 )}
               </>
             }
@@ -146,8 +148,7 @@ export default function SupplementsScreen() {
             onClose={() => setModals((m) => ({ ...m, history: false }))}
             supplement={selectedSupp}
           />
-        </View>
-      )}
+      </View>
     </>
   );
 }
@@ -161,14 +162,15 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  scrollContent: { padding: theme.spacing.m },
+  scrollContent: { paddingHorizontal: 12 },
   sectionHeader: {
-    fontSize: 10,
+    fontSize: theme.typography.sizes.label,
     fontWeight: '900',
     color: theme.colors.text.tertiary,
-    letterSpacing: 1,
+    textTransform: 'uppercase',
+    letterSpacing: 3.6,
     marginBottom: theme.spacing.m,
-    marginHorizontal: theme.spacing.l,
+    marginLeft: 4,
   },
   emptyContainer: { alignItems: 'center', paddingVertical: 40 },
   emptyIcon: {
@@ -182,7 +184,9 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: theme.typography.sizes.l,
-    fontWeight: '700',
+    fontWeight: '900',
+    fontStyle: 'italic',
+    textTransform: 'uppercase',
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.s,
   },

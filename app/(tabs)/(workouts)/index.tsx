@@ -17,6 +17,7 @@ import WorkoutCard from './components/WorkoutCard';
 import WorkoutOptionsModal from './components/WorkoutOptionsModal';
 import WorkoutsEmptyState from './components/WorkoutsEmptyState';
 import WorkoutsHeader from './components/WorkoutsHeader';
+import WorkoutsLoadingSkeleton from './components/WorkoutsLoadingSkeleton';
 
 export default function WorkoutsScreen() {
   const insets = useSafeAreaInsets();
@@ -92,6 +93,10 @@ export default function WorkoutsScreen() {
   );
 
 
+  if (isLoading) {
+    return <WorkoutsLoadingSkeleton />;
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <LinearGradient
@@ -101,41 +106,35 @@ export default function WorkoutsScreen() {
 
       <WorkoutsHeader />
 
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.status.active} />
-        </View>
-      ) : (
-        <FlatList
-          data={sortedWorkouts}
-          renderItem={({ item }) => (
-            <WorkoutCard
-              workout={item}
-              onOpenMenu={handleOpenMenu}
-              onViewDetail={(workoutId) => router.push(`/(workouts)/${workoutId}`)}
-            />
-          )}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 20 }]}
-          refreshControl={
-            <RefreshControl
-              refreshing={isFetching && !isFetchingNextPage}
-              onRefresh={handleRefresh}
-              tintColor={theme.colors.status.active}
-            />
-          }
-          ListEmptyComponent={<WorkoutsEmptyState />}
-          onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-          }}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={
-            isFetchingNextPage ? (
-              <ActivityIndicator style={{ padding: 20 }} color={theme.colors.status.active} />
-            ) : null
-          }
-        />
-      )}
+      <FlatList
+        data={sortedWorkouts}
+        renderItem={({ item }) => (
+          <WorkoutCard
+            workout={item}
+            onOpenMenu={handleOpenMenu}
+            onViewDetail={(workoutId) => router.push(`/(workouts)/${workoutId}`)}
+          />
+        )}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 20 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching && !isFetchingNextPage}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.status.active}
+          />
+        }
+        ListEmptyComponent={<WorkoutsEmptyState />}
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <ActivityIndicator style={{ padding: 20 }} color={theme.colors.status.active} />
+          ) : null
+        }
+      />
 
 
       <WorkoutOptionsModal
@@ -163,11 +162,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   listContent: {
     paddingHorizontal: 12,

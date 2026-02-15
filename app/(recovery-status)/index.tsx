@@ -8,7 +8,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -20,6 +19,7 @@ import CNSCard from './components/CNSCard';
 import { getCategory } from '@/utils/recoveryStatusHelpers';
 import MuscleCard from './components/MuscleCard';
 import RecoveryHeader from './components/RecoveryHeader';
+import RecoveryLoadingSkeleton from './components/RecoveryLoadingSkeleton';
 
 export default function RecoveryStatusScreen() {
   const insets = useSafeAreaInsets();
@@ -101,6 +101,10 @@ export default function RecoveryStatusScreen() {
     };
   }, [statusMap]);
 
+  if (isLoading) {
+    return <RecoveryLoadingSkeleton />;
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <LinearGradient
@@ -110,12 +114,7 @@ export default function RecoveryStatusScreen() {
 
       <RecoveryHeader />
 
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.status.active} />
-        </View>
-      ) : (
-        <FlatList
+      <FlatList
           data={flattenedData}
           keyExtractor={(item, index) =>
             item.type === 'section' ? `section-${item.category}` : `muscle-${item.muscle}-${index}`
@@ -168,7 +167,6 @@ export default function RecoveryStatusScreen() {
             ) : null
           }
         />
-      )}
     </View>
   );
 }
@@ -184,11 +182,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   content: {
     padding: theme.spacing.l,

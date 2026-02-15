@@ -39,7 +39,11 @@ export default function DebugView() {
         <Text style={styles.title}>Debug Menu</Text>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={true}
+      >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Actions</Text>
           <Pressable
@@ -65,6 +69,14 @@ export default function DebugView() {
           >
             <Ionicons name="home-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
             <Text style={styles.buttonText}>Go to Home</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.button, { marginTop: 12, backgroundColor: '#FFD60A' }]}
+            onPress={() => router.push('/(account)/upgrade')}
+          >
+            <Ionicons name="star" size={20} color="#000000" style={{ marginRight: 8 }} />
+            <Text style={[styles.buttonText, { color: '#000000' }]}>View Pro Subscription</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -95,7 +107,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     padding: 24,
+    paddingBottom: 48,
+    flexGrow: 1,
   },
   section: {
     marginBottom: 32,

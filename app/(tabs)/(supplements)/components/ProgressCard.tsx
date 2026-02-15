@@ -36,7 +36,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.ui.glass,
     borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.xl,
-    marginHorizontal: theme.spacing.l,
     marginBottom: theme.spacing.xl,
     borderWidth: 1,
     borderColor: theme.colors.ui.border,
@@ -45,10 +44,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   progressLabel: {
-    fontSize: 10,
+    fontSize: theme.typography.sizes.label,
     fontWeight: '900',
     color: theme.colors.text.tertiary,
-    letterSpacing: 1,
+    textTransform: 'uppercase',
+    letterSpacing: 2.4,
     marginBottom: theme.spacing.s,
   },
   progressCount: {
@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: theme.colors.text.primary,
     fontStyle: 'italic',
+    fontVariant: ['tabular-nums'],
   },
   progressText: {
     fontSize: 14,

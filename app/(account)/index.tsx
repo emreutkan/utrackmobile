@@ -156,9 +156,12 @@ export default function AccountScreen() {
       >
         {/* Profile Header */}
         <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
+          <LinearGradient
+            colors={['rgba(99, 102, 241, 0.2)', 'rgba(168, 85, 247, 0.15)']}
+            style={styles.avatarGradient}
+          >
             <Text style={styles.avatarText}>{user?.email?.charAt(0).toUpperCase() || 'U'}</Text>
-          </View>
+          </LinearGradient>
           <View style={styles.profileInfo}>
             <Text style={styles.userEmail}>{user?.email}</Text>
             <Text style={styles.memberSince}>
@@ -341,7 +344,7 @@ export default function AccountScreen() {
         <View style={styles.settingsContainer}>
           <Pressable
             style={styles.settingCard}
-            // onPress={() => router.push('/(account)/upgrade')}
+            onPress={() => router.push('/(account)/upgrade')}
           >
             <View
               style={[
@@ -709,38 +712,40 @@ const styles = StyleSheet.create({
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.xxxl,
     paddingHorizontal: theme.spacing.xs,
   },
-  avatarContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: theme.colors.ui.border,
+  avatarGradient: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.ui.border,
+    borderWidth: 2,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
   avatarText: {
-    fontSize: theme.typography.sizes.xl,
+    fontSize: 32,
     fontWeight: '900',
-    color: theme.colors.status.active,
+    fontStyle: 'italic',
+    color: theme.colors.text.primary,
   },
   profileInfo: {
     marginLeft: theme.spacing.m,
   },
   userEmail: {
-    fontSize: theme.typography.sizes.m,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '900',
+    fontStyle: 'italic',
     color: theme.colors.text.primary,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   memberSince: {
-    fontSize: theme.typography.sizes.xxs,
-    fontWeight: '700',
+    fontSize: theme.typography.sizes.label,
+    fontWeight: '900',
     color: theme.colors.text.tertiary,
-    letterSpacing: 1,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
 
   // --- Stats Cards ---
@@ -771,9 +776,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '900',
+    fontStyle: 'italic',
     color: theme.colors.text.primary,
+    fontVariant: ['tabular-nums'],
   },
   statIcon: {
     marginTop: 2,
@@ -786,11 +793,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xs,
   },
   sectionHeaderText: {
-    fontSize: 11,
+    fontSize: theme.typography.sizes.label,
     fontWeight: '900',
     color: theme.colors.text.tertiary,
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
+    letterSpacing: 3.6,
   },
 
   // --- Settings Cards ---
@@ -809,31 +816,32 @@ const styles = StyleSheet.create({
     gap: theme.spacing.m,
   },
   iconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: theme.colors.ui.border,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.ui.border,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   settingContent: {
     flex: 1,
   },
   settingTitle: {
-    fontSize: theme.typography.sizes.s,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '900',
+    textTransform: 'uppercase',
     color: theme.colors.text.primary,
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
   settingSubtitle: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
     color: theme.colors.text.tertiary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
   subscriptionSubtitle: {
     color: theme.colors.status.rest,
@@ -864,11 +872,14 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.l,
   },
   modalTitle: {
-    fontSize: theme.typography.sizes.l,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    textTransform: 'uppercase',
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.s,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   modalSubtitle: {
     fontSize: theme.typography.sizes.s,

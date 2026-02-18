@@ -2,7 +2,6 @@
 export * from './account';
 export * from './measurements';
 // export * from './supplements'; // Supplements feature disabled
-export * from './auth';
 
 export * from './workout';
 export * from './pagination';
@@ -11,14 +10,6 @@ export * from './volume';
 export const CREATE_CALENDAR_URL = `workout/calendar/create/`;
 export const GET_CALENDAR_URL = `workout/calendar/`;
 export const GET_CALENDAR_STATS_URL = `workout/calendar/stats/`;
-export const LOGIN_URL = `user/login/`;
-export const REGISTER_URL = `user/register/`;
-export const CHECK_EMAIL_URL = `user/check-email/`;
-export const CHECK_PASSWORD_URL = `user/check-password/`;
-export const CHECK_NAME_URL = `user/check-name/`;
-export const REQUEST_PASSWORD_RESET_URL = `user/request-password-reset/`;
-export const RESET_PASSWORD_URL = `user/reset-password/`;
-export const REFRESH_TOKEN_URL = `user/refresh/`;
 
 export const CREATE_TEMPLATE_WORKOUT_URL = `workout/template/create/`;
 export const GET_TEMPLATE_WORKOUTS_URL = `workout/template/`;

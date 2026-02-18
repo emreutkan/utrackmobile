@@ -70,6 +70,13 @@
       "./plugins/withImmersiveMode",
       "./plugins/withHealthKit",
       "./plugins/withGoogleFit",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_YOUR_REVERSED_IOS_CLIENT_ID"
+        }
+      ],
+      "expo-apple-authentication",
       "expo-secure-store",
       "expo-web-browser"
     ],

@@ -1,7 +1,12 @@
 import { useEffect } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { useSettingsStore } from '@/state/userStore';
-import { ENTITLEMENT_ID, getCustomerInfo, addCustomerInfoUpdateListener, logInRevenueCat } from '@/services/revenueCat';
+import {
+  ENTITLEMENT_ID,
+  getCustomerInfo,
+  addCustomerInfoUpdateListener,
+  logInRevenueCat,
+} from '@/services/revenueCat';
 
 /**
  * Runs at app root. Syncs RevenueCat subscription status → isPro store.

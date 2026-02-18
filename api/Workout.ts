@@ -53,7 +53,7 @@ export const createWorkout = async (
 export const getActiveWorkout = async (): Promise<CreateWorkoutResponse | null> => {
   const response = await apiClient.get(GET_ACTIVE_WORKOUT_URL, { throwHttpErrors: false });
   if (response.status === 404) return null;
-  const data = await response.json() as any;
+  const data = (await response.json()) as any;
   // API may return { active_workout: { ... } } wrapper — unwrap it
   if (data && data.active_workout) {
     return data.active_workout;
@@ -104,7 +104,7 @@ export const deleteWorkout = async (workoutId: number): Promise<void> => {
   // 404 = workout already gone (e.g. deleted elsewhere); treat as success so cache invalidates and UI refreshes
   if (response.status === 404) return;
   if (!response.ok) {
-    const body = await response.json().catch(() => ({})) as { error?: string };
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
     throw new Error(body?.error ?? 'Failed to delete workout');
   }
 };
@@ -131,6 +131,7 @@ export const startTemplateWorkout = async (
   request: StartTemplateWorkoutRequest
 ): Promise<StartTemplateWorkoutResponse> => {
   const response = await apiClient.post(TEMPLATE_START_URL, { json: request });
+
   return response.json();
 };
 

@@ -1,13 +1,6 @@
 import ky from 'ky';
-import {
-  getAccessToken,
-  getRefreshToken,
-  clearTokens,
-  storeAccessToken,
-  storeRefreshToken,
-} from '../hooks/Storage';
-import { REFRESH_TOKEN_URL, BACKEND_URL } from './types';
-import { RefreshTokenResponse } from './types/auth';
+import { supabase } from '../lib/supabase';
+import { BACKEND_URL } from './types';
 
 const GET_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -33,12 +26,16 @@ const apiClient = ky.create({
   hooks: {
     beforeRequest: [
       async (request) => {
-        const token = await getAccessToken();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const token = session?.access_token;
 
         request.headers.set('Content-Type', 'application/json');
         if (token) {
           request.headers.set('Authorization', `Bearer ${token}`);
         }
+
         // For GET: add conditional headers so server can return 304 when unchanged
         if (request.method === 'GET') {
           const key = getCacheKey(request);
@@ -48,13 +45,10 @@ const apiClient = ky.create({
             if (entry.lastModified) request.headers.set('If-Modified-Since', entry.lastModified);
           }
         }
-        console.log('request', request);
       },
     ],
     afterResponse: [
       async (request, options, response) => {
-        console.log('[API] afterResponse - Status:', response.status, 'URL:', request.url);
-
         // Log 4xx body so we can see validation/error reason
         if (response.status >= 400 && response.status < 500) {
           const clone = response.clone();
@@ -64,7 +58,7 @@ const apiClient = ky.create({
           } catch (_) {}
         }
 
-        // GET 304 Not Modified → use cached body and return as 200 so callers get data
+        // GET 304 Not Modified → use cached body and return as 200
         if (request.method === 'GET' && response.status === 304) {
           const key = getCacheKey(request);
           const entry = getCache.get(key);
@@ -89,56 +83,31 @@ const apiClient = ky.create({
           });
         }
 
-        if (response.status !== 401) {
-          return response;
+        // 401: try to refresh Supabase session and retry
+        if (response.status === 401) {
+          const { data, error } = await supabase.auth.refreshSession();
+          if (!error && data.session) {
+            const { prefixUrl, hooks, ...retryOptions } = options as any;
+            return ky(request.url, {
+              ...retryOptions,
+              headers: {
+                ...retryOptions.headers,
+                Authorization: `Bearer ${data.session.access_token}`,
+              },
+              retry: { limit: 0, methods: [] },
+            });
+          }
         }
 
-        console.log('response is 401', response.status, response);
-        const refreshToken = await getRefreshToken();
-
-        if (!refreshToken) {
-          console.error('[API] No refresh token found, clearing tokens');
-          await clearTokens();
-          throw new Error('Refresh token not found');
-        }
-
-        try {
-          console.log('[API] Calling refresh endpoint');
-          const res = await ky.post(REFRESH_TOKEN_URL, {
-            json: { refresh: refreshToken },
-            prefixUrl: BACKEND_URL,
-          });
-
-          const data: RefreshTokenResponse = await res.json();
-          console.log('[API] Token refresh successful');
-
-          await storeAccessToken(data.access);
-          await storeRefreshToken(data.refresh);
-
-          console.log('[API] Retrying original request with new token');
-          // request.url is already fully resolved, so strip prefixUrl and hooks to avoid duplication
-          const { prefixUrl, hooks, ...retryOptions } = options as any;
-          return ky(request.url, {
-            ...retryOptions,
-            headers: {
-              ...retryOptions.headers,
-              Authorization: `Bearer ${data.access}`,
-            },
-            retry: { limit: 0, methods: [] },
-          });
-        } catch (error) {
-          console.error('[API] Token refresh failed:', error);
-          await clearTokens();
-          throw new Error('Token refresh failed');
-        }
+        return response;
       },
     ],
   },
   retry: {
-    limit: 0, // Disable ky's automatic retry - we handle 401 retries manually
+    limit: 0,
     methods: [],
   },
-  timeout: 30000, // Add timeout to prevent hanging requests
+  timeout: 30000,
 });
 
 export default apiClient;

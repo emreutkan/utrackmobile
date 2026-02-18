@@ -1,5 +1,5 @@
 import { updateGender, updateHeight, updateWeight } from '@/api/account';
-import { clearTokens } from '@/hooks/Storage';
+import { supabase } from '@/lib/supabase';
 import { commonStyles, theme } from '@/constants/theme';
 import {
   useInvalidateUser,
@@ -88,8 +88,8 @@ export default function AccountManageScreen() {
       {
         text: 'Log Out',
         style: 'destructive',
-        onPress: () => {
-          clearTokens();
+        onPress: async () => {
+          await supabase.auth.signOut();
           clearUser();
           router.replace('/(auth)');
         },
@@ -121,7 +121,7 @@ export default function AccountManageScreen() {
     try {
       await deleteAccountMutation.mutateAsync(formData.deletePassword);
       toggleModal('deleteAccount', false);
-      clearTokens();
+      await supabase.auth.signOut();
       clearUser();
       router.replace('/(auth)');
     } catch (error: any) {

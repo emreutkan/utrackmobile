@@ -3,6 +3,7 @@ import { Exercise1RMHistory, ExerciseRanking } from '@/api/types/exercise';
 import UpgradeModal from '@/components/UpgradeModal';
 import { theme } from '@/constants/theme';
 import { useUser } from '@/hooks/useUser';
+import { useSettingsStore } from '@/state/userStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -20,17 +21,13 @@ import WeightRepsChart from './components/WeightRepsChart';
 export default function ExerciseStatisticsScreen() {
   const { id } = useLocalSearchParams();
   const { data: user, isLoading: isLoadingUser } = useUser();
+  const { isPro } = useSettingsStore();
   const [history, setHistory] = useState<Exercise1RMHistory | null>(null);
   const [ranking, setRanking] = useState<ExerciseRanking | null>(null);
   const [recentPerformance, setRecentPerformance] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const insets = useSafeAreaInsets();
-
-  const isPro = useMemo(() => {
-    if (!user) return null;
-    return user.is_pro || user.is_paid_pro || user.is_trial;
-  }, [user]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);

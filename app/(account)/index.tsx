@@ -18,7 +18,7 @@ export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const { data: user } = useUser();
   // const { data: stats } = useUserStatistics();
-  const { tutCountdown, tutReactionOffset, setTutCountdown, setTutReactionOffset } = useSettingsStore();
+  const { tutCountdown, tutReactionOffset, setTutCountdown, setTutReactionOffset, isPro } = useSettingsStore();
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -183,28 +183,28 @@ export default function AccountScreen() {
               style={[
                 styles.iconBox,
                 {
-                  backgroundColor: user?.is_pro
+                  backgroundColor: isPro
                     ? 'rgba(192, 132, 252, 0.1)'
                     : 'rgba(99, 102, 241, 0.1)',
                 },
               ]}
             >
               <Ionicons
-                name={user?.is_pro ? 'star' : 'star-outline'}
+                name={isPro ? 'star' : 'star-outline'}
                 size={20}
-                color={user?.is_pro ? theme.colors.status.rest : theme.colors.status.active}
+                color={isPro ? theme.colors.status.rest : theme.colors.status.active}
               />
             </View>
             <View style={styles.settingContent}>
               <Text style={styles.settingTitle}>
-                {user?.is_pro ? (user?.is_trial ? 'FREE TRIAL' : 'PRO MEMBER') : 'FREE PLAN'}
+                {isPro ? (user?.is_trial ? 'FREE TRIAL' : 'PRO MEMBER') : 'FREE PLAN'}
               </Text>
               <Text style={styles.settingSubtitle}>
                 {user?.is_trial && user?.trial_days_remaining !== null
                   ? `${user.trial_days_remaining} DAYS LEFT`
                   : user?.is_paid_pro && user?.pro_days_remaining !== null
                     ? `${user.pro_days_remaining} DAYS LEFT`
-                    : user?.is_pro
+                    : isPro
                       ? 'ACTIVE'
                       : 'UPGRADE TO PRO'}
               </Text>

@@ -2,6 +2,7 @@ import { TemplateWorkout } from '@/api/types/index';
 import UpgradeModal from '@/components/UpgradeModal';
 import { theme, typographyStyles } from '@/constants/theme';
 import { useUser } from '@/hooks/useUser';
+import { useSettingsStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -13,13 +14,13 @@ const FREE_TEMPLATE_LIMIT = 3;
 
 export default function TemplatesSection() {
   const { data: user } = useUser();
+  const { isPro } = useSettingsStore();
   const { data: templatesData, refetch, isLoading: templatesLoading } = useTemplateWorkouts();
   const deleteTemplateMutation = useDeleteTemplateWorkout();
   const startTemplateMutation = useStartTemplateWorkout();
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
 
   const templates = Array.isArray(templatesData) ? templatesData : [];
-  const isPro = user?.is_pro || false;
   const canCreateTemplate = isPro || templates.length < FREE_TEMPLATE_LIMIT;
 
   useFocusEffect(

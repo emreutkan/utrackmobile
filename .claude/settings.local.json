@@ -15,7 +15,31 @@
       "Bash(find:*)",
       "Bash(xargs:*)",
       "Bash(findstr:*)",
-      "Bash(cmd /c dir \"C:\\\\Users\\\\emre\\\\Desktop\\\\PROJECTS\\\\utrack_mobile\\\\app\" /s /b)"
+      "Bash(cmd /c dir \"C:\\\\Users\\\\emre\\\\Desktop\\\\PROJECTS\\\\utrack_mobile\\\\app\" /s /b)",
+      "Bash(npm install:*)",
+      "Bash(node -e:*)",
+      "Bash(cat:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(dir:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker restart:*)",
+      "WebFetch(domain:cmnriaorfkuicfcdenzv.supabase.co)",
+      "Bash(curl:*)",
+      "Bash(docker compose build:*)",
+      "Bash(docker compose:*)",
+      "Bash(npm audit fix:*)",
+      "Bash(npm audit:*)",
+      "Bash(git -C \"C:/Users/emre/AppData/Local/Temp/forcelegal\" status)",
+      "Bash(git -C \"C:/Users/emre/AppData/Local/Temp/forcelegal\" config user.name)",
+      "Bash(git -C \"C:/Users/emre/AppData/Local/Temp/forcelegal\" config user.email)",
+      "Bash(git -C \"C:/Users/emre/Desktop/PROJECTS/Force\" config user.name)",
+      "Bash(git -C \"C:/Users/emre/Desktop/PROJECTS/Force\" config user.email)",
+      "Bash(git -C \"C:/Users/emre/AppData/Local/Temp/forcelegal\" add .)",
+      "Bash(git -C \"C:/Users/emre/AppData/Local/Temp/forcelegal\" commit -m \"Add Privacy Policy and Terms of Use for App Store submission\")",
+      "Bash(git -C \"C:/Users/emre/AppData/Local/Temp/forcelegal\" push origin main)"
     ]
   }
 }

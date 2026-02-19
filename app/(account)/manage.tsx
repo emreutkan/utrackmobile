@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -47,6 +48,15 @@ export default function AccountManageScreen() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [authProvider, setAuthProvider] = useState<string>('email');
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setAuthProvider(data.user?.app_metadata?.provider ?? 'email');
+    });
+  }, []);
+
+  const isOAuthUser = authProvider === 'apple' || authProvider === 'google';
 
   const [formData, setFormData] = useState({
     height: '',
@@ -56,6 +66,7 @@ export default function AccountManageScreen() {
     newPassword: '',
     newEmail: '',
     deletePassword: '',
+    deleteConfirmText: '',
   });
 
   useEffect(() => {
@@ -77,7 +88,7 @@ export default function AccountManageScreen() {
       } else if (key === 'email') {
         setFormData((prev) => ({ ...prev, newEmail: '' }));
       } else if (key === 'deleteAccount') {
-        setFormData((prev) => ({ ...prev, deletePassword: '' }));
+        setFormData((prev) => ({ ...prev, deletePassword: '', deleteConfirmText: '' }));
       }
     }
   };
@@ -113,19 +124,26 @@ export default function AccountManageScreen() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!formData.deletePassword) {
-      Alert.alert('Error', 'Please enter your password to confirm.');
-      return;
+    if (isOAuthUser) {
+      if (formData.deleteConfirmText.trim().toUpperCase() !== 'DELETE') {
+        Alert.alert('Error', 'Please type DELETE to confirm.');
+        return;
+      }
+    } else {
+      if (!formData.deletePassword) {
+        Alert.alert('Error', 'Please enter your password to confirm.');
+        return;
+      }
     }
     setIsSaving(true);
     try {
-      await deleteAccountMutation.mutateAsync(formData.deletePassword);
+      await deleteAccountMutation.mutateAsync(isOAuthUser ? undefined : formData.deletePassword);
       toggleModal('deleteAccount', false);
       await supabase.auth.signOut();
       clearUser();
       router.replace('/(auth)');
     } catch (error: any) {
-      Alert.alert('Delete Failed', error.message || 'Incorrect password or server error.');
+      Alert.alert('Delete Failed', error.message || 'Unable to delete account. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -306,6 +324,42 @@ export default function AccountManageScreen() {
               </Text>
               <Text style={styles.rowSub}>PERMANENTLY REMOVE ALL DATA</Text>
             </View>
+          </Pressable>
+        </View>
+
+        {/* Legal */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionLabel}>LEGAL</Text>
+        </View>
+        <View style={styles.group}>
+          <Pressable
+            style={styles.row}
+            onPress={() => Linking.openURL('https://emreutkan.github.io/forcelegal/privacy')}
+          >
+            <View style={[styles.iconBox, { backgroundColor: 'rgba(99, 102, 241, 0.08)' }]}>
+              <Ionicons name="document-text-outline" size={20} color={theme.colors.text.secondary} />
+            </View>
+            <View style={styles.rowContent}>
+              <Text style={styles.rowTitle}>PRIVACY POLICY</Text>
+              <Text style={styles.rowSub}>HOW WE HANDLE YOUR DATA</Text>
+            </View>
+            <Ionicons name="open-outline" size={16} color={theme.colors.text.tertiary} />
+          </Pressable>
+
+          <View style={styles.separator} />
+
+          <Pressable
+            style={styles.row}
+            onPress={() => Linking.openURL('https://emreutkan.github.io/forcelegal/terms')}
+          >
+            <View style={[styles.iconBox, { backgroundColor: 'rgba(99, 102, 241, 0.08)' }]}>
+              <Ionicons name="shield-outline" size={20} color={theme.colors.text.secondary} />
+            </View>
+            <View style={styles.rowContent}>
+              <Text style={styles.rowTitle}>TERMS OF USE</Text>
+              <Text style={styles.rowSub}>USAGE TERMS & CONDITIONS</Text>
+            </View>
+            <Ionicons name="open-outline" size={16} color={theme.colors.text.tertiary} />
           </Pressable>
         </View>
       </ScrollView>
@@ -567,18 +621,32 @@ export default function AccountManageScreen() {
               Delete Account
             </Text>
             <Text style={styles.modalSubtitle}>
-              Enter your password to permanently delete your account. This cannot be undone.
+              {isOAuthUser
+                ? 'Type DELETE below to permanently remove your account and all data. This cannot be undone.'
+                : 'Enter your password to permanently delete your account. This cannot be undone.'}
             </Text>
             <View style={styles.inputStack}>
-              <TextInput
-                style={styles.cleanInput}
-                value={formData.deletePassword}
-                onChangeText={(t) => setFormData({ ...formData, deletePassword: t })}
-                placeholder="Your Password"
-                placeholderTextColor={theme.colors.text.zinc500}
-                secureTextEntry
-                autoFocus
-              />
+              {isOAuthUser ? (
+                <TextInput
+                  style={[styles.cleanInput, { textAlign: 'center', letterSpacing: 4, fontWeight: '800' }]}
+                  value={formData.deleteConfirmText}
+                  onChangeText={(t) => setFormData({ ...formData, deleteConfirmText: t })}
+                  placeholder="DELETE"
+                  placeholderTextColor={theme.colors.text.zinc500}
+                  autoCapitalize="characters"
+                  autoFocus
+                />
+              ) : (
+                <TextInput
+                  style={styles.cleanInput}
+                  value={formData.deletePassword}
+                  onChangeText={(t) => setFormData({ ...formData, deletePassword: t })}
+                  placeholder="Your Password"
+                  placeholderTextColor={theme.colors.text.zinc500}
+                  secureTextEntry
+                  autoFocus
+                />
+              )}
             </View>
             <View style={styles.modalActions}>
               <Pressable style={styles.btnCancel} onPress={() => toggleModal('deleteAccount', false)}>

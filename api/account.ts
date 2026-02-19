@@ -81,7 +81,7 @@ export const exportUserData = async (): Promise<ExportDataResponse> => {
   return response.json();
 };
 
-export const deleteAccount = async (password: string): Promise<void> => {
+export const deleteAccount = async (password?: string): Promise<void> => {
   await apiClient.delete(DELETE_ACCOUNT_URL, { json: { password } });
 };
 

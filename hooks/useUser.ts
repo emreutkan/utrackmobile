@@ -107,7 +107,7 @@ export const useExportUserData = () => {
 // Delete account mutation
 export const useDeleteAccount = () => {
   return useMutation({
-    mutationFn: (password: string) => deleteAccount(password),
+    mutationFn: (password?: string) => deleteAccount(password),
   });
 };
 

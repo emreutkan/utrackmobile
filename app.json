@@ -14,7 +14,12 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
+          "NSExceptionDomains": {
+            "api.utrack.irfanemreutkan.com": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            }
+          }
         },
         "NSHealthShareUsageDescription": "This app needs access to your step count to display your daily activity.",
         "NSHealthUpdateUsageDescription": "This app needs access to update your health data."
@@ -73,7 +78,7 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_YOUR_REVERSED_IOS_CLIENT_ID"
+          "iosUrlScheme": "overridden-by-app.config.js"
         }
       ],
       "expo-apple-authentication",

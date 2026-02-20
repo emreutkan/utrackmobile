@@ -11,14 +11,6 @@ export default function RecoveryHeader() {
       </Pressable>
       <View style={{ flex: 1 }}>
         <Text style={typographyStyles.h2}>RECOVERY</Text>
-        <Text
-          style={[
-            typographyStyles.labelMuted,
-            { marginTop: theme.spacing.xs, color: theme.colors.text.brand },
-          ]}
-        >
-          REAL-TIME TRACKING
-        </Text>
       </View>
     </View>
   );

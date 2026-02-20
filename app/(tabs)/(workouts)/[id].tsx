@@ -165,15 +165,18 @@ export default function WorkoutDetailScreen() {
         style={StyleSheet.absoluteFillObject}
       />
       <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={commonStyles.iconButton}>
+          <Ionicons name="arrow-back" size={20} color={theme.colors.text.primary} />
+        </Pressable>
+
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {workout?.title?.toUpperCase() || 'WORKOUT'}
+        </Text>
+
         {!isEditMode ? (
-          <View style={styles.headerActions}>
-            <Pressable onPress={() => setIsEditMode(true)} style={commonStyles.iconButton}>
-              <Ionicons name="create-outline" size={24} color={theme.colors.text.primary} />
-            </Pressable>
-            <Pressable onPress={handleDeleteWorkout} style={commonStyles.iconButton}>
-              <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-            </Pressable>
-          </View>
+          <Pressable onPress={() => setIsEditMode(true)} style={commonStyles.iconButton}>
+            <Ionicons name="create-outline" size={20} color={theme.colors.text.primary} />
+          </Pressable>
         ) : (
           <Pressable onPress={() => setIsEditMode(false)} style={commonStyles.iconButton}>
             <Text style={styles.doneText}>Done</Text>
@@ -245,6 +248,15 @@ export default function WorkoutDetailScreen() {
         title="Add Exercise"
       />
 
+      {!isEditMode && workout && (
+        <View style={[styles.deleteContainer, { paddingBottom: insets.bottom + 8 }]}>
+          <Pressable onPress={handleDeleteWorkout} style={styles.deleteButton}>
+            <Ionicons name="trash-outline" size={13} color="#FF3B30" />
+            <Text style={styles.deleteText}>Delete Workout</Text>
+          </Pressable>
+        </View>
+      )}
+
       {isEditMode && (
         <View style={[styles.floatingBarContainer, { bottom: insets.bottom + 20 }]}>
           <View style={styles.blurPill}>
@@ -270,20 +282,43 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: theme.spacing.s,
+    justifyContent: 'space-between',
     paddingHorizontal: 12,
-    paddingTop: theme.spacing.m,
-    paddingBottom: theme.spacing.s,
+    paddingVertical: 8,
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: theme.spacing.s,
+  headerTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    textTransform: 'uppercase',
+    letterSpacing: -0.3,
+    color: theme.colors.text.primary,
+    textAlign: 'center',
+    marginHorizontal: 8,
   },
   doneText: {
-    fontSize: theme.typography.sizes.m,
+    fontSize: 15,
     fontWeight: '600',
     color: theme.colors.status.active,
+  },
+  deleteContainer: {
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  deleteText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF3B30',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   loadingContainer: {
     flex: 1,

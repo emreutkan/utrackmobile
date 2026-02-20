@@ -20,6 +20,7 @@ import WeightRepsChart from './components/WeightRepsChart';
 
 export default function ExerciseStatisticsScreen() {
   const { id } = useLocalSearchParams();
+  const exerciseId = Number(id);
   const { data: user, isLoading: isLoadingUser } = useUser();
   const { isPro } = useSettingsStore();
   const [history, setHistory] = useState<Exercise1RMHistory | null>(null);
@@ -30,11 +31,16 @@ export default function ExerciseStatisticsScreen() {
   const insets = useSafeAreaInsets();
 
   const fetchData = useCallback(async () => {
+    if (!exerciseId || isNaN(exerciseId)) {
+      console.warn('[ExerciseStats] Invalid exercise ID:', id);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const [rmData, sData] = await Promise.all([
-        getExercise1RMHistory(Number(id)),
-        getExerciseSetHistory(Number(id)),
+        getExercise1RMHistory(exerciseId),
+        getExerciseSetHistory(exerciseId),
       ]);
 
       if (rmData && typeof rmData === 'object' && 'history' in rmData) {
@@ -56,7 +62,7 @@ export default function ExerciseStatisticsScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  }, [exerciseId]);
 
   const best1RM = useMemo(() => {
     if (!history || history.history.length === 0) return 0;

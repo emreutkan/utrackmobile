@@ -311,12 +311,19 @@ export default function AuthScreen() {
       showAlert('Enter Email', 'Please enter your email address first.');
       return;
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    if (error) {
-      console.error('[Auth] reset password failed:', error);
-      showAlert('Error', error.message);
-    } else {
-      showAlert('Email Sent', 'Check your email for a password reset link.');
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'force://reset-password',
+      });
+      if (error) {
+        console.error('[Auth] reset password failed:', error);
+        showAlert('Error', error.message);
+      } else {
+        showAlert('Email Sent', 'Check your email for a password reset link.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -499,8 +506,16 @@ export default function AuthScreen() {
                   </View>
                 </View>
                 {!isRegistering && currentStep === 'password' && (
-                  <Pressable style={styles.forgotPasswordLink} onPress={handleForgotPassword}>
-                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                  <Pressable
+                    style={styles.forgotPasswordLink}
+                    onPress={handleForgotPassword}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+                    ) : (
+                      <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                    )}
                   </Pressable>
                 )}
                 <Animated.View style={animatedPasswordButtonStyle}>

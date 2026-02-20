@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
@@ -9,6 +9,25 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { theme } from '@/constants/theme';
 import { initializeRevenueCat } from '@/services/revenueCat';
 import RevenueCatSync from '@/components/RevenueCatSync';
+import MaintenanceOverlay from '@/components/MaintenanceOverlay';
+import * as Linking from 'expo-linking';
+import { supabase } from '@/lib/supabase';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  enabled: !__DEV__,
+  tracesSampleRate: 1.0,
+});
+
+// Initialize before any component mounts to avoid singleton errors
+initializeRevenueCat();
+
+// Always start from index (loading screen) on app launch — prevents Expo Router
+// from restoring the last visited screen (e.g. statistics, upgrade) on cold start
+export const unstable_settings = {
+  initialRouteName: 'index',
+};
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,14 +51,61 @@ const CustomDarkTheme = {
   },
 };
 
-export default function RootLayout() {
+const handleResetPasswordUrl = async (url: string) => {
+  if (!url.includes('reset-password')) return;
+
+  // PKCE flow: force://reset-password?code=xxx
+  const parsed = Linking.parse(url);
+  const code = parsed.queryParams?.code as string | undefined;
+  if (code) {
+    await supabase.auth.exchangeCodeForSession(code);
+    router.replace('/(reset-password)');
+    return;
+  }
+
+  // Implicit flow: force://reset-password#access_token=xxx&refresh_token=xxx&type=recovery
+  const hash = url.split('#')[1];
+  if (hash) {
+    const params = Object.fromEntries(new URLSearchParams(hash));
+    if (params.type === 'recovery' && params.access_token) {
+      await supabase.auth.setSession({
+        access_token: params.access_token,
+        refresh_token: params.refresh_token,
+      });
+      router.replace('/(reset-password)');
+    }
+  }
+};
+
+function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    initializeRevenueCat();
+    // App opened from cold start via deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) handleResetPasswordUrl(url);
+    });
+
+    // App already open, deep link received
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      handleResetPasswordUrl(url);
+    });
+
+    // Supabase PASSWORD_RECOVERY event (fired after session is set)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        router.replace('/(reset-password)');
+      }
+    });
+
+    return () => {
+      sub.remove();
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
+
     <QueryClientProvider client={queryClient}>
       <RevenueCatSync />
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -66,10 +132,14 @@ export default function RootLayout() {
             <Stack.Screen name="(recovery-status)" options={{ headerShown: false }} />
             <Stack.Screen name="(workout-summary)" options={{ headerShown: false }} />
             <Stack.Screen name="(account)" options={{ headerShown: false }} />
+            <Stack.Screen name="(reset-password)" options={{ headerShown: false }} />
           </Stack>
           <StatusBar style="light" />
+          <MaintenanceOverlay />
         </ThemeProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

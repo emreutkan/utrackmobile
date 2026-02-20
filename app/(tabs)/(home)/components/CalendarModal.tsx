@@ -2,310 +2,406 @@ import { CalendarDay, CalendarStats } from '@/api/types/index';
 import { theme } from '@/constants/theme';
 import { useDateStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Alert, Modal, StyleSheet, Text, Pressable, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface CalendarModalProps {
-    visible: boolean;
-    onClose: () => void;
-    calendarData: CalendarDay[];
-    calendarStats: CalendarStats | null;
-    selectedYear: number;
-    selectedMonth: number;
-    onYearChange: (year: number) => void;
-    onMonthChange: (year: number, month: number) => void;
-    onDayClick: (dateStr: string, dayData: CalendarDay | undefined | null) => void;
+  visible: boolean;
+  onClose: () => void;
+  calendarData: CalendarDay[];
+  calendarStats: CalendarStats | null;
+  selectedYear: number;
+  selectedMonth: number;
+  onYearChange: (year: number) => void;
+  onMonthChange: (year: number, month: number) => void;
+  onDayClick: (dateStr: string, dayData: CalendarDay | undefined | null) => void;
 }
 
+const MONTH_NAMES = [
+  'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+  'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
+];
+
+const DAY_HEADERS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
 export default function CalendarModal({
-    visible,
-    onClose,
-    calendarData,
-    calendarStats,
-    selectedYear,
-    selectedMonth,
-    onYearChange,
-    onMonthChange,
-    onDayClick,
+  visible,
+  onClose,
+  calendarData,
+  calendarStats,
+  selectedYear,
+  selectedMonth,
+  onMonthChange,
+  onDayClick,
 }: CalendarModalProps) {
-    const today = useDateStore((state) => state.today);
+  const today = useDateStore((state) => state.today);
+  const insets = useSafeAreaInsets();
 
-    const handlePreviousMonth = () => {
-        if (selectedMonth > 1) {
-            onMonthChange(selectedYear, selectedMonth - 1);
-        } else {
-            onMonthChange(selectedYear - 1, 12);
-        }
-    };
+  const handlePreviousMonth = () => {
+    if (selectedMonth > 1) onMonthChange(selectedYear, selectedMonth - 1);
+    else onMonthChange(selectedYear - 1, 12);
+  };
 
-    const handleNextMonth = () => {
-        if (selectedMonth < 12) {
-            onMonthChange(selectedYear, selectedMonth + 1);
-        } else {
-            onMonthChange(selectedYear + 1, 1);
-        }
-    };
+  const handleNextMonth = () => {
+    if (selectedMonth < 12) onMonthChange(selectedYear, selectedMonth + 1);
+    else onMonthChange(selectedYear + 1, 1);
+  };
 
-    const handleYearSelect = () => {
-        const yearsToShow = [new Date().getFullYear()];
+  const renderGrid = () => {
+    const firstDay = new Date(selectedYear, selectedMonth - 1, 1);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - startDate.getDay());
 
-        const yearOptions: { text: string; onPress?: () => void; style?: "cancel" | "default" | "destructive" }[] = yearsToShow.map(year => ({
-            text: year.toString(),
-            onPress: () => {
-                onYearChange(year);
-            }
-        }));
-        yearOptions.push({ text: "Cancel", style: "cancel" });
-        Alert.alert("Select Year", "", yearOptions);
-    };
+    const cells: React.ReactElement[] = [];
 
-    return (
-        <Modal
-            presentationStyle="overFullScreen"
-            visible={visible}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={onClose}
+    for (let i = 0; i < 42; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayData = calendarData.find((d) => d.date === dateStr);
+      const isCurrentMonth = date.getMonth() === selectedMonth - 1;
+      const isToday = date.toDateString() === today.toDateString();
+      const hasWorkout = dayData?.has_workout;
+      const isRestDay = dayData?.is_rest_day;
+
+      cells.push(
+        <Pressable
+          key={i}
+          style={[styles.dayCell, !isCurrentMonth && styles.dayCellOther]}
+          onPress={() => onDayClick(dateStr, dayData)}
         >
-            <View style={styles.calendarModalContainer}>
-                <View style={styles.calendarModalContent}>
-                    <View style={styles.calendarModalHeader}>
-                        <Text style={styles.calendarModalTitle}>Calendar</Text>
-                        <Pressable onPress={onClose}>
-                            <Ionicons name="close" size={24} color={theme.colors.text.primary} />
-                        </Pressable>
-                    </View>
-                    {calendarStats && (
-                        <View style={styles.weekStatsRow}>
-                            <View style={styles.statBadge}>
-                                <Text style={styles.statBadgeLabel}>Workouts</Text>
-                                <Text style={styles.statBadgeValue}>{calendarStats.total_workouts}</Text>
-                            </View>
-                            <View style={styles.statBadge}>
-                                <Text style={styles.statBadgeLabel}>Rest Days</Text>
-                                <Text style={styles.statBadgeValue}>{calendarStats.total_rest_days}</Text>
-                            </View>
-                            <View style={styles.statBadge}>
-                                <Text style={styles.statBadgeLabel}>Not Worked</Text>
-                                <Text style={styles.statBadgeValue}>{calendarStats.days_not_worked}</Text>
-                            </View>
-                        </View>
-                    )}
-                    <View style={styles.calendarControls}>
-                        <Pressable
-                            onPress={handlePreviousMonth}
-                            style={styles.calendarNavButton}
-                        >
-                            <Ionicons name="chevron-back" size={20} color={theme.colors.status.active} />
-                        </Pressable>
+          <View style={[
+            styles.dayInner,
+            isToday && styles.dayInnerToday,
+            hasWorkout && !isToday && styles.dayInnerWorkout,
+            isRestDay && !isToday && styles.dayInnerRest,
+          ]}>
+            <Text style={[
+              styles.dayNumber,
+              !isCurrentMonth && styles.dayNumberOther,
+              isToday && styles.dayNumberToday,
+              (hasWorkout || isRestDay) && !isToday && styles.dayNumberMarked,
+            ]}>
+              {date.getDate()}
+            </Text>
+          </View>
+          {(hasWorkout || isRestDay) && (
+            <View style={[
+              styles.dayDot,
+              { backgroundColor: hasWorkout ? theme.colors.status.active : theme.colors.status.rest },
+            ]} />
+          )}
+        </Pressable>
+      );
+    }
 
-                        <Pressable
-                            onPress={handleYearSelect}
-                            style={styles.calendarMonthYear}
-                        >
-                            <Text style={styles.calendarMonthYearText}>
-                                {new Date(selectedYear, selectedMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                            </Text>
-                        </Pressable>
+    return cells;
+  };
 
-                        <Pressable
-                            onPress={handleNextMonth}
-                            style={styles.calendarNavButton}
-                        >
-                            <Ionicons name="chevron-forward" size={20} color={theme.colors.status.active} />
-                        </Pressable>
-                    </View>
+  return (
+    <Modal
+      presentationStyle="overFullScreen"
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+          <LinearGradient
+            colors={['rgba(99,101,241,0.08)', 'transparent']}
+            style={StyleSheet.absoluteFillObject}
+          />
 
-                    <View style={styles.calendarGridContainer}>
-                        <View style={styles.calendarWeekHeader}>
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
-                                <View key={idx} style={styles.calendarDayHeader}>
-                                    <Text style={styles.calendarDayHeaderText}>{day}</Text>
-                                </View>
-                            ))}
-                        </View>
-                        <View style={styles.calendarDaysGrid}>
-                            {(() => {
-                                const firstDay = new Date(selectedYear, selectedMonth - 1, 1);
-                                const startDate = new Date(firstDay);
-                                startDate.setDate(startDate.getDate() - startDate.getDay());
+          {/* Handle bar */}
+          <View style={styles.handle} />
 
-                                const days: React.ReactElement[] = [];
-
-                                for (let i = 0; i < 42; i++) {
-                                    const date = new Date(startDate);
-                                    date.setDate(startDate.getDate() + i);
-                                    const dateStr = date.toISOString().split('T')[0];
-                                    const dayData = calendarData.find(d => d.date === dateStr);
-                                    const isCurrentMonth = date.getMonth() === selectedMonth - 1;
-                                    const isToday = date.toDateString() === today.toDateString();
-
-                                    days.push(
-                                        <Pressable
-                                            key={i}
-                                            style={[
-                                                styles.calendarDayCell,
-                                                !isCurrentMonth && styles.calendarDayCellOtherMonth,
-                                                isToday && styles.calendarDayCellToday
-                                            ]}
-                                            onPress={() => onDayClick(dateStr, dayData)}
-                                        >
-                                            <Text style={[
-                                                styles.calendarDayNumber,
-                                                !isCurrentMonth && styles.calendarDayNumberOtherMonth,
-                                                isToday && styles.calendarDayNumberToday
-                                            ]}>
-                                                {date.getDate()}
-                                            </Text>
-                                            <View style={styles.calendarDayDots}>
-                                                {dayData?.has_workout && (
-                                                    <View style={styles.calendarWorkoutDot} />
-                                                )}
-                                                {dayData?.is_rest_day && (
-                                                    <View style={styles.calendarRestDayDot} />
-                                                )}
-                                            </View>
-                                        </Pressable>
-                                    );
-                                }
-                                return days;
-                            })()}
-                        </View>
-                    </View>
-                </View>
+          {/* Header */}
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>TRAINING CALENDAR</Text>
+              <Text style={styles.subtitle}>{selectedYear}</Text>
             </View>
-        </Modal>
-    );
+            <Pressable style={styles.closeBtn} onPress={onClose}>
+              <Ionicons name="close" size={18} color={theme.colors.text.primary} />
+            </Pressable>
+          </View>
+
+          {/* Stats row */}
+          {calendarStats && (
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{calendarStats.total_workouts}</Text>
+                <Text style={styles.statLabel}>WORKOUTS</Text>
+              </View>
+              <View style={[styles.statCard, styles.statCardBorder]}>
+                <Text style={[styles.statValue, { color: theme.colors.status.rest }]}>
+                  {calendarStats.total_rest_days}
+                </Text>
+                <Text style={styles.statLabel}>REST DAYS</Text>
+              </View>
+              <View style={[styles.statCard, styles.statCardBorder]}>
+                <Text style={[styles.statValue, { color: theme.colors.text.tertiary }]}>
+                  {calendarStats.days_not_worked}
+                </Text>
+                <Text style={styles.statLabel}>SKIPPED</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Month navigation */}
+          <View style={styles.monthNav}>
+            <Pressable style={styles.navBtn} onPress={handlePreviousMonth}>
+              <Ionicons name="chevron-back" size={18} color={theme.colors.text.primary} />
+            </Pressable>
+            <Text style={styles.monthText}>{MONTH_NAMES[selectedMonth - 1]}</Text>
+            <Pressable style={styles.navBtn} onPress={handleNextMonth}>
+              <Ionicons name="chevron-forward" size={18} color={theme.colors.text.primary} />
+            </Pressable>
+          </View>
+
+          {/* Day headers */}
+          <View style={styles.dayHeaders}>
+            {DAY_HEADERS.map((d) => (
+              <View key={d} style={styles.dayHeaderCell}>
+                <Text style={styles.dayHeaderText}>{d}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Grid */}
+          <View style={styles.grid}>
+            {renderGrid()}
+          </View>
+
+          {/* Legend */}
+          <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: theme.colors.status.active }]} />
+              <Text style={styles.legendText}>WORKOUT</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: theme.colors.status.rest }]} />
+              <Text style={styles.legendText}>REST DAY</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 }
 
 const styles = StyleSheet.create({
-    calendarModalContainer: {
-        flex: 1,
-        backgroundColor: theme.colors.ui.glassStrong,
-        justifyContent: 'flex-end'
-    },
-    calendarModalContent: {
-        backgroundColor: theme.colors.ui.glass,
-        borderTopLeftRadius: theme.borderRadius.xl,
-        borderTopRightRadius: theme.borderRadius.xl,
-        maxHeight: '90%',
-        padding: theme.spacing.xl
-    },
-    calendarModalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: theme.spacing.xl
-    },
-    calendarModalTitle: {
-        color: theme.colors.text.primary,
-        fontSize: theme.typography.sizes.xl,
-        fontWeight: '700'
-    },
-    weekStatsRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        borderWidth: 1,
-        borderColor: theme.colors.ui.border,
-        borderRadius: theme.borderRadius.xl,
-        padding: theme.spacing.m,
-        marginBottom: theme.spacing.xl,
-    },
-    statBadge: {
-        alignItems: 'center'
-    },
-    statBadgeLabel: {
-        color: theme.colors.text.secondary,
-        fontSize: theme.typography.sizes.s,
-        fontWeight: '300',
-        marginBottom: theme.spacing.s
-    },
-    statBadgeValue: {
-        color: theme.colors.text.primary,
-        fontSize: theme.typography.sizes.l,
-        fontWeight: '500'
-    },
-    calendarControls: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: theme.spacing.xl
-    },
-    calendarNavButton: {
-        padding: theme.spacing.s
-    },
-    calendarMonthYear: {
-        paddingHorizontal: theme.spacing.m,
-        paddingVertical: theme.spacing.s
-    },
-    calendarMonthYearText: {
-        color: theme.colors.text.primary,
-        fontSize: theme.typography.sizes.l,
-        fontWeight: '500'
-    },
-    calendarGridContainer: {
-        marginTop: theme.spacing.m
-    },
-    calendarWeekHeader: {
-        flexDirection: 'row',
-        marginBottom: theme.spacing.m
-    },
-    calendarDayHeader: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: theme.spacing.s
-    },
-    calendarDayHeaderText: {
-        color: theme.colors.text.secondary,
-        fontSize: theme.typography.sizes.s,
-        fontWeight: '300'
-    },
-    calendarDaysGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap'
-    },
-    calendarDayCell: {
-        width: '14.28%',
-        aspectRatio: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: theme.spacing.s
-    },
-    calendarDayCellOtherMonth: {
-        opacity: 0.3
-    },
-    calendarDayCellToday: {
-        backgroundColor: theme.colors.ui.primaryLight,
-        borderRadius: theme.borderRadius.m
-    },
-    calendarDayNumber: {
-        color: theme.colors.text.primary,
-        fontSize: theme.typography.sizes.m,
-        fontWeight: '400'
-    },
-    calendarDayNumberOtherMonth: {
-        color: theme.colors.text.secondary
-    },
-    calendarDayNumberToday: {
-        color: theme.colors.status.active,
-        fontWeight: '700'
-    },
-    calendarDayDots: {
-        flexDirection: 'row',
-        gap: 3,
-        marginTop: 2
-    },
-    calendarWorkoutDot: {
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: theme.colors.status.active
-    },
-    calendarRestDayDot: {
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: theme.colors.status.rest
-    },
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(2,2,5,0.7)',
+  },
+  sheet: {
+    backgroundColor: '#0e0e12',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: theme.colors.ui.border,
+    paddingHorizontal: theme.spacing.l,
+    paddingTop: theme.spacing.m,
+    overflow: 'hidden',
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.ui.border,
+    alignSelf: 'center',
+    marginBottom: theme.spacing.l,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: theme.spacing.l,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    color: theme.colors.text.primary,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: theme.colors.text.tertiary,
+    letterSpacing: 2,
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.ui.glass,
+    borderWidth: 1,
+    borderColor: theme.colors.ui.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Stats
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.ui.glass,
+    borderWidth: 1,
+    borderColor: theme.colors.ui.border,
+    borderRadius: theme.borderRadius.l,
+    marginBottom: theme.spacing.l,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: theme.spacing.m,
+    gap: 4,
+  },
+  statCardBorder: {
+    borderLeftWidth: 1,
+    borderLeftColor: theme.colors.ui.border,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    fontVariant: ['tabular-nums'],
+    color: theme.colors.status.active,
+    letterSpacing: -0.5,
+  },
+  statLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: theme.colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  // Month nav
+  monthNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.m,
+  },
+  navBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.ui.glass,
+    borderWidth: 1,
+    borderColor: theme.colors.ui.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthText: {
+    fontSize: 16,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    color: theme.colors.text.primary,
+    letterSpacing: 1,
+  },
+  // Day headers
+  dayHeaders: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  dayHeaderCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  dayHeaderText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: theme.colors.text.tertiary,
+    letterSpacing: 1.5,
+  },
+  // Grid
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: theme.spacing.m,
+  },
+  dayCell: {
+    width: '14.28%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 2,
+  },
+  dayCellOther: {
+    opacity: 0.2,
+  },
+  dayInner: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayInnerToday: {
+    backgroundColor: theme.colors.status.active,
+  },
+  dayInnerWorkout: {
+    backgroundColor: 'rgba(99,102,241,0.15)',
+  },
+  dayInnerRest: {
+    backgroundColor: 'rgba(192,132,252,0.12)',
+  },
+  dayNumber: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  dayNumberOther: {
+    color: theme.colors.text.secondary,
+  },
+  dayNumberToday: {
+    color: '#fff',
+    fontWeight: '900',
+  },
+  dayNumberMarked: {
+    fontWeight: '800',
+  },
+  dayDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 1,
+  },
+  // Legend
+  legend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: theme.spacing.xl,
+    paddingTop: theme.spacing.s,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: theme.colors.text.tertiary,
+    letterSpacing: 1.5,
+  },
 });
-

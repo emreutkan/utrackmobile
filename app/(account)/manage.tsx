@@ -1,5 +1,6 @@
 import { updateGender, updateHeight, updateWeight } from '@/api/account';
 import { supabase } from '@/lib/supabase';
+import * as Sentry from '@sentry/react-native';
 import { commonStyles, theme } from '@/constants/theme';
 import {
   useInvalidateUser,
@@ -101,6 +102,7 @@ export default function AccountManageScreen() {
         style: 'destructive',
         onPress: async () => {
           await supabase.auth.signOut();
+          Sentry.setUser(null);
           clearUser();
           router.replace('/(auth)');
         },

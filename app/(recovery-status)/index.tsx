@@ -3,6 +3,7 @@ import { MuscleRecoveryItem, RecoveryStatusResponse } from '@/api/types';
 import { CNSRecoveryItem } from '@/api/types/workout';
 import UpgradePrompt from '@/components/UpgradePrompt';
 import { theme } from '@/constants/theme';
+import { useSettingsStore } from '@/state/stores/settingsStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
@@ -16,16 +17,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CNSCard from './components/CNSCard';
-import { getCategory } from '@/utils/recoveryStatusHelpers';
+import { getCategory, getStatusColor } from '@/utils/recoveryStatusHelpers';
 import MuscleCard from './components/MuscleCard';
 import RecoveryHeader from './components/RecoveryHeader';
 import RecoveryLoadingSkeleton from './components/RecoveryLoadingSkeleton';
 
 export default function RecoveryStatusScreen() {
   const insets = useSafeAreaInsets();
+  const isPro = useSettingsStore((s) => s.isPro);
   const [statusMap, setStatusMap] = useState<Record<string, MuscleRecoveryItem>>({});
   const [cnsRecovery, setCnsRecovery] = useState<CNSRecoveryItem | null>(null);
-  const [isPro, setIsPro] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -36,10 +37,14 @@ export default function RecoveryStatusScreen() {
         setStatusMap(res.recovery_status);
       }
       if (res?.cns_recovery) {
-        setCnsRecovery(res.cns_recovery);
-      }
-      if (res?.is_pro !== undefined) {
-        setIsPro(res.is_pro);
+        const raw = res.cns_recovery;
+        setCnsRecovery({
+          ...raw,
+          cns_load: Number(raw.cns_load),
+          recovery_hours: Number(raw.recovery_hours),
+          hours_until_recovery: Number(raw.hours_until_recovery),
+          recovery_percentage: Number(raw.recovery_percentage),
+        });
       }
     } catch (e) {
       console.error(e);
@@ -60,12 +65,13 @@ export default function RecoveryStatusScreen() {
     loadData();
   }, []);
 
-  const { stats, groupedData, flattenedData } = useMemo(() => {
+  const { stats, flattenedData } = useMemo(() => {
     const entries = Object.entries(statusMap);
     const total = entries.length;
     const recovered = entries.filter(([_, d]) => d.is_recovered || d.recovery_percentage >= 90).length;
-    const sum = entries.reduce((acc, [_, d]) => acc + d.recovery_percentage, 0);
+    const sum = entries.reduce((acc, [_, d]) => acc + Number(d.recovery_percentage), 0);
     const avg = total > 0 ? sum / total : 0;
+    const fatigued = entries.filter(([_, d]) => Number(d.recovery_percentage) < 50).length;
 
     const groups: Record<string, typeof entries> = {
       'Upper Body': [],
@@ -79,11 +85,14 @@ export default function RecoveryStatusScreen() {
     });
 
     Object.keys(groups).forEach((cat) => {
-      groups[cat].sort((a, b) => a[1].recovery_percentage - b[1].recovery_percentage);
+      groups[cat].sort((a, b) => Number(a[1].recovery_percentage) - Number(b[1].recovery_percentage));
     });
 
-    // Flatten data for FlatList
-    const flattened: Array<{ type: 'section'; category: string } | { type: 'muscle'; muscle: string; data: MuscleRecoveryItem }> = [];
+    const flattened: Array<
+      | { type: 'section'; category: string }
+      | { type: 'muscle'; muscle: string; data: MuscleRecoveryItem }
+    > = [];
+
     (['Upper Body', 'Lower Body', 'Core'] as const).forEach((category) => {
       const items = groups[category];
       if (items && items.length > 0) {
@@ -95,8 +104,7 @@ export default function RecoveryStatusScreen() {
     });
 
     return {
-      stats: { total, recovered, avg },
-      groupedData: groups,
+      stats: { total, recovered, avg, fatigued },
       flattenedData: flattened,
     };
   }, [statusMap]);
@@ -104,6 +112,8 @@ export default function RecoveryStatusScreen() {
   if (isLoading) {
     return <RecoveryLoadingSkeleton />;
   }
+
+  const hasData = stats.total > 0;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -115,24 +125,59 @@ export default function RecoveryStatusScreen() {
       <RecoveryHeader />
 
       <FlatList
-          data={flattenedData}
-          keyExtractor={(item, index) =>
-            item.type === 'section' ? `section-${item.category}` : `muscle-${item.muscle}-${index}`
-          }
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom }]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={theme.colors.status.active}
-            />
-          }
-          ListHeaderComponent={
+        data={flattenedData}
+        keyExtractor={(item, index) =>
+          item.type === 'section' ? `section-${item.category}` : `muscle-${item.muscle}-${index}`
+        }
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={({ leadingItem }) =>
+          leadingItem?.type === 'muscle' ? <View style={styles.separator} /> : null
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.status.active}
+          />
+        }
+        ListHeaderComponent={
+          <>
+            {/* Stats summary row */}
+            {hasData && (
+              <View style={styles.statsRow}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>RECOVERED</Text>
+                  <Text style={[styles.statValue, { color: '#30D158' }]}>
+                    {stats.recovered}
+                    <Text style={styles.statDenom}>/{stats.total}</Text>
+                  </Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>AVG RECOVERY</Text>
+                  <Text style={[styles.statValue, { color: getStatusColor(stats.avg) }]}>
+                    {stats.avg.toFixed(0)}
+                    <Text style={styles.statDenom}>%</Text>
+                  </Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>FATIGUED</Text>
+                  <Text style={[styles.statValue, { color: stats.fatigued > 0 ? '#FF453A' : theme.colors.text.tertiary }]}>
+                    {stats.fatigued}
+                    <Text style={styles.statDenom}> MG</Text>
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* System Recovery (CNS) */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>System Recovery</Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>SYSTEM RECOVERY</Text>
+                <Text style={styles.sectionTag}>CNS</Text>
+              </View>
               {isPro ? (
-                cnsRecovery && !cnsRecovery.is_recovered && cnsRecovery.cns_load > 0 ? (
+                cnsRecovery ? (
                   <CNSCard data={cnsRecovery} />
                 ) : null
               ) : (
@@ -142,31 +187,29 @@ export default function RecoveryStatusScreen() {
                 />
               )}
             </View>
-          }
-          renderItem={({ item }) => {
-            if (item.type === 'section') {
-              return (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>{item.category}</Text>
-                </View>
-              );
-            }
+          </>
+        }
+        renderItem={({ item }) => {
+          if (item.type === 'section') {
             return (
-              <View style={styles.grid}>
-                <MuscleCard muscle={item.muscle} data={item.data} />
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{item.category.toUpperCase()}</Text>
+                <Text style={styles.sectionTag}>MUSCLES</Text>
               </View>
             );
-          }}
-          ListEmptyComponent={
-            (!stats || (stats.avg === 0 && stats.recovered === 0)) ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="fitness-outline" size={64} color={theme.colors.ui.border} />
-                <Text style={styles.emptyText}>No recovery data available.</Text>
-                <Text style={styles.emptySub}>Complete workouts to track muscle fatigue.</Text>
-              </View>
-            ) : null
           }
-        />
+          return <MuscleCard muscle={item.muscle} data={item.data} />;
+        }}
+        ListEmptyComponent={
+          !hasData ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="fitness-outline" size={64} color={theme.colors.ui.border} />
+              <Text style={styles.emptyText}>No recovery data yet.</Text>
+              <Text style={styles.emptySub}>Complete a workout to start tracking muscle fatigue.</Text>
+            </View>
+          ) : null
+        }
+      />
     </View>
   );
 }
@@ -184,30 +227,81 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   content: {
-    padding: theme.spacing.l,
+    paddingHorizontal: theme.spacing.l,
+    paddingTop: theme.spacing.m,
   },
-  section: {
+  // Stats summary row
+  statsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.s,
     marginBottom: theme.spacing.xl,
   },
-  sectionTitle: {
-    fontSize: 12,
+  statCard: {
+    flex: 1,
+    backgroundColor: theme.colors.ui.glass,
+    borderWidth: 1,
+    borderColor: theme.colors.ui.border,
+    borderRadius: theme.borderRadius.l,
+    padding: theme.spacing.m,
+    gap: 4,
+  },
+  statLabel: {
+    fontSize: 9,
     fontWeight: '800',
-    color: theme.colors.text.secondary,
+    color: theme.colors.text.tertiary,
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.5,
+  },
+  statDenom: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontStyle: 'normal',
+    color: theme.colors.text.tertiary,
+  },
+  // Sections
+  section: {
     marginBottom: theme.spacing.m,
   },
-  grid: {
-    gap: theme.spacing.m,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.m,
+    marginTop: theme.spacing.s,
   },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: theme.colors.text.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  sectionTag: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: theme.colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  separator: {
+    height: theme.spacing.s,
+  },
+  // Empty state
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
   },
   emptyText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     color: theme.colors.text.secondary,
     marginTop: theme.spacing.l,
   },
@@ -215,5 +309,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.text.tertiary,
     marginTop: theme.spacing.s,
+    textAlign: 'center',
   },
 });

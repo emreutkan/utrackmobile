@@ -1,16 +1,79 @@
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
-import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { Dimensions, StyleSheet, Text, View } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_HEIGHT = 180;
 const CHART_PADDING = 20;
-const CHART_WIDTH = SCREEN_WIDTH - 48 - (CHART_PADDING * 2);
+const CHART_WIDTH = SCREEN_WIDTH - 48 - CHART_PADDING * 2;
+const LINE_THICKNESS = 2.5;
 
 interface NeuralTrendChartProps {
   weightData: number[];
   bodyFatData: number[];
+}
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+function getPoints(data: number[], width: number, height: number): Point[] {
+  if (data.length < 2) return [];
+  const maxVal = Math.max(...data);
+  const minVal = Math.min(...data);
+  const range = maxVal - minVal || 1;
+  return data.map((v, i) => ({
+    x: (i / (data.length - 1)) * width,
+    y: height - ((v - minVal) / range) * (height * 0.78) - height * 0.11,
+  }));
+}
+
+function LineSegments({ points, color }: { points: Point[]; color: string }) {
+  if (points.length < 2) return null;
+  return (
+    <>
+      {points.slice(0, -1).map((p1, i) => {
+        const p2 = points[i + 1];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        const midX = (p1.x + p2.x) / 2;
+        const midY = (p1.y + p2.y) / 2;
+        return (
+          <View
+            key={i}
+            style={{
+              position: 'absolute',
+              left: midX - length / 2,
+              top: midY - LINE_THICKNESS / 2,
+              width: length,
+              height: LINE_THICKNESS,
+              backgroundColor: color,
+              borderRadius: LINE_THICKNESS / 2,
+              transform: [{ rotate: `${angle}deg` }],
+            }}
+          />
+        );
+      })}
+      {/* Dots at each data point */}
+      {points.map((p, i) => (
+        <View
+          key={`dot-${i}`}
+          style={{
+            position: 'absolute',
+            left: p.x - 4,
+            top: p.y - 4,
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: color,
+          }}
+        />
+      ))}
+    </>
+  );
 }
 
 export const NeuralTrendChart = ({ weightData, bodyFatData }: NeuralTrendChartProps) => {
@@ -23,78 +86,37 @@ export const NeuralTrendChart = ({ weightData, bodyFatData }: NeuralTrendChartPr
     );
   }
 
-  const normalizeData = (data: number[]) => {
-    if (data.length < 2) return [];
-    const maxVal = Math.max(...data);
-    const minVal = Math.min(...data);
-    const range = maxVal - minVal || 1;
-    const padding = range * 0.1;
-    const effectiveMin = minVal - padding;
-    const effectiveMax = maxVal + padding;
-    const effectiveRange = effectiveMax - effectiveMin;
-    return data.map(val => ((val - effectiveMin) / effectiveRange) * 100);
-  };
+  const weightPoints = getPoints(weightData, CHART_WIDTH, CHART_HEIGHT);
+  const bodyFatPoints = getPoints(bodyFatData, CHART_WIDTH, CHART_HEIGHT);
 
-  const normalizedWeight = normalizeData(weightData);
-  const normalizedBodyFat = normalizeData(bodyFatData);
-  const maxLength = Math.max(normalizedWeight.length, normalizedBodyFat.length);
-
-  const getCoordinates = (index: number, value: number) => {
-    const x = (index / (maxLength - 1 || 1)) * CHART_WIDTH;
-    const y = CHART_HEIGHT - (value / 100) * (CHART_HEIGHT - 20) - 10;
-    return { x, y };
-  };
-
-  const generatePath = (data: number[]) => {
-    if (data.length < 2) return '';
-    let d = `M ${getCoordinates(0, data[0]).x} ${getCoordinates(0, data[0]).y}`;
-    for (let i = 1; i < data.length; i++) {
-      const p0 = getCoordinates(i - 1, data[i - 1]);
-      const p1 = getCoordinates(i, data[i]);
-      const cp1x = p0.x + (p1.x - p0.x) / 2;
-      d += ` C ${cp1x} ${p0.y}, ${cp1x} ${p1.y}, ${p1.x} ${p1.y}`;
-    }
-    return d;
-  };
-
-  const weightPathD = generatePath(normalizedWeight);
-  const bodyFatPathD = generatePath(normalizedBodyFat);
+  const gridLines = [0.2, 0.4, 0.6, 0.8].map((pct) => pct * CHART_HEIGHT);
 
   return (
     <View style={{ height: CHART_HEIGHT, width: CHART_WIDTH }}>
-      <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-        <Defs>
-          <LinearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={theme.colors.text.brand} stopOpacity="0.4" />
-            <Stop offset="1" stopColor={theme.colors.text.brand} stopOpacity="0.0" />
-          </LinearGradient>
-          <LinearGradient id="bodyFatGradient" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={theme.colors.status.rest} stopOpacity="0.4" />
-            <Stop offset="1" stopColor={theme.colors.status.rest} stopOpacity="0.0" />
-          </LinearGradient>
-        </Defs>
-        {weightPathD && <Path d={`${weightPathD} L ${CHART_WIDTH} ${CHART_HEIGHT} L 0 ${CHART_HEIGHT} Z`} fill="url(#weightGradient)" />}
-        {bodyFatPathD && <Path d={`${bodyFatPathD} L ${CHART_WIDTH} ${CHART_HEIGHT} L 0 ${CHART_HEIGHT} Z`} fill="url(#bodyFatGradient)" />}
-        {weightPathD && (
-          <>
-            <Path d={weightPathD} stroke={theme.colors.text.brand} strokeWidth="6" fill="none" opacity="0.1" strokeLinecap="round" strokeLinejoin="round" />
-            <Path d={weightPathD} stroke={theme.colors.text.brand} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          </>
-        )}
-        {bodyFatPathD && (
-          <>
-            <Path d={bodyFatPathD} stroke={theme.colors.status.rest} strokeWidth="6" fill="none" opacity="0.1" strokeLinecap="round" strokeLinejoin="round" />
-            <Path d={bodyFatPathD} stroke={theme.colors.status.rest} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          </>
-        )}
-      </Svg>
+      {/* Grid lines */}
+      {gridLines.map((y, i) => (
+        <View
+          key={`grid-${i}`}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: y,
+            width: CHART_WIDTH,
+            height: 1,
+            backgroundColor: 'rgba(255,255,255,0.04)',
+          }}
+        />
+      ))}
+
+      <LineSegments points={weightPoints} color={theme.colors.text.brand} />
+      <LineSegments points={bodyFatPoints} color={theme.colors.status.rest} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   emptyChart: {
-    height: 180,
+    height: CHART_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0.5,

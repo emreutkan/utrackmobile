@@ -165,6 +165,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 12,
-    paddingTop: 0,
+    paddingTop: theme.spacing.xl,
   },
 });

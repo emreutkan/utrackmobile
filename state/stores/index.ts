@@ -17,3 +17,5 @@ export type { DateState } from './dateStore';
 
 export { useSettingsStore } from './settingsStore';
 export type { SettingsState } from './settingsStore';
+
+export { useBackendStore } from './backendStore';

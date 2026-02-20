@@ -27,7 +27,16 @@ const plugins = appJson.expo.plugins.map((plugin) => {
 module.exports = {
   expo: {
     ...appJson.expo,
-    plugins,
+    plugins: [
+      ...plugins,
+      [
+        '@sentry/react-native/expo',
+        {
+          organization: 'ieu-group',
+          project: 'force',
+        },
+      ],
+    ],
     extra: {
       ...appJson.expo.extra,
       RC_TEST_API: process.env.RC_TEST_API,

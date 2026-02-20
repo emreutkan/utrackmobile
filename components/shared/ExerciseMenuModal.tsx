@@ -70,7 +70,12 @@ export const ExerciseMenuModal = ({
 
             <Pressable
               style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-              onPress={() => handleAction(() => onShowStatistics?.(exercise.id))}
+              onPress={() => {
+                const exerciseId = exercise?.id ?? exercise?.exercise_id;
+                if (exerciseId && !isNaN(Number(exerciseId))) {
+                  handleAction(() => onShowStatistics?.(Number(exerciseId)));
+                }
+              }}
             >
               <View style={[styles.menuIconWrap, { backgroundColor: 'rgba(52, 211, 153, 0.1)', borderColor: 'rgba(52, 211, 153, 0.2)' }]}>
                 <Ionicons name="stats-chart" size={18} color={theme.colors.status.success} />

@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { theme } from '@/constants/theme';
+import * as Sentry from '@sentry/react-native';
 
 export default function LoadingScreen() {
   const [minTimeElapsed, setMinTimeElapsed] = React.useState(false);
@@ -22,6 +23,9 @@ export default function LoadingScreen() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      if (session?.user) {
+        Sentry.setUser({ id: session.user.id, email: session.user.email });
+      }
       setHasSession(!!session);
       setSessionChecked(true);
     };

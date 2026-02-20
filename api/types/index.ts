@@ -52,6 +52,7 @@ export const AVAILABLE_YEARS_URL = `workout/years/`;
 
 export const CHECK_TODAY_URL = `workout/check-today/`;
 export const RECOVERY_STATUS_URL = `workout/recovery/status/`;
+export const USER_STATS_URL = `workout/user-stats/`;
 
 export const TEMPLATE_CREATE_URL = `workout/template/create/`;
 export const TEMPLATE_LIST_URL = `workout/template/list/`;

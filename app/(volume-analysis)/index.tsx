@@ -3,6 +3,7 @@ import { VolumeAnalysisResponse } from '@/api/types';
 import UpgradeModal from '@/components/UpgradeModal';
 import UpgradePrompt from '@/components/UpgradePrompt';
 import { commonStyles, theme, typographyStyles } from '@/constants/theme';
+import { useSettingsStore } from '@/state/stores/settingsStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
@@ -54,6 +55,7 @@ export default function VolumeAnalysisScreen() {
     const insets = useSafeAreaInsets();
     
     // --- State ---
+    const isPro = useSettingsStore((s) => s.isPro);
     const [analysis, setAnalysis] = useState<VolumeAnalysisResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
@@ -70,7 +72,7 @@ export default function VolumeAnalysisScreen() {
             if (data?.weeks) {
                 setAnalysis(data);
                 // Check if user hit the limit
-                if (!data.is_pro && data.weeks_limit && requestedWeeks > data.weeks_limit) {
+                if (!isPro && !data.is_pro && data.weeks_limit && requestedWeeks > data.weeks_limit) {
                     setShowUpgradeModal(true);
                     // Auto-limit to max weeks
                     setFilterWeeks(data.weeks_limit.toString());
@@ -242,7 +244,7 @@ export default function VolumeAnalysisScreen() {
                     showsVerticalScrollIndicator={false}
                     ListHeaderComponent={
                         <>
-                            {!analysis.is_pro && analysis.weeks_limit && (
+                            {!isPro && !analysis.is_pro && analysis.weeks_limit && (
                                 <UpgradePrompt
                                     compact
                                     feature={`Viewing last ${analysis.weeks_limit} weeks only`}

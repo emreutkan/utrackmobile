@@ -226,7 +226,7 @@ export type StartTemplateWorkoutResponse = Workout;
 export type WorkoutSummaryInsight = {
   type: 'recovery' | '1rm';
   message: string;
-  pre_recovery?: number;
+  pre_recovery?: number | null;
   current_1rm?: number;
   previous_1rm?: number | null;
   difference?: number | null;
@@ -284,4 +284,34 @@ export type RecoveryStatusResponse = {
   cns_recovery: CNSRecoveryItem | null;
   is_pro: boolean;
   timestamp: string;
+};
+
+export type UserStats = {
+  streak: {
+    current: number;
+    longest: number;
+  };
+  sessions: {
+    total: number;
+    this_week: number;
+    this_month: number;
+  };
+  volume_kg: {
+    total: number;
+    this_week: number;
+    this_month: number;
+  };
+  time: {
+    total_minutes: number;
+    avg_per_session_minutes: number;
+  };
+  calories: {
+    total: number;
+    this_week: number;
+    this_month: number;
+  };
+  consistency: {
+    active_days_last_30: number;
+    avg_sessions_per_week: number;
+  };
 };

@@ -39,7 +39,13 @@
       "Bash(git -C \"C:/Users/emre/Desktop/PROJECTS/Force\" config user.email)",
       "Bash(git -C \"C:/Users/emre/AppData/Local/Temp/forcelegal\" add .)",
       "Bash(git -C \"C:/Users/emre/AppData/Local/Temp/forcelegal\" commit -m \"Add Privacy Policy and Terms of Use for App Store submission\")",
-      "Bash(git -C \"C:/Users/emre/AppData/Local/Temp/forcelegal\" push origin main)"
+      "Bash(git -C \"C:/Users/emre/AppData/Local/Temp/forcelegal\" push origin main)",
+      "mcp__ide__getDiagnostics",
+      "Bash(python3:*)",
+      "Bash(npm ls:*)",
+      "Bash(echo:*)",
+      "Bash(npx expo:*)",
+      "Bash(npm show:*)"
     ]
   }
 }

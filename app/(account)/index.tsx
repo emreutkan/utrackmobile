@@ -1,5 +1,6 @@
 import { commonStyles, theme } from '@/constants/theme';
 import { useUser } from '@/hooks/useUser';
+import { useUserStats } from '@/hooks/useWorkout';
 import { useSettingsStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,12 +13,23 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// import { useUserStatistics } from '@/hooks/useStatistics';
+
+function formatVolume(kg: number): string {
+  if (kg >= 1000) return `${(kg / 1000).toFixed(1)}t`;
+  return `${Math.round(kg)}kg`;
+}
+
+function formatMinutes(mins: number): string {
+  if (mins < 60) return `${Math.round(mins)}m`;
+  const h = Math.floor(mins / 60);
+  const m = Math.round(mins % 60);
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
 
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const { data: user } = useUser();
-  // const { data: stats } = useUserStatistics();
+  const { data: stats } = useUserStats();
   const { tutCountdown, tutReactionOffset, setTutCountdown, setTutReactionOffset, isPro } = useSettingsStore();
 
   return (
@@ -55,30 +67,80 @@ export default function AccountScreen() {
           </View>
         </View>
 
-        {/* Stats Cards */}
+        {/* ── Row 1: Streak + Sessions + Longest Streak ── */}
         <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>SESSIONS</Text>
-            <View style={styles.statValueContainer}>
-              {/* <Text style={styles.statValue}>{stats?.total_workouts || 0}</Text> */}
-              <Ionicons
-                name="barbell"
-                size={16}
-                color={theme.colors.status.rest}
-                style={styles.statIcon}
-              />
-            </View>
-          </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>STREAK</Text>
             <View style={styles.statValueContainer}>
-              {/* <Text style={styles.statValue}>{stats?.current_streak || 0}</Text> */}
-              <Ionicons name="flame" size={16} color="#FF9F0A" style={styles.statIcon} />
+              <Text style={styles.statValue}>{stats?.streak.current ?? '—'}</Text>
+              <Ionicons name="flame" size={14} color="#FF9F0A" style={styles.statIcon} />
             </View>
+            <Text style={styles.statSub}>DAYS</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>SESSIONS</Text>
+            <Text style={styles.statValue}>{stats?.sessions.total ?? '—'}</Text>
+            <Text style={styles.statSub}>TOTAL</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>BEST RUN</Text>
+            <View style={styles.statValueContainer}>
+              <Text style={styles.statValue}>{stats?.streak.longest ?? '—'}</Text>
+              <Ionicons name="trophy" size={14} color={theme.colors.status.warning} style={styles.statIcon} />
+            </View>
+            <Text style={styles.statSub}>DAYS</Text>
+          </View>
+        </View>
+
+        {/* ── Row 2: This Week ── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionHeaderText}>THIS WEEK</Text>
+        </View>
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>SESSIONS</Text>
+            <Text style={styles.statValue}>{stats?.sessions.this_week ?? '—'}</Text>
+            <Text style={styles.statSub}>WORKOUTS</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>VOLUME</Text>
-            {/* <Text style={styles.statValue}>{formattedVolume}</Text> */}
+            <Text style={styles.statValue}>
+              {stats ? formatVolume(stats.volume_kg.this_week) : '—'}
+            </Text>
+            <Text style={styles.statSub}>LIFTED</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>CALORIES</Text>
+            <Text style={styles.statValue}>
+              {stats ? Math.round(stats.calories.this_week) : '—'}
+            </Text>
+            <Text style={styles.statSub}>KCAL</Text>
+          </View>
+        </View>
+
+        {/* ── Row 3: Performance ── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionHeaderText}>PERFORMANCE</Text>
+        </View>
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>AVG SESSION</Text>
+            <Text style={styles.statValue}>
+              {stats ? formatMinutes(stats.time.avg_per_session_minutes) : '—'}
+            </Text>
+            <Text style={styles.statSub}>DURATION</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>ACTIVE DAYS</Text>
+            <Text style={styles.statValue}>{stats?.consistency.active_days_last_30 ?? '—'}</Text>
+            <Text style={styles.statSub}>LAST 30D</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>PER WEEK</Text>
+            <Text style={styles.statValue}>
+              {stats ? stats.consistency.avg_sessions_per_week.toFixed(1) : '—'}
+            </Text>
+            <Text style={styles.statSub}>AVG SESSIONS</Text>
           </View>
         </View>
 
@@ -97,19 +159,6 @@ export default function AccountScreen() {
             <View style={styles.settingContent}>
               <Text style={styles.settingTitle}>EXERCISE STATISTICS</Text>
               <Text style={styles.settingSubtitle}>VIEW PERFORMANCE BY EXERCISE</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
-          </Pressable>
-          <Pressable
-            style={styles.settingCard}
-            onPress={() => router.push('/(prs)')}
-          >
-            <View style={[styles.iconBox, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-              <Ionicons name="medal-outline" size={20} color="#10B981" />
-            </View>
-            <View style={styles.settingContent}>
-              <Text style={styles.settingTitle}>PERSONAL RECORDS</Text>
-              {/* <Text style={styles.settingSubtitle}>{stats?.total_prs || 0} RECORDS TRACKED</Text> */}
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.colors.text.tertiary} />
           </Pressable>
@@ -355,6 +404,14 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   statIcon: {
+    marginTop: 2,
+  },
+  statSub: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: theme.colors.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
     marginTop: 2,
   },
 

@@ -212,7 +212,11 @@ export default function Home() {
           onRestDay={handleRestDay}
         />
 
-        <CalendarStrip onPress={() => setShowCalendarModal(true)} />
+        <CalendarStrip onPress={() => {
+          setShowCalendarModal(true);
+          fetchCalendar(selectedYear, selectedMonth);
+          fetchCalendarStats(selectedYear, selectedMonth);
+        }} />
 
         <MuscleRecoverySection onPress={() => router.push('/(recovery-status)')} />
 
@@ -268,5 +272,5 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  scrollContent: { padding: theme.spacing.s },
+  scrollContent: { padding: theme.spacing.s, paddingTop: theme.spacing.xl },
 });

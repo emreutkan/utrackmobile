@@ -19,6 +19,7 @@ import type {
   CreateTemplateWorkoutResponse,
   StartTemplateWorkoutResponse,
   WorkoutSummaryResponse,
+  UserStats,
 } from './types/workout';
 import {
   CREATE_WORKOUT_URL,
@@ -41,6 +42,7 @@ import {
   CALENDAR_STATS_URL,
   CHECK_TODAY_URL,
   RECOVERY_STATUS_URL,
+  USER_STATS_URL,
 } from './types/';
 import type { PaginatedResponse } from './types/pagination';
 export const createWorkout = async (
@@ -216,5 +218,10 @@ export const checkToday = async (date?: Date): Promise<CheckTodayResponse | any>
 
 export const getRecoveryStatus = async (): Promise<RecoveryStatusResponse | any> => {
   const response = await apiClient.get(RECOVERY_STATUS_URL);
+  return response.json();
+};
+
+export const getUserStats = async (): Promise<UserStats> => {
+  const response = await apiClient.get(USER_STATS_URL);
   return response.json();
 };

@@ -18,12 +18,14 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { getErrorMessage } from '@/api/errorHandler';
+import { useSettingsStore } from '@/state/stores/settingsStore';
 import StatsCard from './components/StatsCard';
 import AnalysisRow from './components/analysisRow';
 
 const WorkoutSummaryScreen = () => {
   const { workoutId } = useLocalSearchParams<{ workoutId: string }>();
   const insets = useSafeAreaInsets();
+  const isPro = useSettingsStore((s) => s.isPro);
   const [workout, setWorkout] = useState<Workout | null>(null);
   const [summary, setSummary] = useState<WorkoutSummaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -227,9 +229,20 @@ const WorkoutSummaryScreen = () => {
                       ))}
                     </View>
                   )}
+
+                  {summary.neutrals && Object.values(summary.neutrals).length > 0 && (
+                    <View style={styles.analysisCard}>
+                      <Text style={[styles.analysisHeader, { color: theme.colors.text.secondary }]}>
+                        NEUTRAL
+                      </Text>
+                      {Object.values(summary.neutrals).map((item: any, i) => (
+                        <AnalysisRow key={i} message={item.message} type="neutral" />
+                      ))}
+                    </View>
+                  )}
                 </View>
 
-                {!summary.is_pro && (
+                {!isPro && !summary.is_pro && (
                   <UpgradePrompt
                     feature="Advanced Workout Insights"
                     message="Unlock deeper somatic analysis and 1RM tracking"

@@ -22,6 +22,7 @@ import {
   getCalendarStats,
   checkToday,
   getRecoveryStatus,
+  getUserStats,
 } from '@/api/Workout';
 import type {
   CreateWorkoutRequest,
@@ -284,6 +285,15 @@ export const useRecoveryStatus = () => {
     queryKey: ['recovery-status'],
     queryFn: getRecoveryStatus,
     staleTime: 1000 * 60 * 2, // 2 minutes
+  });
+};
+
+// User stats query
+export const useUserStats = () => {
+  return useQuery({
+    queryKey: ['user-stats'],
+    queryFn: getUserStats,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };
 

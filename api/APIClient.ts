@@ -1,6 +1,7 @@
 import ky from 'ky';
 import { supabase } from '../lib/supabase';
 import { BACKEND_URL } from './types';
+import { useBackendStore } from '@/state/stores/backendStore';
 
 const GET_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -20,6 +21,8 @@ function getCacheKey(request: Request): string {
 function isGetCacheFresh(entry: GetCacheEntry): boolean {
   return Date.now() - entry.timestamp < GET_CACHE_TTL_MS;
 }
+
+const MAX_LOG_BODY = 8000;
 
 const apiClient = ky.create({
   prefixUrl: BACKEND_URL,
@@ -45,17 +48,46 @@ const apiClient = ky.create({
             if (entry.lastModified) request.headers.set('If-Modified-Since', entry.lastModified);
           }
         }
+
+        console.log(`[API] REQUEST: ${request.method} ${request.url}`);
       },
     ],
     afterResponse: [
       async (request, options, response) => {
+        const clone = response.clone();
+        try {
+          const text = await clone.text();
+          const preview = text.length > MAX_LOG_BODY ? text.slice(0, MAX_LOG_BODY) + '...' : text;
+          console.log(
+            `[API] RESPONSE: ${response.status} ${request.method} ${request.url}`,
+            preview
+          );
+        } catch (_) {
+          console.log(
+            `[API] RESPONSE: ${response.status} ${request.method} ${request.url} (body not readable)`
+          );
+        }
+
         // Log 4xx body so we can see validation/error reason
-        if (response.status >= 400 && response.status < 500) {
+        if (response.status >= 400) {
           const clone = response.clone();
           try {
             const body = await clone.text();
-            console.warn('[API] error response body:', body);
+            console.warn(
+              `[API] ${response.status} ${request.method} ${request.url}`,
+              body.includes('<!') ? `(HTML ${response.status})` : body
+            );
           } catch (_) {}
+          // 5xx or repeated 4xx HTML responses = backend down
+          if (response.status >= 500 || (response.status >= 400 && response.status < 500)) {
+            const clone2 = response.clone();
+            const body2 = await clone2.text().catch(() => '');
+            if (response.status >= 500 || body2.includes('<!')) {
+              useBackendStore.getState().recordFailure();
+            }
+          }
+        } else {
+          useBackendStore.getState().recordSuccess();
         }
 
         // GET 304 Not Modified → use cached body and return as 200

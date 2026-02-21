@@ -15,6 +15,7 @@ interface ExerciseSearchModalProps {
     selectedExerciseIds?: number[];
     onToggleExercise?: (exerciseId: number, exercise?: any) => void;
     excludeExerciseIds?: number[];
+    initialSearch?: string;
 }
 
 export default function ExerciseSearchModal({
@@ -26,6 +27,7 @@ export default function ExerciseSearchModal({
     selectedExerciseIds = [],
     onToggleExercise,
     excludeExerciseIds = [],
+    initialSearch = '',
 }: ExerciseSearchModalProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [exercises, setExercises] = useState<any[]>([]);
@@ -78,6 +80,10 @@ export default function ExerciseSearchModal({
             setHasMoreExercises(false);
             setSearchQuery('');
             return;
+        }
+        // Seed the search with any initial filter (e.g. muscle group from SuggestExerciseRow)
+        if (initialSearch) {
+            setSearchQuery(initialSearch);
         }
 
         const delayDebounceFn = setTimeout(() => {

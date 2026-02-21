@@ -71,7 +71,7 @@ export default function NeuralBarChart({
 
     return (
       <View style={[styles.chartContent, { width: chartWidth }]}>
-        <Svg width={chartWidth} height={CHART_HEIGHT}>
+        <Svg width={chartWidth} height={CHART_HEIGHT} onLayout={() => {}}>
           <Defs>
             <SvgLinearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0" stopColor={theme.colors.text.brand} stopOpacity="0.3" />

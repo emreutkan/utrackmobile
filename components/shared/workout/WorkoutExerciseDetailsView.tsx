@@ -1,4 +1,5 @@
 import { updateExerciseOrder } from '@/api/Exercises';
+import type { OptimizationCheckResponse } from '@/api/types/workout';
 import { theme } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useRef, useState } from 'react';
@@ -24,6 +25,8 @@ interface WorkoutExerciseDetailsViewProps {
     onUpdateSet?: (setId: number, updatedSet: any) => void;
     onShowStatistics?: (exerciseId: number) => void;
     onInputFocus?: (index: number) => void;
+    /** Map of workoutExerciseId → optimization check result */
+    optimizationResults?: Record<number, OptimizationCheckResponse>;
 }
 
 export default function WorkoutExerciseDetailsView({
@@ -38,7 +41,8 @@ export default function WorkoutExerciseDetailsView({
     onDeleteSet,
     onUpdateSet,
     onShowStatistics,
-    onInputFocus
+    onInputFocus,
+    optimizationResults,
 }: WorkoutExerciseDetailsViewProps) {
     const insets = useSafeAreaInsets();
     const [lockedExerciseIds, setLockedExerciseIds] = useState<Set<number>>(new Set());
@@ -145,6 +149,7 @@ export default function WorkoutExerciseDetailsView({
                     onShowStatistics={onShowStatistics}
                     drag={drag}
                     exerciseIndex={exerciseIndex}
+                    optimizationData={optimizationResults?.[item.id] ?? null}
                 />
             );
         } else {

@@ -4,6 +4,7 @@ import React from 'react';
 import { Alert, StyleSheet, Text, Pressable, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useCreateWorkout } from '@/hooks/useWorkout';
+import { formatLocalISO } from '@/utils/dateTime';
 
 interface StartWorkoutMenuProps {
   visible: boolean;
@@ -24,15 +25,18 @@ export default function StartWorkoutMenu({
 }: StartWorkoutMenuProps) {
   const createWorkoutMutation = useCreateWorkout();
   const selectedDate = useDateStore((s) => s.today);
-  const isSelectedToday =
-    selectedDate.toDateString() === new Date().toDateString();
+  const isSelectedToday = selectedDate.toDateString() === new Date().toDateString();
 
   if (!visible) return null;
 
   const handleRestDay = async () => {
     onClose();
     try {
-      await createWorkoutMutation.mutateAsync({ title: 'Rest Day', is_rest_day: true });
+      await createWorkoutMutation.mutateAsync({
+        title: 'Rest Day',
+        is_rest_day: true,
+        date: formatLocalISO(new Date()),
+      });
       onRefresh();
     } catch (error) {
       console.error('Error creating rest day:', error);

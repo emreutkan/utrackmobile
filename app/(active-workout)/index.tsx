@@ -1,5 +1,6 @@
 import ExerciseSearchModal from '@/components/ExerciseSearchModal';
 import WorkoutDetailView from '@/components/shared/workout/WorkoutDetailView';
+import SuggestExerciseRow from '@/components/shared/workout/SuggestExerciseRow';
 import { theme } from '@/constants/theme';
 import { useActiveWorkoutStore } from '@/state/userStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,12 +9,18 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useActiveWorkout, useCompleteWorkout, useRestTimerState } from '@/hooks/useWorkout';
+import { useActiveWorkout, useCompleteWorkout, useRestTimerState, useSuggestNextExercise } from '@/hooks/useWorkout';
 import { useAddExerciseToWorkout, useRemoveExerciseFromWorkout, useAddSetToExercise, useDeleteSet } from '@/hooks/useExercises';
+import { getExerciseOptimizationCheck } from '@/api/Workout';
+import type { OptimizationCheckResponse } from '@/api/types/workout';
 
 export default function ActiveWorkoutScreen() {
     const [elapsedTime, setElapsedTime] = useState('00:00:00');
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [modalInitialSearch, setModalInitialSearch] = useState('');
+
+    // Optimization check results: keyed by workoutExerciseId
+    const [optimizationResults, setOptimizationResults] = useState<Record<number, OptimizationCheckResponse>>({});
 
     // Rest timer state from Zustand
     const { setLastSetTimestamp, setLastExerciseCategory } = useActiveWorkoutStore();
@@ -26,6 +33,9 @@ export default function ActiveWorkoutScreen() {
     const removeExerciseMutation = useRemoveExerciseFromWorkout();
     const addSetMutation = useAddSetToExercise();
     const deleteSetMutation = useDeleteSet();
+
+    // Suggest next exercise — shown above the footer add button
+    const { data: suggestions, isLoading: isSuggestLoading, refetch: refetchSuggestions } = useSuggestNextExercise(!!activeWorkout);
 
     // Sync rest timer state to Zustand when it changes
     useEffect(() => {
@@ -60,15 +70,40 @@ export default function ActiveWorkoutScreen() {
         if (!activeWorkout?.id) return;
 
         try {
-            await addExerciseMutation.mutateAsync({
+            const result = await addExerciseMutation.mutateAsync({
                 workoutId: activeWorkout.id,
                 exerciseId,
             });
             setIsModalVisible(false);
+            setModalInitialSearch('');
+
+            // Non-blocking: run optimization check for the newly added exercise
+            const workoutExerciseId: number | undefined = (result as any)?.id;
+            if (workoutExerciseId) {
+                getExerciseOptimizationCheck(workoutExerciseId)
+                    .then((data) => {
+                        setOptimizationResults((prev) => ({
+                            ...prev,
+                            [workoutExerciseId]: data,
+                        }));
+                    })
+                    .catch((err) => {
+                        // Non-blocking — silently ignore errors
+                        console.warn('[OptimizationCheck] failed:', err);
+                    });
+            }
+
+            // Refresh suggestions after a new exercise is added
+            refetchSuggestions();
         } catch (error) {
             console.error("Failed to add exercise:", error);
             alert("Failed to add exercise");
         }
+    };
+
+    const handleMusclePress = (muscleGroup: string) => {
+        setModalInitialSearch(muscleGroup);
+        setIsModalVisible(true);
     };
 
     const handleRemoveExercise = async (workoutExerciseId: number) => {
@@ -119,6 +154,8 @@ export default function ActiveWorkoutScreen() {
             });
             // Refresh rest timer state from backend after successful set addition
             refetchRestTimer();
+            // Refresh suggestions — logged sets affect recovery-based recommendations
+            refetchSuggestions();
         } catch (error: any) {
             // Handle validation errors from the API
             if (error?.response?.data?.validationErrors) {
@@ -273,13 +310,27 @@ export default function ActiveWorkoutScreen() {
                 onUpdateSet={handleUpdateSet}
                 onCompleteWorkout={handleFinishWorkout}
                 onShowStatistics={(exerciseId: number) => router.push(`/(exercise-statistics)/${exerciseId}`)}
+                optimizationResults={optimizationResults}
             />
             <ExerciseSearchModal
                 visible={isModalVisible}
-                onClose={() => setIsModalVisible(false)}
+                onClose={() => {
+                    setIsModalVisible(false);
+                    setModalInitialSearch('');
+                }}
                 onSelectExercise={handleAddExercise}
                 title="Add Exercise"
+                initialSearch={modalInitialSearch}
             />
+
+            {/* Suggest exercise strip — shown just above the footer */}
+            <View style={[styles.suggestContainer, { paddingBottom: insets.bottom + 72 }]}>
+                <SuggestExerciseRow
+                    suggestions={suggestions?.suggestions ?? []}
+                    isLoading={isSuggestLoading}
+                    onMusclePress={handleMusclePress}
+                />
+            </View>
 
             {/* Footer */}
             <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
@@ -391,6 +442,13 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '800',
         letterSpacing: 1,
+    },
+    suggestContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        pointerEvents: 'box-none',
     },
     footer: {
         position: 'absolute',

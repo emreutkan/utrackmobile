@@ -18,7 +18,9 @@ import {
   UPDATE_SET_URL,
   DELETE_WORKOUT_EXERCISE_URL,
   UPDATE_EXERCISE_ORDER_URL,
+  OVERLOAD_TREND_URL,
 } from './types';
+import type { OverloadTrendResponse } from './types/volume';
 
 export const getExercises = async (
   search: string = '',
@@ -94,6 +96,13 @@ export const getExerciseSetHistory = async (
 
 export const getExerciseLastWorkout = async (exerciseId: number): Promise<unknown> => {
   const url = EXERCISE_LAST_WORKOUT_URL.replace(':exercise_id', exerciseId.toString());
+  return apiClient.get(url).json();
+};
+
+export const getExerciseOverloadTrend = async (
+  exerciseId: number
+): Promise<OverloadTrendResponse> => {
+  const url = OVERLOAD_TREND_URL.replace(':exercise_id', exerciseId.toString());
   return apiClient.get(url).json();
 };
 

@@ -25,7 +25,7 @@ const StatsCard = ({ icon, value, label, color, unit }: StatsCardProps) => (
       {unit && <Text style={styles.cardUnit}>{unit.toUpperCase()}</Text>}
     </View>
     <View style={styles.miniGraphWrapper}>
-      <Svg width="100%" height="30">
+      <Svg width="100%" height="30" onLayout={() => {}}>
         <Path
           d="M 0 15 Q 25 5, 50 20 T 100 15 T 150 25 T 200 10"
           fill="none"

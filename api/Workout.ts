@@ -20,6 +20,8 @@ import type {
   StartTemplateWorkoutResponse,
   WorkoutSummaryResponse,
   UserStats,
+  SuggestNextExerciseResponse,
+  OptimizationCheckResponse,
 } from './types/workout';
 import {
   CREATE_WORKOUT_URL,
@@ -43,6 +45,8 @@ import {
   CHECK_TODAY_URL,
   RECOVERY_STATUS_URL,
   USER_STATS_URL,
+  SUGGEST_EXERCISE_URL,
+  OPTIMIZATION_CHECK_URL,
 } from './types/';
 import type { PaginatedResponse } from './types/pagination';
 export const createWorkout = async (
@@ -223,5 +227,19 @@ export const getRecoveryStatus = async (): Promise<RecoveryStatusResponse | any>
 
 export const getUserStats = async (): Promise<UserStats> => {
   const response = await apiClient.get(USER_STATS_URL);
+  return response.json();
+};
+
+export const getSuggestNextExercise = async (): Promise<SuggestNextExerciseResponse> => {
+  const response = await apiClient.get(SUGGEST_EXERCISE_URL, { throwHttpErrors: false });
+  if (!response.ok) return { suggestions: [], has_active_workout: false };
+  return response.json();
+};
+
+export const getExerciseOptimizationCheck = async (
+  workoutExerciseId: number
+): Promise<OptimizationCheckResponse> => {
+  const url = OPTIMIZATION_CHECK_URL.replace(':workout_exercise_id', workoutExerciseId.toString());
+  const response = await apiClient.get(url);
   return response.json();
 };

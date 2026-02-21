@@ -1,4 +1,5 @@
 import { getExerciseSetHistory, updateSet } from '@/api/Exercises';
+import type { OptimizationCheckResponse } from '@/api/types/workout';
 import { theme } from '@/constants/theme';
 import React, { useEffect, useState } from 'react';
 import { Alert, Platform, StyleSheet, Pressable, View } from 'react-native';
@@ -11,6 +12,7 @@ import { SetsHeader } from '@/components/shared/SetsHeader';
 import { SetRow } from '@/components/shared/exercise-cards/SetRow';
 import { AddSetRowWithTUT } from '@/components/shared/exercise-cards/AddSetRowWithTUT';
 import { HistorySection } from '@/components/shared/exercise-cards/HistorySection';
+import OptimizationWarningBanner from './OptimizationWarningBanner';
 
 interface ActiveWorkoutExerciseCardProps {
     workoutExercise: any;
@@ -25,6 +27,8 @@ interface ActiveWorkoutExerciseCardProps {
     onShowStatistics?: (exerciseId: number) => void;
     drag?: any;
     exerciseIndex?: number;
+    /** Optimization check result for this exercise (shown as a non-blocking banner) */
+    optimizationData?: OptimizationCheckResponse | null;
 }
 
 export const ActiveWorkoutExerciseCard = ({
@@ -39,7 +43,8 @@ export const ActiveWorkoutExerciseCard = ({
     onShowInfo,
     onShowStatistics,
     drag,
-    exerciseIndex
+    exerciseIndex,
+    optimizationData,
 }: ActiveWorkoutExerciseCardProps) => {
     const exercise = workoutExercise.exercise || (workoutExercise.name ? workoutExercise : null);
 
@@ -161,6 +166,11 @@ export const ActiveWorkoutExerciseCard = ({
                         setHistory={setHistory}
                         isLoadingHistory={isLoadingHistory}
                     />
+                )}
+
+                {/* Optimization warning — shown after exercise is added, non-blocking */}
+                {optimizationData && optimizationData.overall_status !== 'optimal' && (
+                    <OptimizationWarningBanner data={optimizationData} />
                 )}
 
                 {(sets.length > 0 || !isLocked) && (

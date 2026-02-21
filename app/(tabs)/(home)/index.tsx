@@ -16,7 +16,13 @@ import MuscleRecoverySection from './components/MuscleRecoverySection';
 import StartWorkoutMenu from './components/StartWorkoutMenu';
 import TemplatesSection from './components/TemplatesSection';
 import { getCalendar, getCalendarStats } from '@/api/Workout';
-import { useDeleteWorkout, useSetSelectedDate, useWorkouts, useCreateWorkout, useTodayStatus } from '@/hooks/useWorkout';
+import {
+  useDeleteWorkout,
+  useSetSelectedDate,
+  useWorkouts,
+  useCreateWorkout,
+  useTodayStatus,
+} from '@/hooks/useWorkout';
 
 export default function Home() {
   const insets = useSafeAreaInsets();
@@ -212,11 +218,13 @@ export default function Home() {
           onRestDay={handleRestDay}
         />
 
-        <CalendarStrip onPress={() => {
-          setShowCalendarModal(true);
-          fetchCalendar(selectedYear, selectedMonth);
-          fetchCalendarStats(selectedYear, selectedMonth);
-        }} />
+        <CalendarStrip
+          onPress={() => {
+            setShowCalendarModal(true);
+            fetchCalendar(selectedYear, selectedMonth);
+            fetchCalendarStats(selectedYear, selectedMonth);
+          }}
+        />
 
         <MuscleRecoverySection onPress={() => router.push('/(recovery-status)')} />
 
@@ -272,5 +280,5 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  scrollContent: { padding: theme.spacing.s, paddingTop: theme.spacing.xl },
+  scrollContent: { padding: theme.spacing.s, paddingTop: theme.spacing.xl, paddingBottom: 100 },
 });

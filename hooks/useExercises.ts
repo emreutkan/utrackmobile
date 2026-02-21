@@ -9,6 +9,7 @@ import {
   updateExerciseOrder,
   getExercise1RMHistory,
   getExerciseSetHistory,
+  getExerciseOverloadTrend,
   type AddSetRequest,
   type UpdateSetRequest,
 } from '@/api/Exercises';
@@ -102,6 +103,17 @@ export const useDeleteSet = () => {
       queryClient.invalidateQueries({ queryKey: ['workout'] });
       queryClient.invalidateQueries({ queryKey: ['active-workout'] });
     },
+  });
+};
+
+// Exercise overload trend query (PRO only)
+export const useExerciseOverloadTrend = (exerciseId: number | null) => {
+  return useQuery({
+    queryKey: ['exercise-overload-trend', exerciseId],
+    queryFn: () => getExerciseOverloadTrend(exerciseId!),
+    enabled: exerciseId !== null,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: false, // Don't retry on 403 (non-pro users)
   });
 };
 

@@ -1,4 +1,5 @@
 import { useActiveWorkoutStore } from '@/state/userStore';
+import type { OptimizationCheckResponse } from '@/api/types/workout';
 import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,9 +22,10 @@ interface WorkoutDetailViewProps {
     onUpdateSet?: (setId: number, updatedSet: any) => void;
     onCompleteWorkout?: () => void;
     onShowStatistics?: (exerciseId: number) => void;
+    optimizationResults?: Record<number, OptimizationCheckResponse>;
 }
 
-export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEditMode = false, isViewOnly = false, onAddExercise, onRemoveExercise, onAddSet, onDeleteSet, onUpdateSet, onCompleteWorkout, onShowStatistics }: WorkoutDetailViewProps) {
+export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEditMode = false, isViewOnly = false, onAddExercise, onRemoveExercise, onAddSet, onDeleteSet, onUpdateSet, onCompleteWorkout, onShowStatistics, optimizationResults }: WorkoutDetailViewProps) {
     const insets = useSafeAreaInsets();
     const [exercises, setExercises] = useState(workout?.exercises || []);
 
@@ -84,6 +86,7 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
                             onUpdateSet={onUpdateSet}
                             onShowStatistics={onShowStatistics}
                             onInputFocus={handleInputFocus}
+                            optimizationResults={optimizationResults}
                         />
                     </ScrollView>
                 </View>
@@ -126,6 +129,7 @@ export default function WorkoutDetailView({ workout, elapsedTime, isActive, isEd
                         onUpdateSet={onUpdateSet}
                         onShowStatistics={onShowStatistics}
                         onInputFocus={handleInputFocus}
+                        optimizationResults={optimizationResults}
                     />
                 </KeyboardAvoidingView>
             </View>

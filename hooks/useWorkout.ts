@@ -23,7 +23,11 @@ import {
   checkToday,
   getRecoveryStatus,
   getUserStats,
+  getSuggestNextExercise,
+  getExerciseOptimizationCheck,
 } from '@/api/Workout';
+import { getVolumeAnalysis } from '@/api/VolumeAnalysis';
+import type { VolumeAnalysisFilters } from '@/api/types';
 import type {
   CreateWorkoutRequest,
   UpdateWorkoutRequest,
@@ -294,6 +298,38 @@ export const useUserStats = () => {
     queryKey: ['user-stats'],
     queryFn: getUserStats,
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
+
+// Volume analysis query
+export const useVolumeAnalysis = (filters?: VolumeAnalysisFilters) => {
+  return useQuery({
+    queryKey: ['volume-analysis', filters?.weeks_back, filters?.start_date, filters?.end_date],
+    queryFn: () => getVolumeAnalysis(filters),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
+
+// Suggest next exercise query — refreshes whenever active workout changes
+export const useSuggestNextExercise = (enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ['suggest-next-exercise'],
+    queryFn: getSuggestNextExercise,
+    enabled,
+    staleTime: 1000 * 30, // 30 seconds — muscles recover over time
+    refetchOnWindowFocus: false,
+  });
+};
+
+// Optimization check — fetched on demand; callers trigger via queryClient.fetchQuery or useQuery with enabled flag
+export const useExerciseOptimizationCheck = (workoutExerciseId: number | null) => {
+  return useQuery({
+    queryKey: ['optimization-check', workoutExerciseId],
+    queryFn: () => getExerciseOptimizationCheck(workoutExerciseId!),
+    enabled: workoutExerciseId !== null,
+    staleTime: 1000 * 60 * 2,
+    retry: false, // Don't retry on error — show result immediately
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
   });
 };
 

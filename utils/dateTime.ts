@@ -63,6 +63,17 @@ export function toDateString(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/** Format Date to YYYY-MM-DDTHH:mm:ss for API (preserves local time). */
+export function formatLocalISO(date: Date): string {
+  const y = date.getFullYear();
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  const h = date.getHours().toString().padStart(2, '0');
+  const min = date.getMinutes().toString().padStart(2, '0');
+  const s = date.getSeconds().toString().padStart(2, '0');
+  return `${y}-${m}-${d}T${h}:${min}:${s}`;
+}
+
 export function getRelativeTime(date: Date | string | null | undefined): string {
   if (!date) return '';
 

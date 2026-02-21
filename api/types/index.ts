@@ -53,6 +53,10 @@ export const AVAILABLE_YEARS_URL = `workout/years/`;
 export const CHECK_TODAY_URL = `workout/check-today/`;
 export const RECOVERY_STATUS_URL = `workout/recovery/status/`;
 export const USER_STATS_URL = `workout/user-stats/`;
+export const VOLUME_ANALYSIS_URL = `workout/volume-analysis/`;
+export const OVERLOAD_TREND_URL = `workout/exercise/:exercise_id/overload-trend/`;
+export const SUGGEST_EXERCISE_URL = `workout/active/suggest-exercise/`;
+export const OPTIMIZATION_CHECK_URL = `workout/exercise/:workout_exercise_id/optimization-check/`;
 
 export const TEMPLATE_CREATE_URL = `workout/template/create/`;
 export const TEMPLATE_LIST_URL = `workout/template/list/`;

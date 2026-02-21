@@ -2,6 +2,7 @@ import { getExercise1RMHistory, getExerciseSetHistory } from '@/api/Exercises';
 import { Exercise1RMHistory, ExerciseRanking } from '@/api/types/exercise';
 import UpgradeModal from '@/components/UpgradeModal';
 import { theme } from '@/constants/theme';
+import { useExerciseOverloadTrend } from '@/hooks/useExercises';
 import { useUser } from '@/hooks/useUser';
 import { useSettingsStore } from '@/state/userStore';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EmptyState from './components/EmptyState';
 import KeyMetrics from './components/KeyMetrics';
 import OneRMHistory from './components/OneRMHistory';
+import OverloadTrendCard from './components/OverloadTrendCard';
 import PerformanceHistory from './components/PerformanceHistory';
 import RankingCard from './components/RankingCard';
 import RMProgressionChart from './components/RMProgressionChart';
@@ -29,6 +31,9 @@ export default function ExerciseStatisticsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const insets = useSafeAreaInsets();
+
+  // Overload trend — only fetched for PRO users (returns 403 otherwise, retry: false)
+  const { data: overloadTrend } = useExerciseOverloadTrend(isPro && exerciseId ? exerciseId : null);
 
   const fetchData = useCallback(async () => {
     if (!exerciseId || isNaN(exerciseId)) {
@@ -138,6 +143,8 @@ export default function ExerciseStatisticsScreen() {
           showsVerticalScrollIndicator={false}
         >
           <KeyMetrics best1RM={best1RM} progressionPct={progressionPct} />
+
+          {overloadTrend && <OverloadTrendCard data={overloadTrend} />}
 
           {ranking && <RankingCard ranking={ranking} />}
 

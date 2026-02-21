@@ -1,5 +1,5 @@
 import { getWorkout, getWorkoutSummary } from '@/api/Workout';
-import { WorkoutSummaryResponse, Workout } from '@/api/types/index';
+import { WorkoutSummaryResponse, Workout, WorkoutDiagnosis } from '@/api/types/index';
 import { theme } from '@/constants/theme';
 import UpgradePrompt from '@/components/UpgradePrompt';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +21,137 @@ import { getErrorMessage } from '@/api/errorHandler';
 import { useSettingsStore } from '@/state/stores/settingsStore';
 import StatsCard from './components/StatsCard';
 import AnalysisRow from './components/analysisRow';
+
+// ============================================================================
+// DIAGNOSIS CARD
+// ============================================================================
+
+const DIAGNOSIS_CONFIG = {
+  good_session: {
+    icon: 'checkmark-circle' as const,
+    color: '#34d399',
+    label: 'GREAT SESSION',
+  },
+  fatigue_accumulation: {
+    icon: 'moon' as const,
+    color: '#ff9f0a',
+    label: 'FATIGUE DETECTED',
+  },
+  performance_drop: {
+    icon: 'warning' as const,
+    color: '#ff9f0a',
+    label: 'PERFORMANCE DROP',
+  },
+  overreaching: {
+    icon: 'flame' as const,
+    color: '#ff453a',
+    label: 'OVERREACHING',
+  },
+  insufficient_data: {
+    icon: 'information-circle' as const,
+    color: '#636366',
+    label: 'INSUFFICIENT DATA',
+  },
+} as const;
+
+function DiagnosisCard({ diagnosis }: { diagnosis: WorkoutDiagnosis }) {
+  const config = DIAGNOSIS_CONFIG[diagnosis.primary_issue];
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <View style={diagnosisStyles.card}>
+      <View style={diagnosisStyles.header}>
+        <View style={[diagnosisStyles.iconContainer, { backgroundColor: `${config.color}15`, borderColor: `${config.color}30` }]}>
+          <Ionicons name={config.icon} size={20} color={config.color} />
+        </View>
+        <View style={diagnosisStyles.headerText}>
+          <Text style={diagnosisStyles.diagLabel}>{config.label}</Text>
+          <Text style={diagnosisStyles.neuralSubtitle}>SESSION DIAGNOSIS</Text>
+        </View>
+      </View>
+
+      <Text style={diagnosisStyles.message}>{diagnosis.message}</Text>
+
+      <Pressable onPress={() => setExpanded(!expanded)} style={diagnosisStyles.recommendationToggle}>
+        <Text style={diagnosisStyles.recommendationLabel}>RECOMMENDATION</Text>
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={theme.colors.text.tertiary} />
+      </Pressable>
+
+      {expanded && (
+        <View style={[diagnosisStyles.recommendationBody, { borderColor: `${config.color}25` }]}>
+          <Text style={diagnosisStyles.recommendationText}>{diagnosis.recommendation}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const diagnosisStyles = StyleSheet.create({
+  card: {
+    backgroundColor: theme.colors.ui.glass,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.ui.border,
+    marginBottom: 0,
+  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  headerText: { flex: 1 },
+  diagLabel: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: theme.colors.text.primary,
+    letterSpacing: 0.5,
+  },
+  neuralSubtitle: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: theme.colors.text.tertiary,
+    letterSpacing: 1,
+    marginTop: 1,
+  },
+  message: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+    lineHeight: 20,
+    fontWeight: '500',
+    marginBottom: 14,
+  },
+  recommendationToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  recommendationLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: theme.colors.text.tertiary,
+    letterSpacing: 1,
+  },
+  recommendationBody: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  recommendationText: {
+    fontSize: 13,
+    color: theme.colors.text.secondary,
+    lineHeight: 19,
+    fontWeight: '400',
+  },
+});
+
+// ============================================================================
 
 const WorkoutSummaryScreen = () => {
   const { workoutId } = useLocalSearchParams<{ workoutId: string }>();
@@ -241,6 +372,12 @@ const WorkoutSummaryScreen = () => {
                     </View>
                   )}
                 </View>
+
+                {summary.diagnosis && (
+                  <View style={{ marginTop: 12 }}>
+                    <DiagnosisCard diagnosis={summary.diagnosis} />
+                  </View>
+                )}
 
                 {!isPro && !summary.is_pro && (
                   <UpgradePrompt

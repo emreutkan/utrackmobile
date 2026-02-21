@@ -73,13 +73,13 @@ export default function ChatScreen() {
         {...props}
         wrapperStyle={{
           right: {
-            backgroundColor: theme.colors.status.rest, // Purple for user
-            borderRadius: theme.borderRadius.l,
+            backgroundColor: theme.colors.status.active, // Active blue/primary for user
+            borderRadius: theme.borderRadius.xl,
             padding: 4,
           },
           left: {
-            backgroundColor: 'rgba(24, 24, 27, 0.6)', // Valid Theme equivalent glass color
-            borderRadius: theme.borderRadius.l,
+            backgroundColor: theme.colors.ui.glassStrong, // Standard app glass color
+            borderRadius: theme.borderRadius.xl,
             borderWidth: 1,
             borderColor: 'rgba(255, 255, 255, 0.05)',
             padding: 4,
@@ -103,7 +103,7 @@ export default function ChatScreen() {
     return (
       <Send {...props}>
         <View style={styles.sendButton}>
-          <Ionicons name="send" size={20} color={theme.colors.status.rest} />
+          <Ionicons name="send" size={20} color={theme.colors.status.active} />
         </View>
       </Send>
     );
@@ -124,7 +124,7 @@ export default function ChatScreen() {
       <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.headerTextContainer}>
-            <Ionicons name="sparkles" size={16} color={theme.colors.status.rest} />
+            <Ionicons name="sparkles" size={16} color={theme.colors.status.active} />
             <Animated.Text style={styles.headerTitle}>Force AI Assistant</Animated.Text>
           </View>
         </View>
@@ -156,10 +156,9 @@ const styles = StyleSheet.create({
   header: {
     height: 60,
     justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)', // theme border
     position: 'relative',
     overflow: 'hidden',
+    zIndex: 10,
   },
   headerContent: {
     flexDirection: 'row',
@@ -183,12 +182,12 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   inputToolbar: {
-    backgroundColor: 'rgba(24, 24, 27, 0.6)',
+    backgroundColor: theme.colors.ui.glassStrong,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    borderTopColor: theme.colors.ui.border,
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: theme.borderRadius.xl,
+    borderRadius: theme.borderRadius.full,
     marginHorizontal: theme.spacing.m,
     marginBottom: theme.spacing.s,
   },

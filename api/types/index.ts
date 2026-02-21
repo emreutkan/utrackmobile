@@ -6,6 +6,7 @@ export * from './measurements';
 export * from './workout';
 export * from './pagination';
 export * from './volume';
+export * from './chat';
 
 export const CREATE_CALENDAR_URL = `workout/calendar/create/`;
 export const GET_CALENDAR_URL = `workout/calendar/`;
@@ -62,6 +63,13 @@ export const TEMPLATE_CREATE_URL = `workout/template/create/`;
 export const TEMPLATE_LIST_URL = `workout/template/list/`;
 export const TEMPLATE_DELETE_URL = `workout/template/delete/:id/`;
 export const TEMPLATE_START_URL = `workout/template/start/`;
+
+// Chat API endpoints
+export const GET_CHAT_SESSIONS_URL = `chat/session/`;
+export const CREATE_CHAT_SESSION_URL = `chat/session/`;
+export const GET_CHAT_SESSION_URL = `chat/session/:id/`;
+export const DELETE_CHAT_SESSION_URL = `chat/session/:id/`;
+export const SEND_CHAT_MESSAGE_URL = `chat/session/:id/message/`;
 
 // Supplements API endpoints - disabled
 // export const GET_USER_SUPPLEMENTS_URL = `supplements/user/list/`;

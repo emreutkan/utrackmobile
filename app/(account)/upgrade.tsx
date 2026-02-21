@@ -131,16 +131,18 @@ export default function UpgradeScreen() {
         style={styles.gradientBg}
       />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={commonStyles.backButton}
-        >
-          <Ionicons name="chevron-back" size={24} color={theme.colors.text.zinc600} />
-        </Pressable>
-      </View>
+      {/* Fallback back button for loading/error states */}
+      {(isLoadingOfferings || offeringsError || !offering) && (
+        <View style={styles.fallbackHeader}>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={commonStyles.backButton}
+          >
+            <Ionicons name="chevron-back" size={28} color={theme.colors.text.zinc600} />
+          </Pressable>
+        </View>
+      )}
 
       {isLoadingOfferings ? (
         <View style={styles.loadingContainer}>
@@ -163,12 +165,19 @@ export default function UpgradeScreen() {
         >
           {/* Hero */}
           <View style={styles.heroSection}>
-            <View style={styles.proBadge}>
-              <Ionicons name="star" size={12} color={theme.colors.status.rest} />
-              <Text style={styles.proBadgeText}>PRO ACCESS</Text>
+            <View style={styles.titleRow}>
+              <Pressable
+                onPress={() => router.back()}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={styles.backButton}
+              >
+                <Ionicons name="chevron-back" size={32} color={theme.colors.text.zinc600} />
+              </Pressable>
+              <View style={styles.titleTextContainer}>
+                <Text style={styles.heroTitle}>UNLOCK{'\n'}PRO</Text>
+                <Text style={styles.authorityText}>RECOVERY · RESEARCH · ANALYTICS</Text>
+              </View>
             </View>
-            <Text style={styles.heroTitle}>UNLOCK{'\n'}PRO</Text>
-            <Text style={styles.authorityText}>RECOVERY · RESEARCH · ANALYTICS</Text>
           </View>
 
           {/* Features */}
@@ -238,46 +247,38 @@ const styles = StyleSheet.create({
   gradientBg: {
     ...StyleSheet.absoluteFillObject,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  fallbackHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 10,
     paddingHorizontal: theme.spacing.l,
     paddingTop: theme.spacing.l,
-    paddingBottom: theme.spacing.s,
   },
   scrollContent: {
     padding: theme.spacing.m,
-    paddingTop: theme.spacing.s,
+    paddingTop: 0,
   },
   heroSection: {
-    alignItems: 'center',
     marginBottom: theme.spacing.xl,
+    marginTop: 0,
   },
-  proBadge: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(192, 132, 252, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(192, 132, 252, 0.3)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: theme.borderRadius.full,
-    marginBottom: theme.spacing.m,
   },
-  proBadgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    color: theme.colors.status.rest,
+  backButton: {
+    marginRight: theme.spacing.m,
+  },
+  titleTextContainer: {
+    flex: 1,
   },
   heroTitle: {
     ...typographyStyles.h1,
     fontSize: 52,
     lineHeight: 56,
-    textAlign: 'center',
-    marginBottom: theme.spacing.s,
+    textAlign: 'left',
+    marginBottom: 4,
     letterSpacing: -2.5,
   },
   authorityText: {
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.5,
     color: theme.colors.text.secondary,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   loadingContainer: {
     flex: 1,

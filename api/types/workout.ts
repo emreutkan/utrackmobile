@@ -121,6 +121,8 @@ export type CompleteWorkoutRequest = {
   duration?: number;
   intensity?: 'low' | 'medium' | 'high';
   notes?: string;
+  normalize_duration?: boolean;
+  proceed_as_is?: boolean;
 };
 
 export type CompleteWorkoutResponse = Workout;
@@ -313,11 +315,7 @@ export type SuggestNextExerciseResponse = {
 
 // ============== Optimization Check ==============
 export type OptimizationWarning = {
-  type:
-    | 'primary_not_recovered'
-    | 'secondary_not_recovered'
-    | 'high_volume'
-    | 'excessive_volume';
+  type: 'primary_not_recovered' | 'secondary_not_recovered' | 'high_volume' | 'excessive_volume';
   severity: 'error' | 'warning';
   muscle: string;
   recovery_percent?: number;

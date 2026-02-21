@@ -107,12 +107,20 @@ export const useCompleteWorkout = () => {
       data,
     }: {
       workoutId: number;
-      data?: { duration?: string; intensity?: number; notes?: string };
+      data?: {
+        duration?: string;
+        intensity?: number;
+        notes?: string;
+        normalize_duration?: boolean;
+        proceed_as_is?: boolean;
+      };
     }) =>
       completeWorkout(workoutId, {
         duration: data?.duration != null ? Number(data.duration) : undefined,
         intensity: data?.intensity as 'low' | 'medium' | 'high' | undefined,
         notes: data?.notes,
+        normalize_duration: data?.normalize_duration,
+        proceed_as_is: data?.proceed_as_is,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workouts'] });
@@ -216,8 +224,13 @@ export const useUpdateWorkout = () => {
 export const useAddExerciseToPastWorkout = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ workoutId, request }: { workoutId: number; request: AddExerciseToWorkoutRequest }) =>
-      addExerciseToPastWorkout(workoutId, request),
+    mutationFn: ({
+      workoutId,
+      request,
+    }: {
+      workoutId: number;
+      request: AddExerciseToWorkoutRequest;
+    }) => addExerciseToPastWorkout(workoutId, request),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['workout', variables.workoutId] });
       queryClient.invalidateQueries({ queryKey: ['workouts'] });

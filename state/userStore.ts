@@ -3,8 +3,8 @@ export {
   useActiveWorkoutStore,
   useHomeLoadingStore,
   useDateStore,
-  useSupplementStore,
   useSettingsStore,
+  useChatStore,
 } from './stores';
 
 // Re-export types for backward compatibility
@@ -13,6 +13,6 @@ export type {
   ActiveWorkoutState,
   HomeLoadingState,
   DateState,
-  SupplementState,
   SettingsState,
+  ChatState,
 } from './stores';

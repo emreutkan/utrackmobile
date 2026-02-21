@@ -15,6 +15,7 @@ import HomeHeader from './components/HomeHeader';
 import MuscleRecoverySection from './components/MuscleRecoverySection';
 import StartWorkoutMenu from './components/StartWorkoutMenu';
 import TemplatesSection from './components/TemplatesSection';
+import ChatFloatingButton from './components/ChatFloatingButton';
 import { getCalendar, getCalendarStats } from '@/api/Workout';
 import {
   useDeleteWorkout,
@@ -267,6 +268,8 @@ export default function Home() {
         }}
         onDayClick={handleCalendarDayClick}
       />
+
+      <ChatFloatingButton />
     </View>
   );
 }
